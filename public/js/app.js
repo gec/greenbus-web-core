@@ -1,0 +1,11 @@
+'use strict';
+
+
+// Declare app level module which depends on filters, and services
+angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charlotte.directives'*/]).
+  config(['$routeProvider', function($routeProvider) {
+    $routeProvider.when('/measurements', {templateUrl: 'partials/measurements.html', controller: MeasurementControl});
+    $routeProvider.when('/entities', {templateUrl: 'partials/entities.html', controller: EntityControl});
+    $routeProvider.when('/entities/:entity', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl});
+    $routeProvider.otherwise({redirectTo: '/entities'});
+  }]);

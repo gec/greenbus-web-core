@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" ng-app="charlotte">
+<head>
+  <meta charset="utf-8">
+  <title>My AngularJS App</title>
+  <link rel="stylesheet" href="css/app.css"/>
+  <link rel="stylesheet" href="css/bootstrap.css">
+    <style type="text/css">
+        body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+        }
+        .sidebar-nav {
+        padding: 9px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container-fluid">
+                <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </a>
+                <a class="brand" href="#">Reef</a>
+                <div class="nav-collapse collapse">
+                    <!--<p class="navbar-text pull-right">
+                        Logged in as <a href="#" class="navbar-link">Username</a>
+                    </p>-->
+                    <!--<ul class="nav">
+                        <li class="active"><a href="#">Home</a></li>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>-->
+                </div><!--/.nav-collapse -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid" ng-controller="MenuControl">
+        <div class="row-fluid">
+            <div class="span2">
+                <!--<div ng-include src="'menu.html'"></div>-->
+                <div class="well sidebar-nav" >
+                    <ul class="nav nav-list">
+                        <li class="nav-header">Model</li>
+                        <li ng-class="isActive('entity')"><a href="#/entities">Entities</a></li>
+                        <li><a href="#">Points</a></li>
+                        <li><a href="#">Commands</a></li>
+                        <li class="nav-header">Data</li>
+                        <li ng-class="isActive('measurement')"><a href="#/measurements">Measurements</a></li>
+                        <li><a href="#">Events</a></li>
+                        <li><a href="#">Alarms</a></li>
+                        <li class="nav-header">Actors</li>
+                        <li><a href="#">Endpoints</a></li>
+                        <li><a href="#">Applications</a></li>
+                        <li><a href="#">{{currentMenuItem}}</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="span10">
+                <!--<div ng-view></div>-->
+                <div class="row-fluid">
+                    <div class="span10">
+                        <ul class="breadcrumb">
+                            <li><a href="#">Home</a> <span class="divider">/</span></li>
+                            <li><a href="#">Library</a> <span class="divider">/</span></li>
+                            <li class="active">Data</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row-fluid">
+                    <div class="span10">
+                        <div ng-view></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <footer>
+            <p>&copy; Company 2012</p>
+        </footer>
+
+    </div>
+
+
+
+
+  <!-- In production use:
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.2/angular.min.js"></script>
+  -->
+  <script src="lib/angular/angular.js"></script>
+  <script src="lib/angular/angular-resource.js"></script>
+  <script src="http://code.jquery.com/jquery-latest.js"></script>
+  <script src="lib/angular/bootstrap.js"></script>
+ <!-- <script src="lib/reef/reef.client.js"></script>
+  <script src="lib/reef/reef.client.core-services.js"></script>-->
+  <script src="js/app.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/controllers.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/directives.js"></script>
+</body>
+</html>
