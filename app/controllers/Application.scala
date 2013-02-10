@@ -29,12 +29,23 @@ object Application extends Controller {
 
   def getEntities = Action {
 
-    val entityService: AllScadaService = client.getService(classOf[AllScadaService])
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
 
-    val entities = entityService.getEntities().await()
+    val entities = service.getEntities().await()
 
     val result = Json.toJson(entities.map(ent => Json.toJson(Map("name" -> Json.toJson(ent.getName), "types" -> Json.toJson(ent.getTypesList.toList)))))
 
+    Ok(result.toString)
+  }
+
+  def getEntityDetail(entName: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val ent = service.getEntityByName(entName).await()
+
+    val result = Json.toJson(Json.toJson(Map("name" -> Json.toJson(ent.getName), "types" -> Json.toJson(ent.getTypesList.toList), "uuid" -> Json.toJson(ent.getUuid.getValue.toString))))
+    println(result)
     Ok(result.toString)
   }
   

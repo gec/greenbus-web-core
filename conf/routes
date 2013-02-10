@@ -8,4 +8,5 @@ GET     /                           controllers.Application.index
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
 
-GET     /entities                      controllers.Application.getEntities
+GET     /entity                      controllers.Application.getEntities
+GET     /entity/*name                controllers.Application.getEntityDetail(name)

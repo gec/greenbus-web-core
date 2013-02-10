@@ -18,8 +18,8 @@ function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
     ];
 
 	var getEntities = function() {
-        $http.get('/entities').success(function(updates) {
-            $scope.entities = updates;
+        $http.get('/entity').success(function(entities) {
+            $scope.entities = entities;
         });
     };
 
@@ -27,14 +27,24 @@ function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
 }
 
 function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var entName = $routeParams.entity;
+
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Entities", url: "#/entities"},
-        { name: $routeParams.entity }
+        { name: entName }
     ];
 
     $scope.entity = { name: $routeParams.entity };
+
+    var getEntityDetail = function() {
+        $http.get('/entity/' + entName).success(function(entity) {
+            $scope.entity = entity;
+        });
+    };
+
+    getEntityDetail();
 }
 
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {

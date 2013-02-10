@@ -4,5 +4,21 @@
 <div ng-controller="EntityDetailControl">
 
     <h2>Entity: {{entity.name}}</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <tbody>
+            <tr>
+                <td>UUID</td>
+                <td>{{entity.uuid}}</td>
+            </tr>
+            <tr>
+                <td>Types</td>
+                <td>{{entity.types}}</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
 </div>
 
