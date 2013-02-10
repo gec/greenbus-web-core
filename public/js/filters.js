@@ -2,14 +2,7 @@
 
 /* Filters */
 
-/*
-angular.module('charlotte.filters', []).
-  filter('timeview', ['version', function(version) {
-    return function(text) {
-      return String(text).replace(/\%VERSION\%/mg, version);
-    }
-  }]);
-*/
+
 angular.module('charlotte.filters', []).
     filter('timeview', function() {
       return function(rawTime) {

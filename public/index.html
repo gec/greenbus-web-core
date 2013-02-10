@@ -42,7 +42,6 @@
     <div class="container-fluid" ng-controller="MenuControl">
         <div class="row-fluid">
             <div class="span2">
-                <!--<div ng-include src="'menu.html'"></div>-->
                 <div class="well sidebar-nav" >
                     <ul class="nav nav-list">
                         <li class="nav-header">Model</li>
@@ -56,18 +55,18 @@
                         <li class="nav-header">Actors</li>
                         <li><a href="#">Endpoints</a></li>
                         <li><a href="#">Applications</a></li>
-                        <li><a href="#">{{currentMenuItem}}</a></li>
                     </ul>
                 </div>
             </div>
             <div class="span10">
-                <!--<div ng-view></div>-->
                 <div class="row-fluid">
                     <div class="span10">
                         <ul class="breadcrumb">
-                            <li><a href="#">Home</a> <span class="divider">/</span></li>
-                            <li><a href="#">Library</a> <span class="divider">/</span></li>
-                            <li class="active">Data</li>
+                            <li ng-repeat="crumb in breadcrumbs" ng-class="{ active: !crumb.url }">
+                                <span ng-hide="crumb.url">{{crumb.name}}</span>
+                                <a ng-show="crumb.url" href="{{crumb.url}}">{{crumb.name}}</a>
+                                <span ng-show="crumb.url" class="divider">/</span>
+                            </li>
                         </ul>
                     </div>
                 </div>

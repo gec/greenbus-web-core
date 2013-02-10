@@ -6,22 +6,17 @@ function MenuControl($rootScope, $scope, $timeout, ReefData, $http) {
     $scope.isActive = function(menuItem) {
         return {
             active: menuItem && menuItem == $scope.currentMenuItem
-        }
-
+        };
     };
 }
 
-/*function MenuControl($rootScope, $scope, $timeout, ReefData, $http) {
-    $scope.isActive = function(menuItem) {
-        return {
-            active: menuItem && menuItem == $scope.currentMenuItem
-        }
-
-    };
-}*/
 
 function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "entity";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Entities" }
+    ];
 
     var buildEntity = function(entName, typeArray) {
 		return {
@@ -37,11 +32,20 @@ function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
 }
 function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "entity";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Entities", url: "#/entities"},
+        { name: $routeParams.entity }
+    ]
 
     $scope.entity = { name: $routeParams.entity };
 }
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "measurement";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Measurements" }
+    ];
 
     var buildMeas = function(measName, value, measUnit) {
 		return {
