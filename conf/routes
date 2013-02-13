@@ -13,4 +13,5 @@ GET     /entity/*name                controllers.Application.getEntityDetail(nam
 
 GET     /measurement                 controllers.Application.getMeasurements
 
-GET     /point                 controllers.Application.getPoints
+GET     /point                       controllers.Application.getPoints
+GET     /point/*name                 controllers.Application.getPointDetail(name)

@@ -12,6 +12,7 @@ import org.totalgrid.reef.client.settings.UserSettings
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
+import org.totalgrid.reef.client.service.proto.Model.Point
 
 object Application extends Controller {
 
@@ -121,15 +122,33 @@ object Application extends Controller {
     Ok(result.toString)
   }
 
+  private def pointToJson(point: Point, includeUuid: Boolean): JsValue = {
+    point.getUuid
+    if (!includeUuid) {
+      Json.toJson(Map("name" -> Json.toJson(point.getName), "valueType" -> Json.toJson(point.getType.toString), "unit" -> Json.toJson(point.getUnit), "endpoint" -> Json.toJson(point.getEndpoint.getName)))
+    } else {
+      Json.toJson(Map("name" -> Json.toJson(point.getName), "valueType" -> Json.toJson(point.getType.toString), "unit" -> Json.toJson(point.getUnit), "endpoint" -> Json.toJson(point.getEndpoint.getName), "uuid" -> Json.toJson(point.getUuid.getValue)))
+    }
+  }
+
   def getPoints = Action {
 
     val service: AllScadaService = client.getService(classOf[AllScadaService])
 
     val points = service.getPoints().await()
 
-    val result = Json.toJson(points.map(point => Json.toJson(Map("name" -> Json.toJson(point.getName), "valueType" -> Json.toJson(point.getType.toString), "unit" -> Json.toJson(point.getUnit), "endpoint" -> Json.toJson(point.getEndpoint.getName)))))
+    val result = Json.toJson(points.map(pointToJson(_, false)))
 
     Ok(result.toString)
+  }
+
+  def getPointDetail(pointName: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val point = service.getPointByName(pointName).await()
+
+    Ok(pointToJson(point, true))
   }
 
 }

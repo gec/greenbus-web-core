@@ -49,6 +49,19 @@ function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
     makeRequest("/point", "points", $http, $scope);
 }
 
+function PointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var pointName = $routeParams.point;
+
+    $rootScope.currentMenuItem = "point";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Points", url: "#/points"},
+        { name: pointName }
+    ];
+
+    makeRequest('/point/' + pointName, "point", $http, $scope);
+}
+
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
