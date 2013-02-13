@@ -10,6 +10,12 @@ function MenuControl($rootScope, $scope, $timeout, ReefData, $http) {
     };
 }
 
+function makeRequest(url, name, $http, $scope) {
+    $http.get(url).success(function(json) {
+        $scope[name] = json;
+    });
+}
+
 function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [
@@ -17,13 +23,7 @@ function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
         { name: "Entities" }
     ];
 
-	var getEntities = function() {
-        $http.get('/entity').success(function(entities) {
-            $scope.entities = entities;
-        });
-    };
-
-    getEntities();
+    makeRequest("/entity", "entities", $http, $scope);
 }
 
 function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
@@ -36,15 +36,7 @@ function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefDat
         { name: entName }
     ];
 
-    $scope.entity = { name: $routeParams.entity };
-
-    var getEntityDetail = function() {
-        $http.get('/entity/' + entName).success(function(entity) {
-            $scope.entity = entity;
-        });
-    };
-
-    getEntityDetail();
+    makeRequest('/entity/' + entName, "entity", $http, $scope);
 }
 
 function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
@@ -54,13 +46,7 @@ function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
         { name: "Points" }
     ];
 
-	var getPoints = function() {
-        $http.get('/point').success(function(points) {
-            $scope.points = points;
-        });
-    };
-
-    getPoints();
+    makeRequest("/point", "points", $http, $scope);
 }
 
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
@@ -70,13 +56,7 @@ function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
         { name: "Measurements" }
     ];
 
-    var getMeasurements = function() {
-        $http.get('/measurement').success(function(measurements) {
-            $scope.measurements = measurements;
-        });
-    };
-
-    getMeasurements();
+    makeRequest("/measurement", "measurements", $http, $scope);
 }
 
 function CharlotteControl($scope, $timeout, ReefData, $http) {
