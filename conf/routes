@@ -15,3 +15,6 @@ GET     /measurement                 controllers.Application.getMeasurements
 
 GET     /point                       controllers.Application.getPoints
 GET     /point/*name                 controllers.Application.getPointDetail(name)
+
+GET     /command                     controllers.Application.getCommands
+GET     /command/*name               controllers.Application.getCommandDetail(name)

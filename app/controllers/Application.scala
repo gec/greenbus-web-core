@@ -12,7 +12,7 @@ import org.totalgrid.reef.client.settings.UserSettings
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
-import org.totalgrid.reef.client.service.proto.Model.Point
+import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
 
 object Application extends Controller {
 
@@ -123,7 +123,6 @@ object Application extends Controller {
   }
 
   private def pointToJson(point: Point, includeUuid: Boolean): JsValue = {
-    point.getUuid
     if (!includeUuid) {
       Json.toJson(Map("name" -> Json.toJson(point.getName), "valueType" -> Json.toJson(point.getType.toString), "unit" -> Json.toJson(point.getUnit), "endpoint" -> Json.toJson(point.getEndpoint.getName)))
     } else {
@@ -150,5 +149,34 @@ object Application extends Controller {
 
     Ok(pointToJson(point, true))
   }
+
+  private def commandToJson(command: Command, includeUuid: Boolean): JsValue = {
+    if (!includeUuid) {
+      Json.toJson(Map("name" -> Json.toJson(command.getName), "commandType" -> Json.toJson(command.getType.toString), "displayName" -> Json.toJson(command.getDisplayName), "endpoint" -> Json.toJson(command.getEndpoint.getName)))
+    } else {
+      Json.toJson(Map("name" -> Json.toJson(command.getName), "commandType" -> Json.toJson(command.getType.toString), "displayName" -> Json.toJson(command.getDisplayName), "endpoint" -> Json.toJson(command.getEndpoint.getName), "uuid" -> Json.toJson(command.getUuid.getValue)))
+    }
+  }
+
+  def getCommands = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val commands = service.getCommands().await()
+
+    val result = Json.toJson(commands.map(commandToJson(_, false)))
+
+    Ok(result.toString)
+  }
+
+  def getCommandDetail(commandName: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val command = service.getCommandByName(commandName).await()
+
+    Ok(commandToJson(command, true))
+  }
+
 
 }

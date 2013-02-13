@@ -62,6 +62,29 @@ function PointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData
     makeRequest('/point/' + pointName, "point", $http, $scope);
 }
 
+function CommandControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "command";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Commands" }
+    ];
+
+    makeRequest("/command", "commands", $http, $scope);
+}
+
+function CommandDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var commandName = $routeParams.command;
+
+    $rootScope.currentMenuItem = "command";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Commands", url: "#/commands"},
+        { name: commandName }
+    ];
+
+    makeRequest('/command/' + commandName, "command", $http, $scope);
+}
+
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
