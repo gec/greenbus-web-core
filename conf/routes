@@ -10,3 +10,7 @@ GET     /assets/*file               controllers.Assets.at(path="/public", file)
 
 GET     /entity                      controllers.Application.getEntities
 GET     /entity/*name                controllers.Application.getEntityDetail(name)
+
+GET     /measurement                 controllers.Application.getMeasurements
+
+GET     /point                 controllers.Application.getPoints

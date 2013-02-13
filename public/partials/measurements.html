@@ -12,8 +12,8 @@
                     <th>Name</th>
                     <th>Value</th>
                     <th>Unit</th>
+                    <th>Quality</th>
                     <th>Time</th>
-                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
@@ -21,8 +21,8 @@
                     <td>{{meas.name}}</td>
                     <td>{{meas.value | valround}}</td>
                     <td>{{meas.unit}}</td>
+                    <td>{{meas.shortQuality}}</td>
                     <td>{{meas.time | timeview}}</td>
-                    <td>{{meas.count}}</td>
                 </tr>
             </tbody>
         </table>

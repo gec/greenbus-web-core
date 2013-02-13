@@ -7,5 +7,6 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     $routeProvider.when('/measurements', {templateUrl: 'partials/measurements.html', controller: MeasurementControl});
     $routeProvider.when('/entities', {templateUrl: 'partials/entities.html', controller: EntityControl});
     $routeProvider.when('/entities/:entity', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl});
+    $routeProvider.when('/points', {templateUrl: 'partials/points.html', controller: PointControl});
     $routeProvider.otherwise({redirectTo: '/entities'});
   }]);

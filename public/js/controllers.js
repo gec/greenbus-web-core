@@ -47,6 +47,22 @@ function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefDat
     getEntityDetail();
 }
 
+function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "point";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Points" }
+    ];
+
+	var getPoints = function() {
+        $http.get('/point').success(function(points) {
+            $scope.points = points;
+        });
+    };
+
+    getPoints();
+}
+
 function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
@@ -54,21 +70,13 @@ function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
         { name: "Measurements" }
     ];
 
-    var buildMeas = function(measName, value, measUnit) {
-		return {
-				name: measName,
-				value: value,
-				unit: measUnit,
-				time: (new Date()).valueOf(),
-				count: 0
-			};
-	};
+    var getMeasurements = function() {
+        $http.get('/measurement').success(function(measurements) {
+            $scope.measurements = measurements;
+        });
+    };
 
-	$scope.measurements = [
-        buildMeas("CN1.Meter.Power", 0, "kW"),
-        buildMeas("CN1.Meter.Energy", 0, "kWh"),
-        buildMeas("CN2.LineSensor.State", 0, "")
-    ];
+    getMeasurements();
 }
 
 function CharlotteControl($scope, $timeout, ReefData, $http) {

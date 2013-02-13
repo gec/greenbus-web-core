@@ -1,0 +1,29 @@
+
+
+
+<div ng-controller="PointControl">
+
+    <h2>Points</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Value Type</th>
+                    <th>Unit</th>
+                    <th>Endpoint</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="point in points">
+                    <td>{{point.name}}</td>
+                    <td>{{point.valueType}}</td>
+                    <td>{{point.unit}}</td>
+                    <td>{{point.endpoint}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
