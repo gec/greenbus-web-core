@@ -27,12 +27,12 @@ function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
 }
 
 function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
-    var entName = $routeParams.entity;
+    var entName = $routeParams.name;
 
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Entities", url: "#/entities"},
+        { name: "Entities", url: "#/entity"},
         { name: entName }
     ];
 
@@ -50,12 +50,12 @@ function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
 }
 
 function PointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
-    var pointName = $routeParams.point;
+    var pointName = $routeParams.name;
 
     $rootScope.currentMenuItem = "point";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Points", url: "#/points"},
+        { name: "Points", url: "#/point"},
         { name: pointName }
     ];
 
@@ -73,12 +73,12 @@ function CommandControl($rootScope, $scope, $timeout, ReefData, $http) {
 }
 
 function CommandDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
-    var commandName = $routeParams.command;
+    var commandName = $routeParams.name;
 
     $rootScope.currentMenuItem = "command";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Commands", url: "#/commands"},
+        { name: "Commands", url: "#/command"},
         { name: commandName }
     ];
 
