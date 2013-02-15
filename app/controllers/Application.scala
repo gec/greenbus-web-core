@@ -15,6 +15,7 @@ import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measuremen
 import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
 import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
+import org.totalgrid.reef.client.service.proto.Events.Event
 
 object Application extends Controller {
 
@@ -243,6 +244,30 @@ object Application extends Controller {
     val applicationConnection = service.getApplicationByName(name).await()
 
     Ok(buildApplicationJson(applicationConnection))
+  }
+
+  private def buildEventJson(event: Event): JsValue = {
+    val attr = Map("id" -> event.getId.getValue,
+      "type" -> event.getEventType,
+      "alarm" -> event.getAlarm.toString,
+      "severity" -> event.getSeverity.toString,
+      "agent" -> event.getUserId,
+      "entity" -> event.getEntity.getName,
+      "message" -> event.getRendered,
+      "time" -> event.getTime.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getEvents = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val events = service.getRecentEvents(30).await()
+
+    val json = events.map(buildEventJson)
+
+    Ok(Json.toJson(json))
   }
 
 
