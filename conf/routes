@@ -21,3 +21,6 @@ GET     /command/*name               controllers.Application.getCommandDetail(na
 
 GET     /endpoint                    controllers.Application.getEndpoints
 GET     /endpoint/*name              controllers.Application.getEndpointDetail(name)
+
+GET     /application                 controllers.Application.getApplications
+GET     /application/*name           controllers.Application.getApplicationDetail(name)

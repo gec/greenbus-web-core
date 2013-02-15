@@ -13,5 +13,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     $routeProvider.when('/command/:name', {templateUrl: 'partials/commanddetail.html', controller: CommandDetailControl});
     $routeProvider.when('/endpoint', {templateUrl: 'partials/endpoints.html', controller: EndpointControl});
     $routeProvider.when('/endpoint/:name', {templateUrl: 'partials/endpointdetail.html', controller: EndpointDetailControl});
+    $routeProvider.when('/application', {templateUrl: 'partials/applications.html', controller: ApplicationControl});
+    $routeProvider.when('/application/:name', {templateUrl: 'partials/applicationdetail.html', controller: ApplicationDetailControl});
     $routeProvider.otherwise({redirectTo: '/entity'});
   }]);

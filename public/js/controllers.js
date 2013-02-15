@@ -117,6 +117,28 @@ function EndpointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefD
     makeRequest('/endpoint/' + routeName, "endpoint", $http, $scope);
 }
 
+function ApplicationControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "application";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Applications" }
+    ];
+
+    makeRequest("/application", "applications", $http, $scope);
+}
+function ApplicationDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var routeName = $routeParams.name;
+
+    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Applications", url: "#/application"},
+        { name: routeName }
+    ];
+
+    makeRequest('/application/' + routeName, "application", $http, $scope);
+}
+
 function CharlotteControl($scope, $timeout, ReefData, $http) {
 
 	console.log("Called controller");

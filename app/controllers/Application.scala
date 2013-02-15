@@ -14,6 +14,7 @@ import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
 import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
 import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
+import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 
 object Application extends Controller {
 
@@ -211,6 +212,37 @@ object Application extends Controller {
     val endpointConnection = service.getEndpointConnectionByEndpointName(name).await()
 
     Ok(buildEndpointJson(endpointConnection))
+  }
+
+  private def buildApplicationJson(app: ApplicationConfig): JsValue = {
+    val attr = Map("name" -> app.getInstanceName,
+      "version" -> app.getVersion,
+      "expiry" -> app.getTimesOutAt.toString,
+      "online" -> app.getOnline.toString,
+      "agent" -> app.getUserName,
+      "capabilities" -> app.getCapabilitesList.toList.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getApplications = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val applicationConnections = service.getApplications().await()
+
+    val json = applicationConnections.map(buildApplicationJson)
+
+    Ok(Json.toJson(json))
+  }
+
+  def getApplicationDetail(name: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val applicationConnection = service.getApplicationByName(name).await()
+
+    Ok(buildApplicationJson(applicationConnection))
   }
 
 
