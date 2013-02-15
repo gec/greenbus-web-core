@@ -26,3 +26,5 @@ GET     /application                 controllers.Application.getApplications
 GET     /application/*name           controllers.Application.getApplicationDetail(name)
 
 GET     /event                       controllers.Application.getEvents
+
+GET     /alarm                       controllers.Application.getAlarms

@@ -16,6 +16,7 @@ import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
 import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Events.Event
+import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 
 object Application extends Controller {
 
@@ -263,9 +264,33 @@ object Application extends Controller {
 
     val service: AllScadaService = client.getService(classOf[AllScadaService])
 
-    val events = service.getRecentEvents(30).await()
+    val events = service.getRecentEvents(20).await()
 
     val json = events.map(buildEventJson)
+
+    Ok(Json.toJson(json))
+  }
+
+  private def buildAlarm(alarm: Alarm): JsValue = {
+    val attr = Map("id" -> alarm.getId.getValue,
+      "state" -> alarm.getState.toString,
+      "type" -> alarm.getEvent.getEventType,
+      "severity" -> alarm.getEvent.getSeverity.toString,
+      "agent" -> alarm.getEvent.getUserId,
+      "entity" -> alarm.getEvent.getEntity.getName,
+      "message" -> alarm.getEvent.getRendered,
+      "time" -> alarm.getEvent.getTime.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getAlarms = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val alarms = service.getActiveAlarms(20).await()
+
+    val json = alarms.map(buildAlarm)
 
     Ok(Json.toJson(json))
   }

@@ -1,0 +1,37 @@
+
+
+
+<div>
+
+    <h2>Alarms</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>State</th>
+                    <th>Type</th>
+                    <th>Sev</th>
+                    <th>User</th>
+                    <th>Entity</th>
+                    <th>Message</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="alarm in alarms">
+                    <td>{{alarm.id}}</a></td>
+                    <td>{{alarm.state}}</td>
+                    <td>{{alarm.type}}</td>
+                    <td>{{alarm.severity}}</td>
+                    <td>{{alarm.agent}}</td>
+                    <td>{{alarm.entity}}</td>
+                    <td>{{alarm.message}}</td>
+                    <td>{{alarm.time | timeview}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+

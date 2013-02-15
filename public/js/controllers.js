@@ -149,6 +149,16 @@ function EventControl($rootScope, $scope, $timeout, ReefData, $http) {
     makeRequest("/event", "events", $http, $scope);
 }
 
+function AlarmControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "alarm";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Alarms" }
+    ];
+
+    makeRequest("/alarm", "alarms", $http, $scope);
+}
+
 function CharlotteControl($scope, $timeout, ReefData, $http) {
 
 	console.log("Called controller");
