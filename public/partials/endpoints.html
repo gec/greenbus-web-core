@@ -1,0 +1,39 @@
+
+
+
+<div>
+
+    <h2>Endpoints</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Protocol</th>
+                    <th>Auto Assigned</th>
+                    <th>State</th>
+                    <th>Enabled</th>
+                    <th>Front End</th>
+                    <th>Port</th>
+                    <th>Port State</th>
+                    <th>Routed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="endpoint in endpoints">
+                    <td><a href="#/endpoint/{{endpoint.name}}">{{endpoint.name}}</a></td>
+                    <td>{{endpoint.protocol}}</td>
+                    <td>{{endpoint.auto}}</td>
+                    <td>{{endpoint.state}}</td>
+                    <td>{{endpoint.enabled}}</td>
+                    <td>{{endpoint.fep}}</td>
+                    <td>{{endpoint.port}}</td>
+                    <td>{{endpoint.portState}}</td>
+                    <td>{{endpoint.routed}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+

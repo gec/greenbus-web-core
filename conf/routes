@@ -18,3 +18,6 @@ GET     /point/*name                 controllers.Application.getPointDetail(name
 
 GET     /command                     controllers.Application.getCommands
 GET     /command/*name               controllers.Application.getCommandDetail(name)
+
+GET     /endpoint                    controllers.Application.getEndpoints
+GET     /endpoint/*name              controllers.Application.getEndpointDetail(name)

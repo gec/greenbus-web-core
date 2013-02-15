@@ -95,6 +95,28 @@ function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
     makeRequest("/measurement", "measurements", $http, $scope);
 }
 
+function EndpointControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Endpoints" }
+    ];
+
+    makeRequest("/endpoint", "endpoints", $http, $scope);
+}
+function EndpointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var routeName = $routeParams.name;
+
+    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Endpoints", url: "#/endpoint"},
+        { name: routeName }
+    ];
+
+    makeRequest('/endpoint/' + routeName, "endpoint", $http, $scope);
+}
+
 function CharlotteControl($scope, $timeout, ReefData, $http) {
 
 	console.log("Called controller");

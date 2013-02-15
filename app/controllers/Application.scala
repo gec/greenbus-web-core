@@ -13,6 +13,7 @@ import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
 import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
+import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 
 object Application extends Controller {
 
@@ -176,6 +177,40 @@ object Application extends Controller {
     val command = service.getCommandByName(commandName).await()
 
     Ok(commandToJson(command, true))
+  }
+
+  private def buildEndpointJson(end: EndpointConnection): JsValue = {
+    val attr = Map("name" -> end.getEndpoint.getName,
+      "protocol" -> end.getEndpoint.getProtocol,
+      "auto" -> end.getEndpoint.getAutoAssigned.toString,
+      "state" -> end.getState.toString,
+      "enabled" -> end.getEnabled.toString,
+      "fep" -> end.getFrontEnd.getAppConfig.getInstanceName,
+      "port" -> end.getEndpoint.getChannel.getName,
+      "portState" -> end.getEndpoint.getChannel.getState.toString,
+      "routed" -> end.getRouting.hasServiceRoutingKey.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getEndpoints = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val endpointConnections = service.getEndpointConnections().await()
+
+    val json = endpointConnections.map(buildEndpointJson)
+
+    Ok(Json.toJson(json))
+  }
+
+  def getEndpointDetail(name: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val endpointConnection = service.getEndpointConnectionByEndpointName(name).await()
+
+    Ok(buildEndpointJson(endpointConnection))
   }
 
 
