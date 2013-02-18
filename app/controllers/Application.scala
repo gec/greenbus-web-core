@@ -17,7 +17,7 @@ import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
-import org.totalgrid.reef.client.service.proto.Auth.Agent
+import org.totalgrid.reef.client.service.proto.Auth.{Permission, PermissionSet, Agent}
 
 object Application extends Controller {
 
@@ -319,6 +319,54 @@ object Application extends Controller {
     val agent = service.getAgentByName(name).await()
 
     Ok(buildAgent(agent))
+  }
+
+  private def buildPermissionLine(perm: PermissionSet): JsValue = {
+    val rules = perm.getPermissionsList.toList
+    val allows = rules.filter(_.getAllow == true).size
+    val denies = rules.filter(_.getAllow == false).size
+
+    val attr = Map( "name" -> perm.getName,
+      "allows" -> allows.toString,
+      "denies" -> denies.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getPermissionSets = Action {
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val permissions = service.getPermissionSets().await()
+
+    val json = permissions.map(buildPermissionLine)
+
+    Ok(Json.toJson(json))
+  }
+
+  private def buildPermissionDetail(rule: Permission): JsValue = {
+    val attr = Map( "allow" -> rule.getAllow.toString,
+      "actions" -> rule.getVerbList.toList.toString,
+      "resources" -> rule.getResourceList.toList.toString,
+      "selectors" -> rule.getSelectorList.toList.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  private def buildPermissionSetDetail(perm: PermissionSet): JsValue = {
+
+    val attr = Map( "name" -> Json.toJson(perm.getName),
+      "permissions" -> Json.toJson(perm.getPermissionsList.map(buildPermissionDetail).toList))
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+
+  }
+  def getPermissionSetDetail(name: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val permSet = service.getPermissionSet(name).await()
+
+    Ok(buildPermissionSetDetail(permSet))
   }
 
 

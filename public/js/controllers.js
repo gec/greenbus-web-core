@@ -181,6 +181,29 @@ function AgentDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData
     makeRequest('/agent/' + routeName, "agent", $http, $scope);
 }
 
+function PermissionSetControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "permissionset";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Permission Sets" }
+    ];
+
+    makeRequest("/permissionset", "permissionsets", $http, $scope);
+}
+function PermissionSetDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var routeName = $routeParams.name;
+
+    $rootScope.currentMenuItem = "permissionset";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Permission Sets", url: "#/permissionset"},
+        { name: routeName }
+    ];
+
+    makeRequest('/permissionset/' + routeName, "permissionset", $http, $scope);
+}
+
+
 function CharlotteControl($scope, $timeout, ReefData, $http) {
 
 	console.log("Called controller");

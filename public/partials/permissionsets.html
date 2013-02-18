@@ -1,0 +1,27 @@
+
+
+
+<div>
+
+    <h2>Permission Sets</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Allows</th>
+                    <th>Denies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="set in permissionsets">
+                    <td><a href="#/permissionset/{{set.name}}">{{set.name}}</a></td>
+                    <td>{{set.allows}}</td>
+                    <td>{{set.denies}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+

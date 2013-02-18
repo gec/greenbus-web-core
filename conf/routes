@@ -31,3 +31,6 @@ GET     /alarm                       controllers.Application.getAlarms
 
 GET     /agent                       controllers.Application.getAgents
 GET     /agent/*name                 controllers.Application.getAgentDetail(name)
+
+GET     /permissionset                       controllers.Application.getPermissionSets
+GET     /permissionset/*name                 controllers.Application.getPermissionSetDetail(name)

@@ -19,5 +19,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     $routeProvider.when('/alarm', {templateUrl: 'partials/alarms.html', controller: AlarmControl});
     $routeProvider.when('/agent', {templateUrl: 'partials/agents.html', controller: AgentControl});
     $routeProvider.when('/agent/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl});
+    $routeProvider.when('/permissionset', {templateUrl: 'partials/permissionsets.html', controller: PermissionSetControl});
+    $routeProvider.when('/permissionset/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: PermissionSetDetailControl});
     $routeProvider.otherwise({redirectTo: '/entity'});
   }]);
