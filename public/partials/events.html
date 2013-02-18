@@ -28,7 +28,7 @@
                     <td>{{event.agent}}</td>
                     <td><a href="#/entity/{{event.entity}}">{{event.entity}}</a></td>
                     <td>{{event.message}}</td>
-                    <td>{{event.time | timeview}}</td>
+                    <td>{{event.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                 </tr>
             </tbody>
         </table>

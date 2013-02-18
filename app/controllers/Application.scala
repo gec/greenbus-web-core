@@ -17,7 +17,8 @@ import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
-import org.totalgrid.reef.client.service.proto.Auth.{Permission, PermissionSet, Agent}
+import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
+import Json._
 
 object Application extends Controller {
 
@@ -218,14 +219,14 @@ object Application extends Controller {
   }
 
   private def buildApplicationJson(app: ApplicationConfig): JsValue = {
-    val attr = Map("name" -> app.getInstanceName,
-      "version" -> app.getVersion,
-      "expiry" -> app.getTimesOutAt.toString,
-      "online" -> app.getOnline.toString,
-      "agent" -> app.getUserName,
-      "capabilities" -> app.getCapabilitesList.toList.toString)
+    val attr = Map("name" -> toJson(app.getInstanceName),
+      "version" -> toJson(app.getVersion),
+      "expiry" -> toJson(app.getTimesOutAt.toString),
+      "online" -> toJson(app.getOnline.toString),
+      "agent" -> toJson(app.getUserName),
+      "capabilities" -> toJson(app.getCapabilitesList.toList))
 
-    Json.toJson(attr.mapValues(Json.toJson(_)))
+    Json.toJson(attr)
   }
 
   def getApplications = Action {
@@ -297,10 +298,10 @@ object Application extends Controller {
   }
 
   private def buildAgent(agent: Agent): JsValue = {
-    val attr = Map( "name" -> agent.getName,
-      "permissions" -> agent.getPermissionSetsList.map(_.getName).toList.toString)
+    val attr = Map( "name" -> toJson(agent.getName),
+      "permissions" -> toJson(agent.getPermissionSetsList.map(_.getName).toList))
 
-    Json.toJson(attr.mapValues(Json.toJson(_)))
+    Json.toJson(attr)
   }
 
   def getAgents = Action {
@@ -343,13 +344,20 @@ object Application extends Controller {
     Ok(Json.toJson(json))
   }
 
-  private def buildPermissionDetail(rule: Permission): JsValue = {
-    val attr = Map( "allow" -> rule.getAllow.toString,
-      "actions" -> rule.getVerbList.toList.toString,
-      "resources" -> rule.getResourceList.toList.toString,
-      "selectors" -> rule.getSelectorList.toList.toString)
+  private def selectorString(a: EntitySelector): String = {
+    val args = a.getArgumentsList.toList
+    val argString = if (args.isEmpty) ""
+    else args.mkString("(", ",", ")")
+    a.getStyle + argString
+  }
 
-    Json.toJson(attr.mapValues(Json.toJson(_)))
+  private def buildPermissionDetail(rule: Permission): JsValue = {
+    val attr = Map( "allow" -> toJson(rule.getAllow),
+      "actions" -> toJson(rule.getVerbList.toList),
+      "resources" -> toJson(rule.getResourceList.toList),
+      "selectors" -> toJson(rule.getSelectorList.map(selectorString).toList))
+
+    Json.toJson(attr)
   }
 
   private def buildPermissionSetDetail(perm: PermissionSet): JsValue = {

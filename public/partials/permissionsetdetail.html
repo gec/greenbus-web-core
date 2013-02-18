@@ -19,9 +19,9 @@
             <tbody>
             <tr ng-repeat="permission in permissionset.permissions">
                 <td>{{permission.allow}}</td>
-                <td>{{permission.actions}}</td>
-                <td>{{permission.resources}}</td>
-                <td>{{permission.selectors}}</td>
+                <td>{{permission.actions | csv}}</td>
+                <td>{{permission.resources | csv}}</td>
+                <td>{{permission.selectors | csv}}</td>
             </tr>
             </tbody>
         </table>

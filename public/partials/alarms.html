@@ -28,7 +28,7 @@
                     <td>{{alarm.agent}}</td>
                     <td><a href="#/entity/{{alarm.entity}}">{{alarm.entity}}</a></td>
                     <td>{{alarm.message}}</td>
-                    <td>{{alarm.time | timeview}}</td>
+                    <td>{{alarm.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                 </tr>
             </tbody>
         </table>

@@ -16,7 +16,7 @@
             <tbody>
                 <tr ng-repeat="ent in entities">
                     <td><a href="#/entity/{{ent.name}}">{{ent.name}}</a></td>
-                    <td>{{ent.types}}</td>
+                    <td>{{ent.types | csv}}</td>
                 </tr>
             </tbody>
         </table>

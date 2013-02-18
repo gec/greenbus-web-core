@@ -18,7 +18,7 @@
             </tr>
             <tr>
                 <td>Expiration</td>
-                <td>{{application.expiry | timeview}}</td>
+                <td>{{application.expiry | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
             </tr>
             <tr>
                 <td>Agent</td>
@@ -26,7 +26,7 @@
             </tr>
             <tr>
                 <td>Capabilities</td>
-                <td>{{application.capabilities}}</td>
+                <td>{{application.capabilities | csv}}</td>
             </tr>
             </tbody>
         </table>
