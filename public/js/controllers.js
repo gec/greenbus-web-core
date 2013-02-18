@@ -159,6 +159,28 @@ function AlarmControl($rootScope, $scope, $timeout, ReefData, $http) {
     makeRequest("/alarm", "alarms", $http, $scope);
 }
 
+function AgentControl($rootScope, $scope, $timeout, ReefData, $http) {
+    $rootScope.currentMenuItem = "agent";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Agents" }
+    ];
+
+    makeRequest("/agent", "agents", $http, $scope);
+}
+function AgentDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+    var routeName = $routeParams.name;
+
+    $rootScope.currentMenuItem = "agent";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Agents", url: "#/agent"},
+        { name: routeName }
+    ];
+
+    makeRequest('/agent/' + routeName, "agent", $http, $scope);
+}
+
 function CharlotteControl($scope, $timeout, ReefData, $http) {
 
 	console.log("Called controller");

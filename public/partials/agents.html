@@ -1,0 +1,25 @@
+
+
+
+<div>
+
+    <h2>Agents</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Permission Sets</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="agent in agents">
+                    <td><a href="#/agent/{{agent.name}}">{{agent.name}}</a></td>
+                    <td>{{agent.permissions}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+

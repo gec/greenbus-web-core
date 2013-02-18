@@ -17,6 +17,7 @@ import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
+import org.totalgrid.reef.client.service.proto.Auth.Agent
 
 object Application extends Controller {
 
@@ -293,6 +294,31 @@ object Application extends Controller {
     val json = alarms.map(buildAlarm)
 
     Ok(Json.toJson(json))
+  }
+
+  private def buildAgent(agent: Agent): JsValue = {
+    val attr = Map( "name" -> agent.getName,
+      "permissions" -> agent.getPermissionSetsList.map(_.getName).toList.toString)
+
+    Json.toJson(attr.mapValues(Json.toJson(_)))
+  }
+
+  def getAgents = Action {
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val agents = service.getAgents.await()
+
+    val json = agents.map(buildAgent)
+
+    Ok(Json.toJson(json))
+  }
+  def getAgentDetail(name: String) = Action {
+
+    val service: AllScadaService = client.getService(classOf[AllScadaService])
+
+    val agent = service.getAgentByName(name).await()
+
+    Ok(buildAgent(agent))
   }
 
 

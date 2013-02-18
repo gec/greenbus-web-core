@@ -17,5 +17,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     $routeProvider.when('/application/:name', {templateUrl: 'partials/applicationdetail.html', controller: ApplicationDetailControl});
     $routeProvider.when('/event', {templateUrl: 'partials/events.html', controller: EventControl});
     $routeProvider.when('/alarm', {templateUrl: 'partials/alarms.html', controller: AlarmControl});
+    $routeProvider.when('/agent', {templateUrl: 'partials/agents.html', controller: AgentControl});
+    $routeProvider.when('/agent/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl});
     $routeProvider.otherwise({redirectTo: '/entity'});
   }]);
