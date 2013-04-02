@@ -16,6 +16,48 @@ function makeRequest(url, name, $http, $scope) {
     });
 }
 
+function LoadingControl($rootScope, $scope, $timeout, ReefData, $http, $location) {
+    var retryCount = 0;
+
+    $scope.status = {
+        servicesStatus: "UNKNOWN",
+        loading: true,
+        description: "loading Reef client..."
+    };
+    $rootScope.currentMenuItem = "entity";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Loading" }
+    ];
+
+    $scope.initializeReefClient = function() {
+        $http.get( "/services/status").
+            success(function(json) {
+                $scope.status = json;
+                retryCount ++;
+                if( $scope.status.loading && retryCount < 20) {
+                    console.log( "initializeReefClient retry " + retryCount);
+                    $scope.initializeReefClient();
+                } else if( $scope.status.servicesStatus === "UP") {
+                    $location.path("/entity")
+                }
+            }).
+            error(function (data, status, headers, config) {
+                // called asynchronously if an error occurs
+                // or server returns response with status
+                // code outside of the <200, 400) range
+                console.log( config.method + " " + config.url + " " + status);
+                $scope.status = {
+                    servicesStatus: "AJAX_FAILURE",
+                    loading: false,
+                    description: "AJAX failure within Javascript client. Status " + status
+                };
+            });
+    }
+
+    $scope.initializeReefClient();
+}
+
 function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [

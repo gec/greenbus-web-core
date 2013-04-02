@@ -42,7 +42,7 @@
     <div class="container-fluid" ng-controller="MenuControl">
         <div class="row-fluid">
             <div class="span2">
-                <div class="well sidebar-nav" >
+                <div class="well sidebar-nav" ng-show="status.servicesStatus=='UP'">
                     <ul class="nav nav-list">
                         <li class="nav-header">Model</li>
                         <li ng-class="isActive('entity')"><a href="#/entity">Entities</a></li>
@@ -64,7 +64,7 @@
             <div class="span10">
                 <div class="row-fluid">
                     <div class="span10">
-                        <ul class="breadcrumb">
+                        <ul class="breadcrumb" ng-show="status.servicesStatus=='UP'">
                             <li ng-repeat="crumb in breadcrumbs" ng-class="{ active: !crumb.url }">
                                 <span ng-hide="crumb.url">{{crumb.name}}</span>
                                 <a ng-show="crumb.url" href="{{crumb.url}}">{{crumb.name}}</a>

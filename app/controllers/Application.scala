@@ -1,6 +1,7 @@
 package controllers
 
 import play.api._
+import libs.concurrent.Akka
 import play.api.mvc._
 import libs.json.{Json, JsValue}
 import org.totalgrid.reef.client.Client
@@ -22,16 +23,42 @@ import Json._
 
 object Application extends Controller {
 
-  def clientFor(cfg: String): Client = {
-    val centerConfig = PropertyReader.readFromFiles(List(cfg).toList)
-    val factory = ReefConnectionFactory.buildFactory(new AmqpSettings(centerConfig), new ReefServices)
-    val connection = factory.connect()
-    connection.login(new UserSettings("system", "system"))
+  object ClientStatus extends Enumeration {
+    type ClientStatus = ClientStatusVal
+    val INITIALIZING = Value( "INITIALIZING", "Reef client is initializing.", true)
+    val AMQP_UP = Value( "AMQP_UP", "Reef client is accessing AMQP.", true)
+    val UP = Value("UP", "Reef client is up and running.", false)
+    val AMQP_DOWN = Value( "AMQP_DOWN", "Reef client is not able to access AMQP.", false)
+    val CONFIGURATION_FILE_FAILURE = Value( "CONFIGURATION_FILE_FAILURE", "Reef client is not able to load configuration file.", false)
+    val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false)
+    val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false)
+
+    class ClientStatusVal(name: String, val description: String, val loading: Boolean) extends Val(nextId, name)  {
+      // This is not required for Scala 2.10
+      override def compare(that: Value): Int = id - that.id
+    }
+    protected final def Value(name: String, description: String, loading: Boolean): ClientStatusVal = new ClientStatusVal(name, description, loading)
+  }
+  import ClientStatus._
+
+  var clientStatus = INITIALIZING
+  var client : Option[Client] = None
+
+
+  def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
+    Action { request =>
+      if ( clientStatus == UP && client.isDefined)
+        f(request, client.get.getService(classOf[AllScadaService]))
+      else
+        Redirect("/assets/index.html")
+    }
   }
 
-  val client = clientFor("cluster1.cfg")
+
+
 
   def index = Action { implicit request =>
+    Logger.info( "index")
     Redirect("/assets/index.html")
   }
 
@@ -95,9 +122,14 @@ object Application extends Controller {
     Json.toJson(Map("name" -> m.getName, "value" -> measValue.toString, "unit" -> m.getUnit, "time" -> m.getTime.toString, "shortQuality" -> shortQuality(m), "longQuality" -> longQuality(m)))
   }
 
-  def getMeasurements = Action {
+  def getServicesStatus = Action {
 
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+    Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "loading" -> Json.toJson( clientStatus.loading), "description" -> Json.toJson( clientStatus.description))).toString())
+  }
+
+  def getMeasurements = ServiceAction { (request, service) =>
+
+    //val service: AllScadaService = client.getService(classOf[AllScadaService])
 
     val points = service.getPoints().await()
 
@@ -106,9 +138,7 @@ object Application extends Controller {
     Ok(Json.toJson(measurements.map(measToJson)))
   }
 
-  def getEntities = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getEntities = ServiceAction { (request, service) =>
 
     val entities = service.getEntities().await()
 
@@ -117,9 +147,7 @@ object Application extends Controller {
     Ok(result.toString)
   }
 
-  def getEntityDetail(entName: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getEntityDetail(entName: String) = ServiceAction { (request, service) =>
 
     val ent = service.getEntityByName(entName).await()
 
@@ -136,9 +164,7 @@ object Application extends Controller {
     }
   }
 
-  def getPoints = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getPoints = ServiceAction { (request, service) =>
 
     val points = service.getPoints().await()
 
@@ -147,9 +173,7 @@ object Application extends Controller {
     Ok(result.toString)
   }
 
-  def getPointDetail(pointName: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getPointDetail(pointName: String) = ServiceAction { (request, service) =>
 
     val point = service.getPointByName(pointName).await()
 
@@ -164,9 +188,7 @@ object Application extends Controller {
     }
   }
 
-  def getCommands = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getCommands = ServiceAction { (request, service) =>
 
     val commands = service.getCommands().await()
 
@@ -175,9 +197,7 @@ object Application extends Controller {
     Ok(result.toString)
   }
 
-  def getCommandDetail(commandName: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getCommandDetail(commandName: String) = ServiceAction { (request, service) =>
 
     val command = service.getCommandByName(commandName).await()
 
@@ -198,9 +218,7 @@ object Application extends Controller {
     Json.toJson(attr.mapValues(Json.toJson(_)))
   }
 
-  def getEndpoints = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getEndpoints = ServiceAction { (request, service) =>
 
     val endpointConnections = service.getEndpointConnections().await()
 
@@ -209,9 +227,7 @@ object Application extends Controller {
     Ok(Json.toJson(json))
   }
 
-  def getEndpointDetail(name: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getEndpointDetail(name: String) = ServiceAction { (request, service) =>
 
     val endpointConnection = service.getEndpointConnectionByEndpointName(name).await()
 
@@ -229,9 +245,7 @@ object Application extends Controller {
     Json.toJson(attr)
   }
 
-  def getApplications = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getApplications = ServiceAction { (request, service) =>
 
     val applicationConnections = service.getApplications().await()
 
@@ -240,9 +254,7 @@ object Application extends Controller {
     Ok(Json.toJson(json))
   }
 
-  def getApplicationDetail(name: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getApplicationDetail(name: String) = ServiceAction { (request, service) =>
 
     val applicationConnection = service.getApplicationByName(name).await()
 
@@ -262,9 +274,7 @@ object Application extends Controller {
     Json.toJson(attr.mapValues(Json.toJson(_)))
   }
 
-  def getEvents = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getEvents = ServiceAction { (request, service) =>
 
     val events = service.getRecentEvents(20).await()
 
@@ -286,9 +296,7 @@ object Application extends Controller {
     Json.toJson(attr.mapValues(Json.toJson(_)))
   }
 
-  def getAlarms = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getAlarms = ServiceAction { (request, service) =>
 
     val alarms = service.getActiveAlarms(20).await()
 
@@ -304,8 +312,7 @@ object Application extends Controller {
     Json.toJson(attr)
   }
 
-  def getAgents = Action {
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getAgents = ServiceAction { (request, service) =>
 
     val agents = service.getAgents.await()
 
@@ -313,9 +320,7 @@ object Application extends Controller {
 
     Ok(Json.toJson(json))
   }
-  def getAgentDetail(name: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getAgentDetail(name: String) = ServiceAction { (request, service) =>
 
     val agent = service.getAgentByName(name).await()
 
@@ -334,8 +339,7 @@ object Application extends Controller {
     Json.toJson(attr.mapValues(Json.toJson(_)))
   }
 
-  def getPermissionSets = Action {
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getPermissionSets = ServiceAction { (request, service) =>
 
     val permissions = service.getPermissionSets().await()
 
@@ -368,9 +372,7 @@ object Application extends Controller {
     Json.toJson(attr.mapValues(Json.toJson(_)))
 
   }
-  def getPermissionSetDetail(name: String) = Action {
-
-    val service: AllScadaService = client.getService(classOf[AllScadaService])
+  def getPermissionSetDetail(name: String) = ServiceAction { (request, service) =>
 
     val permSet = service.getPermissionSet(name).await()
 
