@@ -4,7 +4,7 @@ import play.api._
 import libs.concurrent.Akka
 import play.api.mvc._
 import libs.json.{Json, JsValue}
-import org.totalgrid.reef.client.Client
+import org.totalgrid.reef.client.{Connection, Client}
 import org.totalgrid.reef.client.settings.util.PropertyReader
 import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.AmqpSettings
@@ -20,6 +20,7 @@ import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import Json._
+import java.io.IOException
 
 object Application extends Controller {
 
@@ -47,10 +48,12 @@ object Application extends Controller {
 
   def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
     Action { request =>
-      if ( clientStatus == UP && client.isDefined)
+      if ( clientStatus == UP && client.isDefined) {
         f(request, client.get.getService(classOf[AllScadaService]))
-      else
+      } else {
+        initializeReefClient
         Redirect("/assets/index.html")
+      }
     }
   }
 
@@ -123,6 +126,9 @@ object Application extends Controller {
   }
 
   def getServicesStatus = Action {
+    if ( clientStatus != UP && !clientStatus.loading) {
+      initializeReefClient
+    }
 
     Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "loading" -> Json.toJson( clientStatus.loading), "description" -> Json.toJson( clientStatus.description))).toString())
   }
@@ -379,5 +385,64 @@ object Application extends Controller {
     Ok(buildPermissionSetDetail(permSet))
   }
 
+
+
+  def initializeReefClient = {
+    import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
+
+    Akka.future { initializeReefClientDo( "cluster1.cfg") }.map { result =>
+      Application.client = result
+    }
+  }
+
+  def initializeReefClientDo( cfg: String): Option[Client] = {
+    import Application.ClientStatus._
+
+    Logger.info( "Loading config file " + cfg)
+    val centerConfig = try {
+      PropertyReader.readFromFiles(List(cfg).toList)
+    } catch {
+      case ex: IOException => {
+        Application.clientStatus = CONFIGURATION_FILE_FAILURE
+        return None
+      }
+    }
+
+    val connection : Connection = try {
+      Logger.info( "Getting Reef ConnectionFactory")
+      val factory = ReefConnectionFactory.buildFactory(new AmqpSettings(centerConfig), new ReefServices)
+      Logger.info( "Connecting to Reef")
+      val connection = factory.connect()
+      Application.clientStatus = AMQP_UP
+      connection
+    } catch {
+      case ex: IllegalArgumentException => {
+        Application.clientStatus = AMQP_DOWN
+        return None
+      }
+      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+        Application.clientStatus = AMQP_DOWN
+        return None
+      }
+    }
+
+    val client = try {
+      Logger.info( "Logging into Reef")
+      val client = connection.login(new UserSettings("system", "system"))
+      Application.clientStatus = UP
+      client
+    } catch {
+      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
+        Application.clientStatus = AUTHENTICATION_FAILURE
+        return None
+      }
+      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+        Application.clientStatus = REEF_FAILURE
+        return None
+      }
+    }
+
+    Some[Client](client)
+  }
 
 }

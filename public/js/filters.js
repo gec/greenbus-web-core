@@ -30,12 +30,22 @@ angular.module('charlotte.filters', []).
               if( status.loading)
                 return "loading..."
               else if( status.servicesStatus === "UP")
-                return "...loaded."
+                return "Loading succeeded."
               else
-                return "loading failed."
+                return "Loading failed."
           };
         }).
-    filter('serviceStatusProgress', function() {
+    filter('serviceStatusProgressClass', function() {
+          return function(status) {
+              if( status.loading)
+                return "progress progress-striped active"
+              else if( status.servicesStatus === "UP")
+                return "progress"
+              else
+                return "progress"
+          };
+        }).
+    filter('serviceStatusProgressPercent', function() {
           return function(status) {
             return SERVICES_STATUS_PROGRESS[ status];
           };

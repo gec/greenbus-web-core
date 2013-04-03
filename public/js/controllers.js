@@ -24,20 +24,23 @@ function LoadingControl($rootScope, $scope, $timeout, ReefData, $http, $location
         loading: true,
         description: "loading Reef client..."
     };
-    $rootScope.currentMenuItem = "entity";
+    $rootScope.currentMenuItem = "loading";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Loading" }
     ];
 
-    $scope.initializeReefClient = function() {
+    $scope.initializeReefClient = function( $timeout) {
         $http.get( "/services/status").
             success(function(json) {
                 $scope.status = json;
                 retryCount ++;
-                if( $scope.status.loading && retryCount < 20) {
+                if( $scope.status.loading && retryCount < 50) {
                     console.log( "initializeReefClient retry " + retryCount);
-                    $scope.initializeReefClient();
+                    $timeout(function () {
+                        $scope.initializeReefClient( $timeout);
+                    }, 250);
+
                 } else if( $scope.status.servicesStatus === "UP") {
                     $location.path("/entity")
                 }
@@ -55,7 +58,7 @@ function LoadingControl($rootScope, $scope, $timeout, ReefData, $http, $location
             });
     }
 
-    $scope.initializeReefClient();
+    $scope.initializeReefClient( $timeout);
 }
 
 function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {

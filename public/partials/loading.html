@@ -1,7 +1,7 @@
 <div class="row-fluid">
     <div class="span4">
-        <div class="progress" style="margin-bottom: 4px">
-            <div class="bar" style="width: {{status.servicesStatus | serviceStatusProgress}}%;"></div>
+        <div ng-class="status | serviceStatusProgressClass" style="margin-bottom: 4px">
+            <div class="bar" style="width: {{status.servicesStatus | serviceStatusProgressPercent}}%;"></div>
         </div>
         {{status | serviceStatusLoading}}
     </div>
