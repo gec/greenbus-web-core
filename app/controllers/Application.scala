@@ -91,6 +91,7 @@ object Application extends Controller {
       case Measurement.Type.INT => m.getIntVal
       case Measurement.Type.STRING => m.getStringVal
       case Measurement.Type.BOOL => m.getBoolVal
+      case Measurement.Type.NONE => Json.toJson("")
     }
     Json.toJson(Map("name" -> m.getName, "value" -> measValue.toString, "unit" -> m.getUnit, "time" -> m.getTime.toString, "shortQuality" -> shortQuality(m), "longQuality" -> longQuality(m)))
   }

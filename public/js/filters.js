@@ -6,13 +6,10 @@
 angular.module('charlotte.filters', []).
     filter('csv', function() {
           return function(strArray) {
-            var result = "";
-            angular.forEach(strArray, function(str, index) {
-                if (result != "") {
-                    result += ", ";
+                if (strArray ) {
+                    return strArray.join(", ");
+                } else {
+                    return "";
                 }
-                result += str;
-            });
-            return result;
           };
         });
