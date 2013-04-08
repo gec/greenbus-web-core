@@ -16,6 +16,17 @@
     </style>
 </head>
 <body>
+
+    <div class="statusBanner">
+        <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
+            <div class="statusBlock">
+                <div class="statusBox">
+                    <div class=statusText><strong>Not connected.  {{status.servicesStatus}}:</strong> {{status.description}}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="navbar navbar-inverse navbar-fixed-top">
         <div class="navbar-inner">
             <div class="container-fluid">
@@ -76,6 +87,7 @@
 
                 <div class="row-fluid">
                     <div class="span10">
+
                         <div ng-view></div>
                     </div>
                 </div>

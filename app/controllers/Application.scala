@@ -2,6 +2,7 @@ package controllers
 
 import play.api._
 import libs.concurrent.Akka
+import play.libs.Akka._
 import play.api.mvc._
 import libs.json.{Json, JsValue}
 import org.totalgrid.reef.client.{Connection, Client}
@@ -21,38 +22,50 @@ import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import Json._
 import java.io.IOException
+import models.{ClientStatus, ReefClientActor}
+import akka.actor.{Actor, Props}
+import models.ClientStatus._
+import scala.Some
+import models.ReefClientActor.{Reinitialize, StatusRequest}
 
-object Application extends Controller {
-
-  object ClientStatus extends Enumeration {
-    type ClientStatus = ClientStatusVal
-    val INITIALIZING = Value( "INITIALIZING", "Reef client is initializing.", true)
-    val AMQP_UP = Value( "AMQP_UP", "Reef client is accessing AMQP.", true)
-    val UP = Value("UP", "Reef client is up and running.", false)
-    val AMQP_DOWN = Value( "AMQP_DOWN", "Reef client is not able to access AMQP.", false)
-    val CONFIGURATION_FILE_FAILURE = Value( "CONFIGURATION_FILE_FAILURE", "Reef client is not able to load configuration file.", false)
-    val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false)
-    val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false)
-
-    class ClientStatusVal(name: String, val description: String, val loading: Boolean) extends Val(nextId, name)  {
-      // This is not required for Scala 2.10
-      override def compare(that: Value): Int = id - that.id
-    }
-    protected final def Value(name: String, description: String, loading: Boolean): ClientStatusVal = new ClientStatusVal(name, description, loading)
-  }
-  import ClientStatus._
-
+trait ClientCache {
   var clientStatus = INITIALIZING
   var client : Option[Client] = None
+}
+
+object Application extends Controller with ClientCache {
+
+  import models.ClientStatus._
+
+  //var clientStatus = INITIALIZING
+  //var client : Option[Client] = None
+
+  import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
+  val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this)), name = "reefClientActor")
 
 
   def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
     Action { request =>
+      Logger.info( "ServiceAction start")
       if ( clientStatus == UP && client.isDefined) {
-        f(request, client.get.getService(classOf[AllScadaService]))
+        Logger.info( "ServiceAction UP")
+        try {
+          f(request, client.get.getService(classOf[AllScadaService]))
+        } catch {
+          case ex => {
+            Logger.error( "ServiceAction exception " + ex.getMessage)
+            if( ex.getCause != null)
+              Logger.error( "ServiceAction exception cause " + ex.getCause.getMessage)
+            ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( ex.getMessage))).toString())
+          }
+        }
       } else {
-        initializeReefClient
-        Redirect("/assets/index.html")
+        Logger.info( "ServiceAction down clientStatus " + clientStatus)
+
+        reefClientActor !  Reinitialize
+        //initializeReefClient
+        Logger.info( "ServiceAction redirect( /assets/index.html)")
+        ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( clientStatus.description))).toString())
       }
     }
   }
@@ -126,11 +139,12 @@ object Application extends Controller {
   }
 
   def getServicesStatus = Action {
-    if ( clientStatus != UP && !clientStatus.loading) {
-      initializeReefClient
+
+    if ( clientStatus != UP && !clientStatus.reinitializing) {
+      reefClientActor !  Reinitialize
     }
 
-    Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "loading" -> Json.toJson( clientStatus.loading), "description" -> Json.toJson( clientStatus.description))).toString())
+    Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "reinitializing" -> Json.toJson( clientStatus.reinitializing), "description" -> Json.toJson( clientStatus.description))).toString())
   }
 
   def getMeasurements = ServiceAction { (request, service) =>
@@ -385,64 +399,19 @@ object Application extends Controller {
     Ok(buildPermissionSetDetail(permSet))
   }
 
+  def trySendReceive = {
+    import ReefClientActor._
 
-
-  def initializeReefClient = {
-    import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
-
-    Akka.future { initializeReefClientDo( "cluster1.cfg") }.map { result =>
-      Application.client = result
-    }
-  }
-
-  def initializeReefClientDo( cfg: String): Option[Client] = {
-    import Application.ClientStatus._
-
-    Logger.info( "Loading config file " + cfg)
-    val centerConfig = try {
-      PropertyReader.readFromFiles(List(cfg).toList)
-    } catch {
-      case ex: IOException => {
-        Application.clientStatus = CONFIGURATION_FILE_FAILURE
-        return None
+    val receiver = Akka.system.actorOf(Props( new Actor {
+      protected def receive = {
+        case ClientReply( status, theClient) => {
+          client = theClient
+          clientStatus = status
+        }
       }
-    }
+    }), name = "applicationActor")
 
-    val connection : Connection = try {
-      Logger.info( "Getting Reef ConnectionFactory")
-      val factory = ReefConnectionFactory.buildFactory(new AmqpSettings(centerConfig), new ReefServices)
-      Logger.info( "Connecting to Reef")
-      val connection = factory.connect()
-      Application.clientStatus = AMQP_UP
-      connection
-    } catch {
-      case ex: IllegalArgumentException => {
-        Application.clientStatus = AMQP_DOWN
-        return None
-      }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Application.clientStatus = AMQP_DOWN
-        return None
-      }
-    }
-
-    val client = try {
-      Logger.info( "Logging into Reef")
-      val client = connection.login(new UserSettings("system", "system"))
-      Application.clientStatus = UP
-      client
-    } catch {
-      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        Application.clientStatus = AUTHENTICATION_FAILURE
-        return None
-      }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Application.clientStatus = REEF_FAILURE
-        return None
-      }
-    }
-
-    Some[Client](client)
+    reefClientActor.tell( ReefClientActor.ClientRequest, receiver)
   }
 
 }

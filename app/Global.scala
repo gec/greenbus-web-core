@@ -17,7 +17,7 @@ object Global extends GlobalSettings {
     super.onStart(app)
     Logger.info("Application has started")
 
-    Application.initializeReefClient
+    //Application.initializeReefClient
     Logger.info("onStart finished")
   }
 

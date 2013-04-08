@@ -27,7 +27,7 @@ angular.module('charlotte.filters', []).
         }).
     filter('serviceStatusLoading', function() {
           return function(status) {
-              if( status.loading)
+              if( status.reinitializing)
                 return "loading..."
               else if( status.servicesStatus === "UP")
                 return "Loading succeeded."
@@ -37,7 +37,7 @@ angular.module('charlotte.filters', []).
         }).
     filter('serviceStatusProgressClass', function() {
           return function(status) {
-              if( status.loading)
+              if( status.reinitializing)
                 return "progress progress-striped active"
               else if( status.servicesStatus === "UP")
                 return "progress"
