@@ -37,9 +37,6 @@ object Application extends Controller with ClientCache {
 
   import models.ClientStatus._
 
-  //var clientStatus = INITIALIZING
-  //var client : Option[Client] = None
-
   import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
   val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this)), name = "reefClientActor")
 
@@ -56,6 +53,7 @@ object Application extends Controller with ClientCache {
             Logger.error( "ServiceAction exception " + ex.getMessage)
             if( ex.getCause != null)
               Logger.error( "ServiceAction exception cause " + ex.getCause.getMessage)
+            reefClientActor !  Reinitialize
             ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( ex.getMessage))).toString())
           }
         }
@@ -63,7 +61,6 @@ object Application extends Controller with ClientCache {
         Logger.info( "ServiceAction down clientStatus " + clientStatus)
 
         reefClientActor !  Reinitialize
-        //initializeReefClient
         Logger.info( "ServiceAction redirect( /assets/index.html)")
         ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( clientStatus.description))).toString())
       }

@@ -65,7 +65,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             });
     }
 
-    self.initialize("/entity");
+    var path = $location.path();
+    if( path.length == 0)
+        path = "/entity"
+    self.initialize(path);
 
 
     function isString( obj) {

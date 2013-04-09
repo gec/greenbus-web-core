@@ -9,6 +9,7 @@ import java.io.IOException
 import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
+import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 
 object ClientStatus extends Enumeration {
   type ClientStatus = ClientStatusVal
@@ -53,7 +54,8 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
   import ClientStatus._
   import ReefClientActor._
 
-
+  val AGENT_NAME = "system"
+  val AGENT_PASSWORD = "system"
 
   var clientStatus = INITIALIZING
   var client : Option[Client] = None
@@ -102,9 +104,19 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
       val now = System.currentTimeMillis()
       if( lastInitializeTime + TIMEOUT < now ) {
 
-        if ( clientStatus != UP || ! client.isDefined) {
+        if ( clientStatus != UP || ! client.isDefined || ! isReefRespondingToQueries) {
+
           initializing = true;
-          // Init in separate thread. Pass in this actor's reference
+
+          // AMQP may still be up, but we'll start from scratch and go through loading the config,
+          // getting a connection, etc.
+          //
+          clientStatus = INITIALIZING
+          client = None;
+
+          // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
+          // UpdateClient back to this actor... to set the client.
+          //
           Akka.future { initializeReefClient( self, "cluster1.cfg") }.map { result =>
             lastInitializeTime = System.currentTimeMillis() + TIMEOUT
             initializing = false
@@ -115,6 +127,25 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
 
 
   }
+
+  def isReefRespondingToQueries: Boolean = {
+    if( ! client.isDefined)
+      return false
+
+    val service = client.get.getService(classOf[AllScadaService])
+    try {
+      service.getAgentByName( AGENT_NAME).await()
+      true
+    }  catch {
+      case ex => {
+        Logger.error( "isReefUp service.getAgentByName exception " + ex.getMessage)
+        if( ex.getCause != null)
+          Logger.error( "isReefUp service.getAgentByName exception cause " + ex.getCause.getMessage)
+      }
+      false
+    }
+  }
+
 
   def initializeReefClient( actor: ActorRef, cfg: String) : Unit = {
     import scala.collection.JavaConversions._
@@ -147,16 +178,19 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
       }
     }
 
-    val client = try {
+    // Set the client by sending a message to ReefClientActor
+    try {
       Logger.info( "Logging into Reef")
-      val client = connection.login(new UserSettings("system", "system"))
-      actor ! UpdateClient( UP, Some[Client](client))
+      val clientFromLogin = connection.login(new UserSettings( AGENT_NAME, AGENT_PASSWORD))
+      actor ! UpdateClient( UP, Some[Client](clientFromLogin))
     } catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
         actor ! UpdateClient( AUTHENTICATION_FAILURE, None)
+        None
       }
       case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
         actor ! UpdateClient( REEF_FAILURE, None)
+        None
       }
     }
 
