@@ -31,7 +31,7 @@ object ClientStatus extends Enumeration {
 object ReefClientActor {
   import ClientStatus._
 
-  val TIMEOUT = 10L * 1000L  // 10 seconds
+  val TIMEOUT = 5L * 1000L  // 5 seconds
 
   case object Reinitialize
 

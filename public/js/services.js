@@ -44,7 +44,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                         $location.path( redirectLocation)
                 } else {
                     retries.initialize ++;
-                    var delay = retries.initialize < 10 ? 250 : 5000
+                    var delay = retries.initialize < 20 ? 250 : 2000
                     console.log( "reef.initialize retry " + retries.initialize);
                     $timeout(function () {
                         self.initialize( redirectLocation);
@@ -66,7 +66,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
     }
 
     var path = $location.path();
-    if( path.length == 0)
+    if( path.length == 0 || path.indexOf( "/loading") == 0)
         path = "/entity"
     self.initialize(path);
 
