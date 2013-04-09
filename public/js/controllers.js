@@ -27,13 +27,16 @@ function ReefStatusControl($rootScope, $scope, $timeout, reef) {
 }
 
 function LoadingControl($rootScope, $scope, $timeout, reef, $http, $location) {
-    var retryCount = 0;
 
-    $scope.status = {
-        servicesStatus: "UNKNOWN",
-        reinitializing: true,
-        description: "loading Reef client..."
-    };
+    $scope.status = reef.getStatus();
+
+    // if someone goes to the default path and reef is up, we go to the entity page by default.
+    //
+    if( $scope.status.servicesStatus === "UP") {
+        $location.path( "/entity");
+        return;
+    }
+
     $rootScope.currentMenuItem = "loading";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},

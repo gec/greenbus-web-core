@@ -3,11 +3,6 @@
 /* Services */
 
 
-angular.module('charlotte.services', []).
-    factory('reef', function( $rootScope, $timeout, $http, $location){
-        return new ReefService( $rootScope, $timeout, $http, $location);
-	});
-
 var ReefService = function( $rootScope, $timeout, $http, $location) {
     var self = this;
     var retries = {
@@ -29,6 +24,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
     function notify() {
         $rootScope.$broadcast( 'reefService.statusUpdate', status);
+    }
+
+    self.getStatus = function() {
+        return status;
     }
 
     self.initialize = function( redirectLocation) {
@@ -56,11 +55,19 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                 // or server returns response with status
                 // code outside of the <200, 400) range
                 console.log( "reef.initialize error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                status = {
-                    servicesStatus: "AJAX_FAILURE",
-                    reinitializing: false,
-                    description: "AJAX failure within Javascript client. Status " + statusCode
-                };
+                if( statusCode == 0) {
+                    status = {
+                        servicesStatus: "APPLICATION_SERVER_DOWN",
+                        reinitializing: false,
+                        description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+                    };
+                } else {
+                    status = {
+                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                        reinitializing: false,
+                        description: "Application server responded with status " + statusCode
+                    };
+                }
                 notify();
             });
     }
@@ -122,21 +129,76 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             error(function (json, statusCode, headers, config) {
 
                 console.log( "reef.get error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                if( statusCode == 500 || isString( json) && json.length == 0) {
+                if( statusCode == 0) {
                     status = {
-                        servicesStatus: "AJAX_FAILURE",
+                        servicesStatus: "APPLICATION_SERVER_DOWN",
                         reinitializing: false,
-                        description: "AJAX failure within Javascript client. Status " + statusCode
+                        description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+                    };
+                } else if( statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
+                    status = {
+                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                        reinitializing: false,
+                        description: "Application server responded with status " + statusCode
                     };
                 } else {
                     status = json;
                 }
 
                 notify();
-                self.initialize();
-                self.get( url, name, $scope);
+
+                // 404 means it's an internal error and the page will never be found so no use retrying.
+                if( statusCode != 404) {
+                    self.initialize();
+                    self.get( url, name, $scope);
+                }
             });
 
     }
 
+
 }
+
+
+angular.module('charlotte.services', []).
+    factory('reef', function( $rootScope, $timeout, $http, $location){
+        return new ReefService( $rootScope, $timeout, $http, $location);
+    }).
+    config(['$httpProvider', function ($httpProvider) {
+
+
+        // If the application server goes down and a user clicks the left sidebar, Angular will try to load the partial page and get a 404.
+        // We need to catch this event to put up a message.
+        //
+
+        var interceptor = ['$q', '$injector', function ($q, $injector) {
+
+                function success(response) {
+                    return response;
+                }
+
+                function error(response) {
+                    if ((response.status === 404 || response.status === 0 ) && response.config.url.indexOf(".html")) {
+
+                        var status = {
+                            servicesStatus: "APPLICATION_SERVER_DOWN",
+                            reinitializing: false,
+                            description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+                        };
+
+                        var $rootScope = $rootScope || $injector.get('$rootScope');
+                        $rootScope.$broadcast( 'reefService.statusUpdate', status);
+
+                        return response;
+                    } else {
+                        return $q.reject(response);
+                    }
+                }
+
+                return function (promise) {
+                    return promise.then(success, error);
+                }
+            }];
+
+        $httpProvider.responseInterceptors.push(interceptor);
+    }]);
