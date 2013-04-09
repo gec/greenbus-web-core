@@ -2,7 +2,7 @@
 
 /* Controllers */
 
-function MenuControl($rootScope, $scope, $timeout, ReefData, $http) {
+function MenuControl($rootScope, $scope, $timeout, reef, $http) {
     $scope.isActive = function(menuItem) {
         return {
             active: menuItem && menuItem == $scope.currentMenuItem
@@ -10,23 +10,56 @@ function MenuControl($rootScope, $scope, $timeout, ReefData, $http) {
     };
 }
 
-function makeRequest(url, name, $http, $scope) {
-    $http.get(url).success(function(json) {
-        $scope[name] = json;
+function ReefStatusControl($rootScope, $scope, $timeout, reef) {
+
+    $scope.status = {
+        servicesStatus: "Loading...",
+        reinitializing: true,
+        description: "loading Reef client..."
+
+    };
+    $scope.visible = true;
+
+    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+        $scope.status = status;
+        $scope.visible = $scope.status.servicesStatus !== "UP"
     });
 }
 
-function EntityControl($rootScope, $scope, $timeout, ReefData, $http) {
+function LoadingControl($rootScope, $scope, $timeout, reef, $http, $location) {
+
+    $scope.status = reef.getStatus();
+
+    // if someone goes to the default path and reef is up, we go to the entity page by default.
+    //
+    if( $scope.status.servicesStatus === "UP") {
+        $location.path( "/entity");
+        return;
+    }
+
+    $rootScope.currentMenuItem = "loading";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Loading" }
+    ];
+
+    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+        $scope.status = status;
+        $scope.visible = $scope.status.servicesStatus !== "UP"
+    });
+}
+
+function EntityControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Entities" }
     ];
 
-    makeRequest("/entity", "entities", $http, $scope);
+    reef.get( "/entity", "entities", $scope);
 }
 
-function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function EntityDetailControl($rootScope, $scope, $routeParams, reef) {
     var entName = $routeParams.name;
 
     $rootScope.currentMenuItem = "entity";
@@ -36,20 +69,20 @@ function EntityDetailControl($rootScope, $scope, $routeParams, $timeout, ReefDat
         { name: entName }
     ];
 
-    makeRequest('/entity/' + entName, "entity", $http, $scope);
+    reef.get( '/entity/' + entName, "entity", $scope);
 }
 
-function PointControl($rootScope, $scope, $timeout, ReefData, $http) {
+function PointControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "point";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Points" }
     ];
 
-    makeRequest("/point", "points", $http, $scope);
+    reef.get( "/point", "points", $scope);
 }
 
-function PointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function PointDetailControl($rootScope, $scope, $routeParams, reef) {
     var pointName = $routeParams.name;
 
     $rootScope.currentMenuItem = "point";
@@ -59,20 +92,20 @@ function PointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData
         { name: pointName }
     ];
 
-    makeRequest('/point/' + pointName, "point", $http, $scope);
+    reef.get( '/point/' + pointName, "point", $scope);
 }
 
-function CommandControl($rootScope, $scope, $timeout, ReefData, $http) {
+function CommandControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "command";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Commands" }
     ];
 
-    makeRequest("/command", "commands", $http, $scope);
+    reef.get( "/command", "commands", $scope);
 }
 
-function CommandDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
     var commandName = $routeParams.name;
 
     $rootScope.currentMenuItem = "command";
@@ -82,29 +115,29 @@ function CommandDetailControl($rootScope, $scope, $routeParams, $timeout, ReefDa
         { name: commandName }
     ];
 
-    makeRequest('/command/' + commandName, "command", $http, $scope);
+    reef.get( '/command/' + commandName, "command", $scope);
 }
 
-function MeasurementControl($rootScope, $scope, $timeout, ReefData, $http) {
+function MeasurementControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Measurements" }
     ];
 
-    makeRequest("/measurement", "measurements", $http, $scope);
+    reef.get( "/measurement", "measurements", $scope);
 }
 
-function EndpointControl($rootScope, $scope, $timeout, ReefData, $http) {
+function EndpointControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "endpoint";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Endpoints" }
     ];
 
-    makeRequest("/endpoint", "endpoints", $http, $scope);
+    reef.get( "/endpoint", "endpoints", $scope);
 }
-function EndpointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function EndpointDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "endpoint";
@@ -114,19 +147,19 @@ function EndpointDetailControl($rootScope, $scope, $routeParams, $timeout, ReefD
         { name: routeName }
     ];
 
-    makeRequest('/endpoint/' + routeName, "endpoint", $http, $scope);
+    reef.get( '/endpoint/' + routeName, "endpoint", $scope);
 }
 
-function ApplicationControl($rootScope, $scope, $timeout, ReefData, $http) {
+function ApplicationControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "application";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Applications" }
     ];
 
-    makeRequest("/application", "applications", $http, $scope);
+    reef.get( "/application", "applications", $scope);
 }
-function ApplicationDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function ApplicationDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "endpoint";
@@ -136,39 +169,39 @@ function ApplicationDetailControl($rootScope, $scope, $routeParams, $timeout, Re
         { name: routeName }
     ];
 
-    makeRequest('/application/' + routeName, "application", $http, $scope);
+    reef.get( '/application/' + routeName, "application", $scope);
 }
 
-function EventControl($rootScope, $scope, $timeout, ReefData, $http) {
+function EventControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "event";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Events" }
     ];
 
-    makeRequest("/event", "events", $http, $scope);
+    reef.get( "/event", "events", $scope);
 }
 
-function AlarmControl($rootScope, $scope, $timeout, ReefData, $http) {
+function AlarmControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "alarm";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Alarms" }
     ];
 
-    makeRequest("/alarm", "alarms", $http, $scope);
+    reef.get( "/alarm", "alarms", $scope);
 }
 
-function AgentControl($rootScope, $scope, $timeout, ReefData, $http) {
+function AgentControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "agent";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Agents" }
     ];
 
-    makeRequest("/agent", "agents", $http, $scope);
+    reef.get( "/agent", "agents", $scope);
 }
-function AgentDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function AgentDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "agent";
@@ -178,19 +211,19 @@ function AgentDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData
         { name: routeName }
     ];
 
-    makeRequest('/agent/' + routeName, "agent", $http, $scope);
+    reef.get( '/agent/' + routeName, "agent", $scope);
 }
 
-function PermissionSetControl($rootScope, $scope, $timeout, ReefData, $http) {
+function PermissionSetControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "permissionset";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Permission Sets" }
     ];
 
-    makeRequest("/permissionset", "permissionsets", $http, $scope);
+    reef.get( "/permissionset", "permissionsets", $scope);
 }
-function PermissionSetDetailControl($rootScope, $scope, $routeParams, $timeout, ReefData, $http) {
+function PermissionSetDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "permissionset";
@@ -200,11 +233,11 @@ function PermissionSetDetailControl($rootScope, $scope, $routeParams, $timeout, 
         { name: routeName }
     ];
 
-    makeRequest('/permissionset/' + routeName, "permissionset", $http, $scope);
+    reef.get( '/permissionset/' + routeName, "permissionset", $scope);
 }
 
 
-function CharlotteControl($scope, $timeout, ReefData, $http) {
+function CharlotteControl($scope, $timeout, reef) {
 
 	console.log("Called controller");
 	if ($scope.centerMeasurements == null) {
