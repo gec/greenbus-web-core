@@ -54,6 +54,7 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
   import ClientStatus._
   import ReefClientActor._
 
+  val REEF_CONFIG_FILENAME = "reef.cfg"
   val AGENT_NAME = "system"
   val AGENT_PASSWORD = "system"
 
@@ -117,7 +118,7 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
           // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
           // UpdateClient back to this actor... to set the client.
           //
-          Akka.future { initializeReefClient( self, "cluster1.cfg") }.map { result =>
+          Akka.future { initializeReefClient( self, REEF_CONFIG_FILENAME) }.map { result =>
             lastInitializeTime = System.currentTimeMillis() + TIMEOUT
             initializing = false
           }
