@@ -11,6 +11,11 @@ An HTML 5 client for [Reef](https://github.com/gec/reef) (an open source smart g
 5.  > play run
 6.  Point your web browser to `http://localhost:9000`
 
-### Screenshot
+## Screenshot
 
 ![Reef GUI Screenshot](https://github.com/gec/reefgui/raw/master/screenshot.png)
+
+## License
+
+[Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
