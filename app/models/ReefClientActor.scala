@@ -18,7 +18,7 @@
  */
 package models
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{ActorContext, Props, ActorRef, Actor}
 import org.totalgrid.reef.client.{Connection, Client}
 import play.api.libs.concurrent.Akka
 import play.api.Logger
@@ -28,6 +28,13 @@ import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
+import controllers.{ReefClientCache, ClientPushActorFactory}
+import play.api.libs.iteratee.{PushEnumerator, Enumerator}
+import play.api.libs.json.JsValue
+import akka.util.Timeout
+import akka.util.duration._
+import scala.Some
+
 
 object ClientStatus extends Enumeration {
   type ClientStatus = ClientStatusVal
@@ -46,10 +53,14 @@ object ClientStatus extends Enumeration {
   protected final def Value(name: String, description: String, reinitializing: Boolean): ClientStatusVal = new ClientStatusVal(name, description, reinitializing)
 }
 
+
 object ReefClientActor {
   import ClientStatus._
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
+
+  // For actor ask
+  // implicit val timeout = Timeout(1 second)
 
   case object Reinitialize
 
@@ -57,17 +68,30 @@ object ReefClientActor {
   case class StatusReply( status: ClientStatus)
 
   case object ClientRequest
-  case class ClientReply( status: ClientStatus, theClient: Option[Client])
+  case class ClientReply( status: ClientStatus, client: Option[Client])
 
-  private case class UpdateClient( status: ClientStatus, theClient: Option[Client])
+  case class MakeChildActor( userName: String, uathToken: String)
+  case class DependentActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
+
+  case class UpdateClient( status: ClientStatus, client: Option[Client])
 }
+
+import ClientStatus._
+
+/**
+ * Factory for creating actors that depend on the ReefClientActor (to manage the Reef client connection).
+ */
+trait ReefClientActorChildFactory {
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ClientStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue])
+}
+
 
 
 /**
  * 
  * @author Flint O'Brien
  */
-class ReefClientActor( cache: controllers.ClientCache) extends Actor {
+class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFactory: ReefClientActorChildFactory) extends Actor {
 
   import ClientStatus._
   import ReefClientActor._
@@ -104,13 +128,25 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
       reinitializeIfNeeded
     }
 
-    case UpdateClient( status, theClient) => {
+    case updateClient: UpdateClient => {
 
-      Logger.info( "UpdateClient " + status.toString())
-      clientStatus = status
-      client = theClient
-      cache.clientStatus = clientStatus
-      cache.client = client
+      Logger.info( "UpdateClient " + updateClient.status.toString())
+      this.clientStatus = updateClient.status
+      this.client = updateClient.client
+
+      // Update Application object's client cache. TODO: Is there a better way to handle this?
+      exportCache.clientStatus = clientStatus
+      exportCache.client = client
+
+      context.children foreach { _ ! updateClient }
+    }
+
+    case MakeChildActor( userName, authToken) => {
+      Logger.info( "ReefClientActor.receive MakeDependentActor " + authToken)
+
+      val actorName = "clientPushActor." + userName + "." + authToken
+      val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
+      sender ! DependentActor( actorRef, pushChannel)
     }
 
   }
@@ -188,10 +224,17 @@ class ReefClientActor( cache: controllers.ClientCache) extends Actor {
       connection
     } catch {
       case ex: IllegalArgumentException => {
+        Logger.error( "Error connecting to AMQP. Exception: " + ex)
         actor ! UpdateClient( AMQP_DOWN, None)
         return
       }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+      case ex2: org.totalgrid.reef.client.exception.ReefServiceException => {
+        Logger.error( "Error connecting to Reef. Exception: " + ex2)
+        actor ! UpdateClient( AMQP_DOWN, None)
+        return
+      }
+      case ex3: Throwable => {
+        Logger.error( "Error connecting to AMQP or Reef. Exception: " + ex3)
         actor ! UpdateClient( AMQP_DOWN, None)
         return
       }

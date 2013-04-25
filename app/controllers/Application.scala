@@ -18,17 +18,32 @@
  */
 package controllers
 
+import akka.actor._
+import akka.pattern.ask
 import play.api._
-import libs.concurrent.Akka
-import play.libs.Akka._
+import play.api.libs.concurrent._
+import play.api.libs.iteratee._
+import models._
+import models.ReefClientActor.MakeChildActor
+import play.api.libs.json._
+import models.ReefClientActor.DependentActor
+import models.ClientStatus.ClientStatus
+import models.Quit
+import models.ReefClientActor.MakeChildActor
+import models.ReefClientActor.DependentActor
+import models.Subscribe
+import models.Quit
+import models.ReefClientActor.MakeChildActor
+import play.api.libs.json.JsString
+import models.ReefClientActor.DependentActor
+import models.Subscribe
+import play.api.libs.json.JsObject
+import akka.util.Timeout
+import akka.util.duration._
+
+//import libs.concurrent.Akka
 import play.api.mvc._
-import libs.json.{Json, JsValue}
-import org.totalgrid.reef.client.{Connection, Client}
-import org.totalgrid.reef.client.settings.util.PropertyReader
-import org.totalgrid.reef.client.factory.ReefConnectionFactory
-import org.totalgrid.reef.client.settings.AmqpSettings
-import org.totalgrid.reef.client.service.list.ReefServices
-import org.totalgrid.reef.client.settings.UserSettings
+import org.totalgrid.reef.client.Client
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
@@ -39,30 +54,38 @@ import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import Json._
-import java.io.IOException
-import models.{ClientStatus, ReefClientActor}
-import akka.actor.{Actor, Props}
 import models.ClientStatus._
-import scala.Some
-import models.ReefClientActor.{Reinitialize, StatusRequest}
+import models.ReefClientActor.{DependentActor, MakeChildActor, Reinitialize}
 
-trait ClientCache {
+trait ReefClientCache {
   var clientStatus = INITIALIZING
   var client : Option[Client] = None
 }
 
-object Application extends Controller with ClientCache {
+object ClientPushActorFactory extends ReefClientActorChildFactory{
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ClientStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
+    // Create an Enumerator that the new actor will use for push
+    val pushChannel =  Enumerator.imperative[JsValue]()
+    val actorRef = parentContext.actorOf( Props( new ClientPushActor( clientStatus, client, pushChannel)), name = actorName)
+    (actorRef, pushChannel)
+  }
+}
 
+
+
+object Application extends Controller with ReefClientCache {
+  import JsonFormatters._
   import models.ClientStatus._
 
   import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
-  val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this)), name = "reefClientActor")
+  val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor")
+  // For actor ask
+  implicit val timeout = Timeout(1 second)
 
 
   def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
     Action { request =>
-      Logger.info( "ServiceAction start")
-      if ( clientStatus == UP && client.isDefined) {
+      if ( clientIsUp) {
         Logger.info( "ServiceAction UP")
         try {
           f(request, client.get.getService(classOf[AllScadaService]))
@@ -85,73 +108,14 @@ object Application extends Controller with ClientCache {
     }
   }
 
-
+  def clientIsUp: Boolean = {
+    clientStatus == UP && client.isDefined
+  }
 
 
   def index = Action { implicit request =>
     Logger.info( "index")
     Redirect("/assets/index.html")
-  }
-
-  def shortQuality(m: Measurement) = {
-    val q = m.getQuality
-
-    if (q.getSource == Quality.Source.SUBSTITUTED) {
-      "R"
-    } else if (q.getOperatorBlocked) {
-      "N"
-    } else if (q.getTest) {
-      "T"
-    } else if (q.getDetailQual.getOldData) {
-      "O"
-    } else if (q.getValidity == Quality.Validity.QUESTIONABLE) {
-      "A"
-    } else if (q.getValidity != Quality.Validity.GOOD) {
-      "B"
-    } else {
-      ""
-    }
-  }
-
-  def longQuality(m: Measurement): String = {
-    val q = m.getQuality
-    longQuality(q)
-  }
-
-  def longQuality(q: Quality): String = {
-    val dq = q.getDetailQual
-
-    var list = List.empty[String]
-    if (q.getOperatorBlocked) list ::= "NIS"
-    if (q.getSource == Quality.Source.SUBSTITUTED) list ::= "replaced"
-    if (q.getTest) list ::= "test"
-    if (dq.getOverflow) list ::= "overflow"
-    if (dq.getOutOfRange) list ::= "out of range"
-    if (dq.getBadReference) list ::= "bad reference"
-    if (dq.getOscillatory) list ::= "oscillatory"
-    if (dq.getFailure) list ::= "failure"
-    if (dq.getOldData) list ::= "old"
-    if (dq.getInconsistent) list ::= "inconsistent"
-    if (dq.getInaccurate) list ::= "inaccurate"
-
-    val overall = q.getValidity match {
-      case Quality.Validity.GOOD => "Good"
-      case Quality.Validity.INVALID => "Invalid"
-      case Quality.Validity.QUESTIONABLE => "Questionable"
-    }
-
-    overall + " (" + list.reverse.mkString("; ") + ")"
-  }
-
-  private def measToJson(m: Measurement): JsValue = {
-    val measValue = m.getType match {
-      case Measurement.Type.DOUBLE => m.getDoubleVal
-      case Measurement.Type.INT => m.getIntVal
-      case Measurement.Type.STRING => m.getStringVal
-      case Measurement.Type.BOOL => m.getBoolVal
-      case Measurement.Type.NONE => Json.toJson("")
-    }
-    Json.toJson(Map("name" -> m.getName, "value" -> measValue.toString, "unit" -> m.getUnit, "time" -> m.getTime.toString, "shortQuality" -> shortQuality(m), "longQuality" -> longQuality(m)))
   }
 
   def getServicesStatus = Action {
@@ -163,6 +127,59 @@ object Application extends Controller with ClientCache {
     Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "reinitializing" -> Json.toJson( clientStatus.reinitializing), "description" -> Json.toJson( clientStatus.description))).toString())
   }
 
+  def getMessageAndData( json: JsValue): (String, JsValue) = json.as[JsObject].fields(0)
+
+
+  /**
+   * Handles the chat websocket.
+   */
+  def getWebSocket( authToken: String) = WebSocket.async[JsValue] { request  =>
+
+    Logger.info( "getWebSocket( " + authToken + ")")
+
+    if( clientIsUp) {
+      val userName = "SomeUser"
+      val authToken2 = client.get.getHeaders.getAuthToken
+      (reefClientActor ? MakeChildActor( userName, authToken)).asPromise.map {
+        case DependentActor( actorRef, pushChannel) => {
+          Logger.info( "getWebSocket DependentActor")
+
+          // Create an Iteratee to consume the feed from browser
+          val iteratee = Iteratee.foreach[JsValue] { json =>
+            val (message, data) = getMessageAndData( json)
+            Logger.info( "Iteratee.message  " + message + ": " + data)
+            message match {
+              case "subscribe" => actorRef ! SubscribeFormat.reads( data)
+              case "unsubscribe" => actorRef ! Unsubscribe( data.as[String])
+            }
+
+          }.mapDone { _ =>
+            actorRef ! Quit(userName)
+          }
+
+          (iteratee, pushChannel)
+
+        }
+      }
+      //ClientPushActor.join(userName)
+
+    } else {
+
+      // Connection error
+      Logger.error( "getWebSocket ERROR: Reef Client is not UP. No webSocket.")
+
+      // A finished Iteratee sending EOF
+      val iteratee = Done[JsValue,Unit]((),Input.EOF)
+
+      // Send an error and close the socket
+      val enumerator =  Enumerator[JsValue](JsObject(Seq("error" -> JsString("Reef Client is not UP: " + clientStatus.description)))).andThen(Enumerator.enumInput(Input.EOF))
+
+      Promise.pure( (iteratee,enumerator) )
+    }
+
+  }
+
+
   def getMeasurements = ServiceAction { (request, service) =>
 
     //val service: AllScadaService = client.getService(classOf[AllScadaService])
@@ -171,7 +188,7 @@ object Application extends Controller with ClientCache {
 
     val measurements = service.getMeasurementsByPoints(points).await()
 
-    Ok(Json.toJson(measurements.map(measToJson)))
+    Ok(Json.toJson(measurements.map(MeasurementFormat.writes)))
   }
 
   def getEntities = ServiceAction { (request, service) =>

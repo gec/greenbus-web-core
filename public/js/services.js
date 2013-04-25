@@ -25,20 +25,60 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
     var self = this;
     var retries = {
         initialize: 0,
-        get: 0
-    } ;
+        get: 0,
+        subscribe: 0
+    }
     var status = {
         servicesStatus: "UNKNOWN",
         reinitializing: true,
         description: "loading Reef client..."
+    }
+
+    var subscription = {
+        idCounter: 0,
+        listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
     };
 
-    /*
-    $rootScope.$on( "documentLoaded", function () {
-        console.log( "reef.initialize documentLoaded /entity");
-        self.initialize("/entity");
-    } );
-    */
+    var webSocketStatus = "UNKNOWN"
+    var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
+    var webSocket = new WS("ws://localhost:9000/services/websocket?authToken=authToken1")
+
+    function getListenerForMessage( data) {
+        if( data.subscriptionId)
+            return subscription.listeners[ data.subscriptionId]
+        else
+            return null
+    }
+
+    function receiveEventHandleError( data) {
+        webSocket.close()
+        console.log( "recieveEvent: data.error: " + data.error)
+
+        var listener = getListenerForMessage( data);
+        $rootScope.$apply(function () {
+            if( listener && listener.error)
+                listener.error( data.subscriptionId, data.type, data.data)
+        })
+    }
+
+    function receiveEvent(event) {
+        var data = JSON.parse(event.data)
+
+        // Handle errors
+        if(data.error) {
+            receiveEventHandleError( data)
+            return
+        }
+
+        var listener = getListenerForMessage( data);
+        $rootScope.$apply(function () {
+            if( listener && listener.success)
+                listener.success( data.subscriptionId, data.type, data.data)
+        })
+    }
+
+    webSocket.onmessage = receiveEvent
+
 
     function notify() {
         $rootScope.$broadcast( 'reefService.statusUpdate', status);
@@ -100,11 +140,11 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         return Object.prototype.toString.call(obj) == '[object String]'
     }
 
-    self.get = function ( url, name, $scope) {
+    self.get = function ( url, name, $scope, successListener) {
         $scope.loading = true;
         //console.log( "reef.get " + url + " retries:" + retries.get);
 
-        // Register for controller.$destroy event and kill and retry tasks.
+        // Register for controller.$destroy event and kill any retry tasks.
         $scope.$on( '$destroy', function( event) {
             //console.log( "reef.get destroy " + url + " retries:" + retries.get);
             if( $scope.task ) {
@@ -132,7 +172,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             success(function(json) {
                 $scope[name] = json;
                 $scope.loading = false;
-                //console.log( "reef.get success " + url);
+                console.log( "reef.get success " + url);
+
+                if( successListener)
+                    successListener()
 
                 // If the get worked, the service must be up.
                 if( status.servicesStatus != "UP") {
@@ -172,6 +215,61 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                 }
             });
 
+    }
+
+    function makeSubscriptionId() {
+        subscription.idCounter ++;
+        return "subscription." + subscription.idCounter;
+    }
+    function saveSubscriptionOnScope( $scope, subscriptionId) {
+        if( ! $scope.subscriptionIds)
+            $scope.subscriptionIds = []
+        $scope.subscriptionIds.push( subscriptionId)
+    }
+    function registerSubscriptionOnScope( $scope, subscriptionId) {
+
+        saveSubscriptionOnScope( $scope, subscriptionId);
+
+        // Register for controller.$destroy event and kill any retry tasks.
+        $scope.$on( '$destroy', function( event) {
+            if( $scope.subscriptionIds) {
+                console.log( "reef.subscribe $destroy " + $scope.subscriptionIds.length);
+                for( var index in $scope.subscriptionIds) {
+                    var subscriptionId = $scope.subscriptionIds[ index]
+                    self.unsubscribe( subscriptionId)
+                }
+                $scope.subscriptionIds = []
+            }
+        });
+
+    }
+
+    self.subscribe = function ( $scope, type, names, successListener, errorListener) {
+        $scope.loading = true;
+        console.log( "reef.subscribe " + type + " retries:" + retries.subscribe);
+
+        var subscriptionId = makeSubscriptionId();
+        registerSubscriptionOnScope( $scope, subscriptionId);
+        subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
+
+        webSocket.send(JSON.stringify(
+            {
+                subscribe: {
+                    "subscriptionId": subscriptionId,
+                    "type": type,
+                    "names": names
+                }
+            }
+        ))
+
+        return subscriptionId;
+    }
+
+    self.unsubscribe = function( subscriptionId) {
+        webSocket.send(JSON.stringify(
+            { unsubscribe: subscriptionId}
+        ))
+        delete subscription[ subscriptionId]
     }
 
 

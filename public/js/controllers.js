@@ -136,14 +136,57 @@ function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
     reef.get( '/command/' + commandName, "command", $scope);
 }
 
-function MeasurementControl($rootScope, $scope, reef) {
+function MeasurementControl($rootScope, $scope, $filter, reef) {
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Measurements" }
     ];
 
-    reef.get( "/measurement", "measurements", $scope);
+    var number = $filter('number')
+    function formatMeasurementValue( value) {
+        if ( typeof value == "boolean" || isNaN( value) || !isFinite(value)) {
+            return value
+        } else {
+            return number( value)
+        }
+    }
+
+    $scope.findPoint = function( name) {
+        for( var index in $scope.measurements) {
+            var point = $scope.measurements[ index]
+            if( name == point.name)
+                return point
+        }
+        return null
+    }
+
+    $scope.onMeasurement = function( subscriptionId, type, measurement) {
+        if( measurement.unit == "status")
+            console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
+        var point = $scope.findPoint( measurement.name)
+        if( point)
+            point.value = formatMeasurementValue( measurement.value)
+    }
+
+    $scope.onError = function( subscriptionId, type, data) {
+
+    }
+
+    // Called after get /measurement returns successful.
+    $scope.getSuccessListener = function( ) {
+        var pointNames = []
+        for( var index in $scope.measurements) {
+            var measurement = $scope.measurements[ index]
+            pointNames.push( measurement.name)
+
+            measurement.value = formatMeasurementValue( measurement.value)
+        }
+        reef.subscribe( $scope, "measurement", pointNames, $scope.onMeasurement, $scope.onError)
+    }
+
+
+    reef.get( "/measurement", "measurements", $scope, $scope.getSuccessListener);
 }
 
 function EndpointControl($rootScope, $scope, reef) {

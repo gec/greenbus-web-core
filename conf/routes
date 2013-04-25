@@ -9,6 +9,7 @@ GET     /                           controllers.Application.index
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
 
 GET     /services/status             controllers.Application.getServicesStatus
+GET     /services/websocket          controllers.Application.getWebSocket( authToken)
 GET     /entity                      controllers.Application.getEntities
 GET     /entity/*name                controllers.Application.getEntityDetail(name)
 
