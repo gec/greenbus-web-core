@@ -51,8 +51,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
     }
 
     function receiveEventHandleError( data) {
-        webSocket.close()
-        console.log( "recieveEvent: data.error: " + data.error)
+        //webSocket.close()
+        console.log( "receiveEvent: data.error: " + data.error)
 
         var listener = getListenerForMessage( data);
         $rootScope.$apply(function () {
@@ -221,6 +221,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         subscription.idCounter ++;
         return "subscription." + subscription.idCounter;
     }
+
     function saveSubscriptionOnScope( $scope, subscriptionId) {
         if( ! $scope.subscriptionIds)
             $scope.subscriptionIds = []
@@ -244,26 +245,63 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
     }
 
-    self.subscribe = function ( $scope, type, names, successListener, errorListener) {
-        $scope.loading = true;
-        console.log( "reef.subscribe " + type + " retries:" + retries.subscribe);
+    function getSubscriptionIdFromMessage( json) {
+        var messageKey = Object.keys( json)[0]
+        var messageValue = json[messageKey]
+        var subscriptionId = messageValue.subscriptionId
+        return subscriptionId
+    }
 
-        var subscriptionId = makeSubscriptionId();
+    function subscribe( json, $scope, successListener, errorListener) {
+
+        var subscriptionId = getSubscriptionIdFromMessage( json)
+
         registerSubscriptionOnScope( $scope, subscriptionId);
         subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
 
-        webSocket.send(JSON.stringify(
-            {
-                subscribe: {
-                    "subscriptionId": subscriptionId,
-                    "type": type,
-                    "names": names
-                }
-            }
-        ))
-
-        return subscriptionId;
+        webSocket.send(JSON.stringify( json))
+        return subscriptionId
     }
+
+
+    self.subscribeToMeasurementsByNames = function ( $scope, names, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurementsByNames " );
+
+        var json = {
+            subscribeToMeasurementsByNames: {
+                "subscriptionId": makeSubscriptionId(),
+                "names": names
+            }
+        }
+        return subscribe( json, $scope, successListener, errorListener)
+    }
+
+
+    self.subscribeToActiveAlarms = function ( $scope, limit, successListener, errorListener) {
+        console.log( "reef.subscribeToActiveAlarms " );
+
+        var json = {
+            subscribeToActiveAlarms: {
+                "subscriptionId": makeSubscriptionId(),
+                "limit": limit
+            }
+        }
+        return subscribe( json, $scope, successListener, errorListener)
+    }
+
+
+    self.SubscribeToRecentEvents = function ( $scope, limit, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurementsByNames " );
+
+        var json = {
+            subscribeToMeasurementsByNames: {
+                "subscriptionId": makeSubscriptionId(),
+                "limit": limit
+            }
+        }
+        return subscribe( json, $scope, successListener, errorListener)
+    }
+
 
     self.unsubscribe = function( subscriptionId) {
         webSocket.send(JSON.stringify(

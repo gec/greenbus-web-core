@@ -1,6 +1,5 @@
 package models
 
-import play.api.libs.concurrent.{Promise, Akka}
 import akka.actor._
 import akka.util.Timeout
 import akka.util.duration._
@@ -9,25 +8,46 @@ import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.libs.concurrent._
 import play.api._
-import org.totalgrid.reef.client.{Subscription, Client, SubscriptionEvent, SubscriptionEventAcceptor}
+import org.totalgrid.reef.client._
 import controllers.ReefClientCache
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
-import models.JsonFormatters.MeasurementFormat
-import play.api.libs.json.JsString
+import models.JsonFormatters.{ReefFormat, AlarmFormat, MeasurementFormat}
+import org.totalgrid.reef.client.service.proto.{Alarms, Measurements}
 import play.api.libs.json.JsObject
-import org.totalgrid.reef.client.service.proto.Measurements
+import play.api.libs.json.JsString
+import org.totalgrid.reef.client.service.proto.Events.EventSelect
+import com.google.protobuf.GeneratedMessage
 
-case class Quit(username: String)
-case class Subscribe( id: String, objectType: String, names: Seq[String])
-case class Unsubscribe( id: String)
-case class Connected(enumerator:Enumerator[JsValue])
-case class CannotConnect(msg: String)
 
-case class PushSubscription[T]( subscribe: Subscribe, subscription: Subscription[T])
+/*
+object SubscriptionType extends Enumeration {
+  type SubscriptionType = Value
+  val MEASUREMENTS = Value( nextId, "measurements")
+  val ALARMS = Value( nextId, "alarms")
+  val EVENTS = Value( nextId, "events")
+}
+import SubscriptionType._
+*/
 
 import ClientStatus._
+
+trait Subscribe {
+  val id: String
+}
+case class SubscribeToMeasurementsByNames( override val id: String, names: Seq[String]) extends Subscribe
+case class SubscribeToMeasurementHistory( override val id: String, name: String, since: Long, limit: Int) extends Subscribe
+case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
+case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
+case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
+case class SubscribeToEndpointConnections( override val id: String) extends Subscribe
+case class Unsubscribe( id: String)
+
+case class Connected(enumerator:Enumerator[JsValue])
+case class CannotConnect(msg: String)
+case class UnknownMessage( messageName: String)
+case class Quit(username: String)
 
 
 object ClientPushActor {
@@ -50,9 +70,11 @@ class ClientPushActor( initialClientStatus: ClientStatus, initialClient : Option
 
   clientStatus = initialClientStatus
   client = initialClient
+  var service : Option[AllScadaService] = if( client.isDefined) Some( client.get.getService(classOf[AllScadaService])) else None
+
   val pushChannel = aPushChannel
 
-  var pushSubscriptions = Map.empty[String, PushSubscription[Measurements.Measurement]]
+  var subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
 
   def receive = {
 
@@ -63,48 +85,89 @@ class ClientPushActor( initialClientStatus: ClientStatus, initialClient : Option
       // TODO: client is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef client.
     }
 
-    case subscribe: Subscribe => {
-      Logger.info( "ClientPushActor receive Subscribe " + subscribe.id)
-      pushSubscriptions = pushSubscriptions + (subscribe.id -> subscribeByPointNames( subscribe))
+    case subscribe: SubscribeToMeasurementsByNames => {
+      Logger.info( "ClientPushActor receive SubscribeToMeasurementsByNames " + subscribe.id)
+      if( service.isDefined)
+        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscribeToMeasurementsByPointNames( service.get, subscribe))
+    }
+
+    case subscribe: SubscribeToActiveAlarms => {
+      Logger.info( "ClientPushActor receive SubscribeToActiveAlarms " + subscribe.id)
+      if( service.isDefined)
+        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscribeToActiveAlarms( service.get, subscribe))
     }
 
     case Unsubscribe( id) => {
       Logger.info( "ClientPushActor receive Unsubscribe " + id)
-      pushSubscriptions.get( id) match {
-        case Some( pushSubscription) =>
-          pushSubscription.subscription.cancel()
-          pushSubscriptions = pushSubscriptions - id
-        case None =>
+      subscriptionIdsMap.get(id) foreach{ subscription =>
+        subscription.cancel()
+        subscriptionIdsMap = subscriptionIdsMap - id
       }
+    }
 
+    case UnknownMessage( messageName) => {
+      Logger.info( "ClientPushActor receive UnknownMessage: " + messageName)
+      pushChannel.push( JsObject(
+        Seq(
+          "error" -> JsString( "Unknown message: '" + messageName + "'")
+        )
+      ))
     }
 
     case Quit(username) => {
       Logger.info( "ClientPushActor receive Quit")
-      pushSubscriptions = Map.empty[String, PushSubscription[Measurements.Measurement]]
+      subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
     }
 
   }
 
-  def subscribeByPointNames( subscribe: Subscribe) = {
-    val service = client.get.getService(classOf[AllScadaService])
-    val subscription = service.subscribeToMeasurementsByNames( subscribe.names.toList).await.getSubscription
-    subscription.start(new SubscriptionEventAcceptor[Measurement] {
-      def onEvent(event: SubscriptionEvent[Measurement]) {
-        val measurement = event.getValue
-        //Logger.info( "ClientPushActor onEvent measurement " + measurement.getName)
+  def subscriptionHandler[T <: GeneratedMessage]( result: SubscriptionResult[List[T],T], subscriptionId: String, formatter: ReefFormat[T]): Subscription[T] = {
+    // Push in reverse order so the newest are pushed last.
+    result.getResult.reverse.map( m => pushChannel.push( formatter.pushMessage( m, subscriptionId)) )
 
-        val message = JsObject(
-          Seq(
-            "subscriptionId" -> JsString( subscribe.id),
-            "type" -> JsString("measurements"),
-            "data" -> MeasurementFormat.writes( event.getValue)
-          )
-        )
-        pushChannel.push( message)
+    val subscription = result.getSubscription
+    subscription.start(new SubscriptionEventAcceptor[T] {
+      def onEvent(event: SubscriptionEvent[T]) {
+        pushChannel.push( formatter.pushMessage( event.getValue, subscriptionId))
       }
     })
-    PushSubscription( subscribe, subscription)
+    subscription
   }
 
+  def subscribeToMeasurementsByPointNames( service: AllScadaService, subscribe: SubscribeToMeasurementsByNames) : SubscriptionBinding = {
+    val result = service.subscribeToMeasurementsByNames( subscribe.names.toList).await
+    return subscriptionHandler[Measurement]( result, subscribe.id, MeasurementFormat)
+  }
+  def subscribeToActiveAlarms( service: AllScadaService, subscribe: SubscribeToActiveAlarms) : SubscriptionBinding = {
+    val result = service.subscribeToActiveAlarms( subscribe.limit).await
+    return subscriptionHandler[Alarms.Alarm]( result, subscribe.id, AlarmFormat)
+  }
+
+/*
+  def subscribeToMeasurementsByPointNamesOld( service: AllScadaService, subscribe: SubscribeToMeasurementsByNames) : SubscriptionBinding = {
+    val result = service.subscribeToMeasurementsByNames( subscribe.names.toList).await
+    result.getResult.map( m => pushChannel.push( MeasurementFormat.pushMessage( m, subscribe.id)) )
+
+    val subscription = result.getSubscription
+    subscription.start(new SubscriptionEventAcceptor[Measurement] {
+      def onEvent(event: SubscriptionEvent[Measurement]) {
+        pushChannel.push( MeasurementFormat.pushMessage( event.getValue, subscribe.id))
+      }
+    })
+    subscription
+  }
+
+  def subscribeToActiveAlarmsOld( service: AllScadaService, subscribe: SubscribeToActiveAlarms) : SubscriptionBinding = {
+    val result = service.subscribeToActiveAlarms( subscribe.limit).await
+    result.getResult.map( alarm => pushChannel.push( AlarmFormat.pushMessage( alarm, subscribe.id)) )
+
+    val subscription = result.getSubscription
+    subscription.start(new SubscriptionEventAcceptor[Alarms.Alarm] {
+      def onEvent(event: SubscriptionEvent[Alarms.Alarm]) {
+        pushChannel.push( AlarmFormat.pushMessage( event.getValue, subscribe.id))
+      }
+    })
+    subscription
+  }
+*/
 }

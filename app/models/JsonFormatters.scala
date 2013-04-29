@@ -4,7 +4,7 @@ import play.api.libs.json._
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
-import org.totalgrid.reef.client.service.proto.Measurements
+import org.totalgrid.reef.client.service.proto.{Events, Model, Alarms, Measurements}
 
 /**
  *
@@ -62,8 +62,18 @@ object JsonFormatters {
     overall + " (" + list.reverse.mkString("; ") + ")"
   }
 
+  def makeReefId( value:String): Model.ReefID =
+    Model.ReefID.newBuilder.setValue( value).build()
 
-  implicit object MeasurementFormat extends Format[Measurements.Measurement] {
+  trait PushMessage[T] {
+    def pushMessage( o: T, subscriptionId: String): JsValue
+  }
+
+  trait ReefFormat[T] extends Format[T] with PushMessage[T]
+
+
+
+  implicit object MeasurementFormat extends ReefFormat[Measurements.Measurement] {
 
     def writes( o: Measurements.Measurement): JsValue = {
       val measValue = o.getType match {
@@ -85,6 +95,16 @@ object JsonFormatters {
       )
     }
 
+    def pushMessage( o: Measurements.Measurement, subscriptionId: String): JsValue = {
+      JsObject(
+        Seq(
+          "subscriptionId" -> JsString( subscriptionId),
+          "type" -> JsString("measurement"),
+          "data" -> writes( o)
+        )
+      )
+    }
+
     // TODO: Will we ever read a measurement from JSON?
     def reads(json: JsValue) = {
       val mBuider = Measurements.Measurement.newBuilder
@@ -95,21 +115,145 @@ object JsonFormatters {
 
   }
 
-  implicit object SubscribeFormat extends Format[Subscribe] {
+  implicit object EventFormat extends ReefFormat[Events.Event] {
 
-    def writes( o: Subscribe): JsValue = JsObject(
+    def writes( o: Events.Event): JsValue = {
+      JsObject(
+        List(
+          "id" -> JsString( o.getId.getValue),
+          "deviceTime" -> JsNumber( o.getDeviceTime),
+          "eventType" -> JsString( o.getEventType),
+          "isAlarm" -> JsBoolean( o.getAlarm),
+          "severity" -> JsNumber( o.getSeverity),
+          "agent" -> JsString( o.getUserId),
+          "entity" -> JsString( o.getEntity.getName),
+          "message" -> JsString( o.getRendered),
+          "time" -> JsNumber( o.getTime)
+        )
+      )
+    }
+
+    def pushMessage( o: Events.Event, subscriptionId: String): JsValue = {
+      JsObject(
+        Seq(
+          "subscriptionId" -> JsString( subscriptionId),
+          "type" -> JsString("measurement"),
+          "data" -> writes( o)
+        )
+      )
+    }
+
+    // TODO: Will we ever make an event from JSON?
+    def reads(json: JsValue) = {
+      val mBuider = Events.Event.newBuilder
+      mBuider.setId( makeReefId( (json \ "id").as[String]) )
+      mBuider.build
+    }
+
+  }
+
+  implicit object AlarmFormat extends ReefFormat[Alarms.Alarm] {
+
+    def writes( o: Alarms.Alarm): JsValue = {
+      JsObject(
+        List(
+          "id" -> JsString( o.getId.getValue),
+          "state" -> JsString( o.getState.name()),
+          "event" -> EventFormat.writes( o.getEvent)
+        )
+      )
+    }
+
+    def pushMessage( o: Alarms.Alarm, subscriptionId: String): JsValue = {
+      JsObject(
+        Seq(
+          "subscriptionId" -> JsString( subscriptionId),
+          "type" -> JsString("alarm"),
+          "data" -> writes( o)
+        )
+      )
+    }
+
+
+    // TODO: Will we ever make an alarm from JSON?
+    def reads(json: JsValue) = {
+      val mBuider = Alarms.Alarm.newBuilder
+      mBuider.setId( makeReefId( (json \ "id").as[String]) )
+      mBuider.setState( Alarms.Alarm.State.valueOf( (json \ "state").as[String]))
+      mBuider.build
+    }
+
+  }
+
+
+  implicit object SubscribeToMeasurementsByNamesFormat extends Format[SubscribeToMeasurementsByNames] {
+
+    def writes( o: SubscribeToMeasurementsByNames): JsValue = JsObject(
       List(
-        "id" -> JsString( o.id),
-        "type" -> JsString( o.objectType),
+        "subscriptionId" -> JsString( o.id),
         "names" -> JsArray( o.names.map( JsString))
       )
     )
 
-    // TODO: Will we ever read a measurement from JSON?
-    def reads( json: JsValue) = Subscribe(
+    // TODO: Will we ever make a measurement from JSON?
+    def reads( json: JsValue) = SubscribeToMeasurementsByNames(
       (json \ "subscriptionId").as[String],
-      (json \ "type").as[String],
       (json \ "names").asInstanceOf[JsArray].value.map( name => name.as[String])
+    )
+
+  }
+
+
+  implicit object SubscribeToMeasurementHistoryFormat extends Format[SubscribeToMeasurementHistory] {
+
+    def writes( o: SubscribeToMeasurementHistory): JsValue = JsObject(
+      List(
+        "subscriptionId" -> JsString( o.id),
+        "name" -> JsString( o.name),
+        "since" -> JsNumber( o.since),
+        "limit" -> JsNumber( o.limit)
+      )
+    )
+
+    def reads( json: JsValue) = SubscribeToMeasurementHistory(
+      (json \ "subscriptionId").as[String],
+      (json \ "name").as[String],
+      (json \ "since").asOpt[Long].getOrElse( 0),
+      (json \ "limit").as[Int]
+    )
+
+  }
+
+  implicit object SubscribeToActiveAlarmsFormat extends Format[SubscribeToActiveAlarms] {
+
+    def writes( o: SubscribeToActiveAlarms): JsValue = JsObject(
+      List(
+        "subscriptionId" -> JsString( o.id),
+        "limit" -> JsNumber( o.limit)
+      )
+    )
+
+    def reads( json: JsValue) = SubscribeToActiveAlarms(
+      (json \ "subscriptionId").as[String],
+      (json \ "limit").as[Int]
+    )
+
+  }
+
+  implicit object SubscribeToRecentEventsFormat extends Format[SubscribeToRecentEvents] {
+
+    def writes( o: SubscribeToRecentEvents): JsValue = JsObject(
+      List(
+        "subscriptionId" -> JsString( o.id),
+        "eventTypes" -> JsArray( o.eventTypes.map( JsString)),
+        "limit" -> JsNumber( o.limit)
+      )
+    )
+
+    def reads( json: JsValue) = SubscribeToRecentEvents(
+      (json \ "subscriptionId").as[String],
+      (json \ "eventTypes").asInstanceOf[JsArray].value.map( eventType => eventType.as[String]),
+      (json \ "limit").as[Int]
     )
 
   }

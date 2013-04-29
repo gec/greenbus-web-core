@@ -23,12 +23,12 @@
                 <tr ng-repeat="alarm in alarms">
                     <td>{{alarm.id}}</a></td>
                     <td>{{alarm.state}}</td>
-                    <td>{{alarm.type}}</td>
-                    <td>{{alarm.severity}}</td>
-                    <td>{{alarm.agent}}</td>
-                    <td><a href="#/entity/{{alarm.entity}}">{{alarm.entity}}</a></td>
-                    <td>{{alarm.message}}</td>
-                    <td>{{alarm.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>{{alarm.event.type}}</td>
+                    <td>{{alarm.event.severity}}</td>
+                    <td>{{alarm.event.agent}}</td>
+                    <td><a href="#/entity/{{alarm.event.entity}}">{{alarm.event.entity}}</a></td>
+                    <td>{{alarm.event.message}}</td>
+                    <td>{{alarm.event.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                 </tr>
             </tbody>
         </table>

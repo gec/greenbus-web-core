@@ -24,24 +24,13 @@ import play.api._
 import play.api.libs.concurrent._
 import play.api.libs.iteratee._
 import models._
-import models.ReefClientActor.MakeChildActor
 import play.api.libs.json._
-import models.ReefClientActor.DependentActor
-import models.ClientStatus.ClientStatus
 import models.Quit
-import models.ReefClientActor.MakeChildActor
-import models.ReefClientActor.DependentActor
-import models.Subscribe
-import models.Quit
-import models.ReefClientActor.MakeChildActor
 import play.api.libs.json.JsString
-import models.ReefClientActor.DependentActor
-import models.Subscribe
 import play.api.libs.json.JsObject
 import akka.util.Timeout
 import akka.util.duration._
 
-//import libs.concurrent.Akka
 import play.api.mvc._
 import org.totalgrid.reef.client.Client
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
@@ -55,7 +44,7 @@ import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import Json._
 import models.ClientStatus._
-import models.ReefClientActor.{DependentActor, MakeChildActor, Reinitialize}
+import models.ReefClientActor.{ChildActor, MakeChildActor, Reinitialize}
 
 trait ReefClientCache {
   var clientStatus = INITIALIZING
@@ -127,12 +116,9 @@ object Application extends Controller with ReefClientCache {
     Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "reinitializing" -> Json.toJson( clientStatus.reinitializing), "description" -> Json.toJson( clientStatus.description))).toString())
   }
 
-  def getMessageAndData( json: JsValue): (String, JsValue) = json.as[JsObject].fields(0)
+  def getMessageNameAndData( json: JsValue): (String, JsValue) = json.as[JsObject].fields(0)
 
 
-  /**
-   * Handles the chat websocket.
-   */
   def getWebSocket( authToken: String) = WebSocket.async[JsValue] { request  =>
 
     Logger.info( "getWebSocket( " + authToken + ")")
@@ -141,16 +127,19 @@ object Application extends Controller with ReefClientCache {
       val userName = "SomeUser"
       val authToken2 = client.get.getHeaders.getAuthToken
       (reefClientActor ? MakeChildActor( userName, authToken)).asPromise.map {
-        case DependentActor( actorRef, pushChannel) => {
-          Logger.info( "getWebSocket DependentActor")
+        case ChildActor( actorRef, pushChannel) => {
+          Logger.info( "getWebSocket ChildActor")
 
           // Create an Iteratee to consume the feed from browser
           val iteratee = Iteratee.foreach[JsValue] { json =>
-            val (message, data) = getMessageAndData( json)
-            Logger.info( "Iteratee.message  " + message + ": " + data)
-            message match {
-              case "subscribe" => actorRef ! SubscribeFormat.reads( data)
+            val (messageName, data) = getMessageNameAndData( json)
+            Logger.info( "Iteratee.message  " + messageName + ": " + data)
+
+            messageName match {
+              case "subscribeToMeasurementsByNames" => actorRef ! SubscribeToMeasurementsByNamesFormat.reads( data)
+              case "subscribeToActiveAlarms" => actorRef ! SubscribeToActiveAlarmsFormat.reads( data)
               case "unsubscribe" => actorRef ! Unsubscribe( data.as[String])
+              case _ => actorRef ! UnknownMessage( messageName)
             }
 
           }.mapDone { _ =>
@@ -335,25 +324,33 @@ object Application extends Controller with ReefClientCache {
 
     Ok(Json.toJson(json))
   }
-
+/*
   private def buildAlarm(alarm: Alarm): JsValue = {
     val attr = Map("id" -> alarm.getId.getValue,
       "state" -> alarm.getState.toString,
       "type" -> alarm.getEvent.getEventType,
-      "severity" -> alarm.getEvent.getSeverity.toString,
-      "agent" -> alarm.getEvent.getUserId,
-      "entity" -> alarm.getEvent.getEntity.getName,
-      "message" -> alarm.getEvent.getRendered,
-      "time" -> alarm.getEvent.getTime.toString)
+      "event" -> buildEventJson( alarm.getEvent)
+//      "severity" -> alarm.getEvent.getSeverity.toString,
+//      "agent" -> alarm.getEvent.getUserId,
+//      "entity" -> alarm.getEvent.getEntity.getName,
+//      "message" -> alarm.getEvent.getRendered,
+//      "time" -> alarm.getEvent.getTime.toString
+    )
 
-    Json.toJson(attr.mapValues(Json.toJson(_)))
+    Json.toJson(attr.mapValues{ value =>
+      value match {
+        case jsValue : JsValue => jsValue
+        case _ => Json.toJson(_)
+      }
+    })
   }
-
+*/
   def getAlarms = ServiceAction { (request, service) =>
 
     val alarms = service.getActiveAlarms(20).await()
 
-    val json = alarms.map(buildAlarm)
+    //val json = alarms.map(buildAlarm)
+    val json = alarms.map( a => AlarmFormat.writes( a))
 
     Ok(Json.toJson(json))
   }

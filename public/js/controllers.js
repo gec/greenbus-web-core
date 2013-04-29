@@ -137,6 +137,8 @@ function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
 }
 
 function MeasurementControl($rootScope, $scope, $filter, reef) {
+    $scope.measurements = []
+
     $rootScope.currentMenuItem = "measurement";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -182,7 +184,7 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
 
             measurement.value = formatMeasurementValue( measurement.value)
         }
-        reef.subscribe( $scope, "measurement", pointNames, $scope.onMeasurement, $scope.onError)
+        reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
     }
 
 
@@ -244,13 +246,27 @@ function EventControl($rootScope, $scope, reef) {
 }
 
 function AlarmControl($rootScope, $scope, reef) {
+    $scope.alarms = []
+
     $rootScope.currentMenuItem = "alarm";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Alarms" }
     ];
 
-    reef.get( "/alarm", "alarms", $scope);
+    $scope.onAlarm = function( subscriptionId, type, alarm) {
+        console.log( "onAlarm " + alarm.name + " '" + alarm.value + "'")
+        $scope.alarms.unshift( alarm)
+    }
+
+    $scope.onError = function( subscriptionId, type, data) {
+
+    }
+
+    reef.subscribeToActiveAlarms( $scope, 20, $scope.onAlarm, $scope.onError)
+
+
+    //reef.get( "/alarm", "alarms", $scope);
 }
 
 function AgentControl($rootScope, $scope, reef) {

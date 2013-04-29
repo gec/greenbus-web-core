@@ -71,7 +71,7 @@ object ReefClientActor {
   case class ClientReply( status: ClientStatus, client: Option[Client])
 
   case class MakeChildActor( userName: String, uathToken: String)
-  case class DependentActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
+  case class ChildActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
 
   case class UpdateClient( status: ClientStatus, client: Option[Client])
 }
@@ -146,7 +146,7 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
 
       val actorName = "clientPushActor." + userName + "." + authToken
       val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
-      sender ! DependentActor( actorRef, pushChannel)
+      sender ! ChildActor( actorRef, pushChannel)
     }
 
   }
