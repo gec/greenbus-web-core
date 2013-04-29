@@ -36,26 +36,28 @@ import akka.util.duration._
 import scala.Some
 
 
-object ClientStatus extends Enumeration {
-  type ClientStatus = ClientStatusVal
+object ConnectionStatus extends Enumeration {
+  type ConnectionStatus = ConnectionStatusVal
+  val NOT_LOGGED_IN = Value( "NOT_LOGGED_IN", "Not yet logged in.", false)
   val INITIALIZING = Value( "INITIALIZING", "Reef client is initializing.", true)
   val AMQP_UP = Value( "AMQP_UP", "Reef client is accessing AMQP.", true)
   val UP = Value("UP", "Reef client is up and running.", false)
   val AMQP_DOWN = Value( "AMQP_DOWN", "Reef client is not able to access AMQP.", false)
   val CONFIGURATION_FILE_FAILURE = Value( "CONFIGURATION_FILE_FAILURE", "Reef client is not able to load configuration file.", false)
   val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false)
+  val INVALID_REQUEST = Value( "INVALID_REQUEST", "The request from the browser client was invalid.", false)
   val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false)
 
-  class ClientStatusVal(name: String, val description: String, val reinitializing: Boolean) extends Val(nextId, name)  {
+  class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean) extends Val(nextId, name)  {
     // This is not required for Scala 2.10
     override def compare(that: Value): Int = id - that.id
   }
-  protected final def Value(name: String, description: String, reinitializing: Boolean): ClientStatusVal = new ClientStatusVal(name, description, reinitializing)
+  protected final def Value(name: String, description: String, reinitializing: Boolean): ConnectionStatusVal = new ConnectionStatusVal(name, description, reinitializing)
 }
 
 
 object ReefClientActor {
-  import ClientStatus._
+  import ConnectionStatus._
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
 
@@ -64,25 +66,29 @@ object ReefClientActor {
 
   case object Reinitialize
 
+  case class Login( userName: String, password: String)
+  case class LoginSuccess( authToken: String)
+  case class LoginError( status: ConnectionStatus)
+
   case object StatusRequest
-  case class StatusReply( status: ClientStatus)
+  case class StatusReply( status: ConnectionStatus)
 
   case object ClientRequest
-  case class ClientReply( status: ClientStatus, client: Option[Client])
+  case class ClientReply( status: ConnectionStatus, client: Option[Client])
 
   case class MakeChildActor( userName: String, uathToken: String)
   case class ChildActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
 
-  case class UpdateClient( status: ClientStatus, client: Option[Client])
+  case class UpdateClient( status: ConnectionStatus, client: Option[Client])
 }
 
-import ClientStatus._
+import ConnectionStatus._
 
 /**
  * Factory for creating actors that depend on the ReefClientActor (to manage the Reef client connection).
  */
 trait ReefClientActorChildFactory {
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ClientStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue])
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue])
 }
 
 
@@ -93,30 +99,66 @@ trait ReefClientActorChildFactory {
  */
 class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFactory: ReefClientActorChildFactory) extends Actor {
 
-  import ClientStatus._
+  import ConnectionStatus._
   import ReefClientActor._
 
   val REEF_CONFIG_FILENAME = "reef.cfg"
-  val AGENT_NAME = "system"
-  val AGENT_PASSWORD = "system"
 
-  var clientStatus = INITIALIZING
+  var clientStatus = NOT_LOGGED_IN
   var client : Option[Client] = None
+
+  // Store agent info in order to reinitialize if Reef Client fails.
+  var agentName: String = ""
+  var agentPassword: String = ""
+  var authToken = ""
+
   var initializing = false
   var lastInitializeTime = 0L
 
 
-  override def preStart {
-    clientStatus = INITIALIZING
+  def reset = {
+    clientStatus = NOT_LOGGED_IN
     client = None
-    initializing = false
 
-    reinitializeIfNeeded
+    agentName= ""
+    agentPassword= ""
+    authToken = ""
+
+    // don't reset initializing
   }
 
   def receive = {
 
     case Reinitialize => reinitializeIfNeeded
+
+    case login: Login => {
+      Logger.info( "ReefClientActor.receive Login " + login)
+
+      // Start from scratch and go through loading the config, getting a connection, etc.
+      //
+      reset
+      initializing = true;
+      clientStatus = INITIALIZING
+
+      // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
+      // UpdateClient back to this actor... to set the client.
+      //
+      val (aClientStatus, aClient) = initializeReefClient( login, REEF_CONFIG_FILENAME)
+      clientStatus = aClientStatus
+      client = aClient
+
+      if( clientStatus == UP) {
+        agentName = login.userName
+        agentPassword = login.password
+        authToken = client.get.getHeaders.getAuthToken
+        sender ! LoginSuccess( authToken)
+      } else {
+        sender ! LoginError( clientStatus)
+      }
+
+      lastInitializeTime = System.currentTimeMillis() + TIMEOUT
+      initializing = false
+    }
 
     case StatusRequest => {
       sender ! StatusReply( clientStatus)
@@ -163,6 +205,9 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
 
           initializing = true;
 
+          self ! Login( agentName, agentPassword)
+
+          /*
           // AMQP may still be up, but we'll start from scratch and go through loading the config,
           // getting a connection, etc.
           //
@@ -172,10 +217,11 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
           // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
           // UpdateClient back to this actor... to set the client.
           //
-          Akka.future { initializeReefClient( self, REEF_CONFIG_FILENAME) }.map { result =>
+          Akka.future { initializeReefClientOld( self, REEF_CONFIG_FILENAME) }.map { result =>
             lastInitializeTime = System.currentTimeMillis() + TIMEOUT
             initializing = false
           }
+          */
         }
       }
     }
@@ -189,7 +235,7 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
 
     val service = client.get.getService(classOf[AllScadaService])
     try {
-      service.getAgentByName( AGENT_NAME).await()
+      service.getAgentByName( agentName).await()
       true
     }  catch {
       case ex => {
@@ -202,16 +248,17 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
   }
 
 
-  def initializeReefClient( actor: ActorRef, cfg: String) : Unit = {
+  def initializeReefClient( login: Login, cfg: String) : (ConnectionStatus, Option[Client]) = {
     import scala.collection.JavaConversions._
+
+    var status = INITIALIZING
 
     Logger.info( "Loading config file " + cfg)
     val centerConfig = try {
       PropertyReader.readFromFiles(List(cfg).toList)
     } catch {
       case ex: IOException => {
-        actor ! UpdateClient( CONFIGURATION_FILE_FAILURE, None )
-        return
+        return ( CONFIGURATION_FILE_FAILURE, None )
       }
     }
 
@@ -220,39 +267,34 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
       val factory = ReefConnectionFactory.buildFactory(new AmqpSettings(centerConfig), new ReefServices)
       Logger.info( "Connecting to Reef")
       val connection = factory.connect()
-      actor ! UpdateClient( AMQP_UP, None)
+      status = AMQP_UP
       connection
     } catch {
       case ex: IllegalArgumentException => {
         Logger.error( "Error connecting to AMQP. Exception: " + ex)
-        actor ! UpdateClient( AMQP_DOWN, None)
-        return
+        return ( AMQP_DOWN, None)
       }
       case ex2: org.totalgrid.reef.client.exception.ReefServiceException => {
         Logger.error( "Error connecting to Reef. Exception: " + ex2)
-        actor ! UpdateClient( AMQP_DOWN, None)
-        return
+        return ( AMQP_DOWN, None)
       }
       case ex3: Throwable => {
         Logger.error( "Error connecting to AMQP or Reef. Exception: " + ex3)
-        actor ! UpdateClient( AMQP_DOWN, None)
-        return
+        return ( AMQP_DOWN, None)
       }
     }
 
     // Set the client by sending a message to ReefClientActor
     try {
       Logger.info( "Logging into Reef")
-      val clientFromLogin = connection.login(new UserSettings( AGENT_NAME, AGENT_PASSWORD))
-      actor ! UpdateClient( UP, Some[Client](clientFromLogin))
+      val clientFromLogin = connection.login(new UserSettings( login.userName, login.password))
+      return ( UP, Some[Client](clientFromLogin))
     } catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        actor ! UpdateClient( AUTHENTICATION_FAILURE, None)
-        None
+        return ( AUTHENTICATION_FAILURE, None)
       }
       case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        actor ! UpdateClient( REEF_FAILURE, None)
-        None
+        return ( REEF_FAILURE, None)
       }
     }
 

@@ -31,7 +31,7 @@ object SubscriptionType extends Enumeration {
 import SubscriptionType._
 */
 
-import ClientStatus._
+import ConnectionStatus._
 
 trait Subscribe {
   val id: String
@@ -64,13 +64,13 @@ object ClientPushActor {
  *
  * @author Flint O'Brien
  */
-class ClientPushActor( initialClientStatus: ClientStatus, initialClient : Option[Client], aPushChannel: PushEnumerator[JsValue]) extends Actor with ReefClientCache  {
+class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Option[Client], aPushChannel: PushEnumerator[JsValue]) extends Actor with ReefClientCache  {
 
   import ReefClientActor._
 
   clientStatus = initialClientStatus
   client = initialClient
-  var service : Option[AllScadaService] = if( client.isDefined) Some( client.get.getService(classOf[AllScadaService])) else None
+  var service : Option[AllScadaService] = client.map( _.getService(classOf[AllScadaService]))
 
   val pushChannel = aPushChannel
 
@@ -143,31 +143,4 @@ class ClientPushActor( initialClientStatus: ClientStatus, initialClient : Option
     return subscriptionHandler[Alarms.Alarm]( result, subscribe.id, AlarmFormat)
   }
 
-/*
-  def subscribeToMeasurementsByPointNamesOld( service: AllScadaService, subscribe: SubscribeToMeasurementsByNames) : SubscriptionBinding = {
-    val result = service.subscribeToMeasurementsByNames( subscribe.names.toList).await
-    result.getResult.map( m => pushChannel.push( MeasurementFormat.pushMessage( m, subscribe.id)) )
-
-    val subscription = result.getSubscription
-    subscription.start(new SubscriptionEventAcceptor[Measurement] {
-      def onEvent(event: SubscriptionEvent[Measurement]) {
-        pushChannel.push( MeasurementFormat.pushMessage( event.getValue, subscribe.id))
-      }
-    })
-    subscription
-  }
-
-  def subscribeToActiveAlarmsOld( service: AllScadaService, subscribe: SubscribeToActiveAlarms) : SubscriptionBinding = {
-    val result = service.subscribeToActiveAlarms( subscribe.limit).await
-    result.getResult.map( alarm => pushChannel.push( AlarmFormat.pushMessage( alarm, subscribe.id)) )
-
-    val subscription = result.getSubscription
-    subscription.start(new SubscriptionEventAcceptor[Alarms.Alarm] {
-      def onEvent(event: SubscriptionEvent[Alarms.Alarm]) {
-        pushChannel.push( AlarmFormat.pushMessage( event.getValue, subscribe.id))
-      }
-    })
-    subscription
-  }
-*/
 }

@@ -6,11 +6,15 @@ import play.api.libs.json.JsString
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
 import org.totalgrid.reef.client.service.proto.{Events, Model, Alarms, Measurements}
 
+import ConnectionStatus._
+
 /**
  *
  * @author Flint O'Brien
  */
 object JsonFormatters {
+
+  import ReefClientActor._
 
   def shortQuality( m: Measurement) = {
     val q = m.getQuality
@@ -137,7 +141,7 @@ object JsonFormatters {
       JsObject(
         Seq(
           "subscriptionId" -> JsString( subscriptionId),
-          "type" -> JsString("measurement"),
+          "type" -> JsString("Event"),
           "data" -> writes( o)
         )
       )
@@ -168,7 +172,7 @@ object JsonFormatters {
       JsObject(
         Seq(
           "subscriptionId" -> JsString( subscriptionId),
-          "type" -> JsString("alarm"),
+          "type" -> JsString("Alarm"),
           "data" -> writes( o)
         )
       )
@@ -182,6 +186,83 @@ object JsonFormatters {
       mBuider.setState( Alarms.Alarm.State.valueOf( (json \ "state").as[String]))
       mBuider.build
     }
+
+  }
+
+
+  implicit object ConnectionStatusFormat extends ReefFormat[ConnectionStatus] {
+
+    def writes( o: ConnectionStatus): JsValue = {
+      JsObject(
+        List(
+          "status" -> JsString( o.toString),
+          "description" -> JsString( o.description),
+          "reinitializing" -> JsBoolean( o.reinitializing)
+        )
+      )
+    }
+
+    def pushMessage( o: ConnectionStatus, subscriptionId: String): JsValue = {
+      JsObject(
+        Seq(
+          //"subscriptionId" -> JsString( subscriptionId),
+          "type" -> JsString("ConnectionStatus"),
+          "data" -> writes( o)
+        )
+      )
+    }
+
+    // TODO: Will we ever make an ConnectionStatus from JSON?
+    def reads(json: JsValue) = {
+      ConnectionStatus.withName( (json \ "id").as[String]).asInstanceOf[ConnectionStatus]
+    }
+
+  }
+
+
+  implicit object LoginFormat extends Format[Login] {
+
+    def writes( o: Login): JsValue = JsObject(
+      List(
+        "userName" -> JsString( o.userName),
+        "password" -> JsString( o.password)
+      )
+    )
+
+    def reads( json: JsValue) = Login(
+      (json \ "userName").as[String],
+      (json \ "password").as[String]
+    )
+
+  }
+
+  implicit object LoginSuccessFormat extends Format[LoginSuccess] {
+
+    def writes( o: LoginSuccess): JsValue = JsObject(
+      List(
+        "authToken" -> JsString( o.authToken)
+      )
+    )
+
+    // We won't get a LoginSuccess from a web client!
+    def reads( json: JsValue) = LoginSuccess(
+      (json \ "authToken").as[String]
+    )
+
+  }
+
+  implicit object LoginErrorFormat extends Format[LoginError] {
+
+    def writes( o: LoginError): JsValue = JsObject(
+      List(
+        "error" -> ConnectionStatusFormat.writes( o.status)
+      )
+    )
+
+    // We won't get a LoginError from a web client!
+    def reads( json: JsValue) = LoginError(
+      ConnectionStatusFormat.reads( json)
+    )
 
   }
 

@@ -28,11 +28,16 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         get: 0,
         subscribe: 0
     }
+    var authToken = null;
     var status = {
         servicesStatus: "UNKNOWN",
         reinitializing: true,
         description: "loading Reef client..."
     }
+    var redirectLocation = $location.path();
+    if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
+        redirectLocation = "/entity"
+
 
     var subscription = {
         idCounter: 0,
@@ -50,34 +55,99 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             return null
     }
 
-    function receiveEventHandleError( data) {
+    function handleError( data) {
         //webSocket.close()
-        console.log( "receiveEvent: data.error: " + data.error)
+        console.log( "webSocket.handleError data.error: " + data.error)
 
         var listener = getListenerForMessage( data);
-        $rootScope.$apply(function () {
-            if( listener && listener.error)
-                listener.error( data.subscriptionId, data.type, data.data)
-        })
+        if( listener && listener.error)
+            listener.error( data.subscriptionId, data.type, data.data)
+    }
+
+    function handleConnectionStatus( json) {
+        status = json
+        notify();
+
+        if( status.servicesStatus === "UP" && redirectLocation)
+            $location.path( redirectLocation)
     }
 
     function receiveEvent(event) {
         var data = JSON.parse(event.data)
 
-        // Handle errors
-        if(data.error) {
-            receiveEventHandleError( data)
-            return
-        }
-
-        var listener = getListenerForMessage( data);
         $rootScope.$apply(function () {
+
+            if( data.type === "ConnectionStatus") {
+                handleConnectionStatus( data.data)
+                return
+            }
+
+            // Handle errors
+            if(data.error) {
+                handleError( data)
+                return
+            }
+
+
+            var listener = getListenerForMessage( data);
             if( listener && listener.success)
                 listener.success( data.subscriptionId, data.type, data.data)
         })
     }
 
-    webSocket.onmessage = receiveEvent
+    webSocket.onmessage = function(event) {
+        var data = JSON.parse(event.data)
+
+        $rootScope.$apply(function () {
+
+            if( data.type === "ConnectionStatus") {
+                handleConnectionStatus( data.data)
+                return
+            }
+
+            // Handle errors
+            if(data.error) {
+                handleError( data)
+                return
+            }
+
+
+            var listener = getListenerForMessage( data);
+            if( listener && listener.success)
+                listener.success( data.subscriptionId, data.type, data.data)
+        })
+    }
+    webSocket.onopen = function(event) {
+        console.log( "webSocket.onopen event: " + event)
+        $rootScope.$apply(function () {
+            status = {
+                servicesStatus: "WEBSOCKET_OPEN",
+                reinitializing: false,
+                description: ""
+            }
+            notify();
+        })
+    }
+    webSocket.onclose = function(event) {
+        console.log( "webSocket.onclose event: " + event)
+        var code = event.code;
+        var reason = event.reason;
+        var wasClean = event.wasClean;
+    }
+    webSocket.onerror = function(event) {
+        console.log( "webSocket.onerror event: " + event)
+        $rootScope.$apply(function () {
+            status = {
+                servicesStatus: "APPLICATION_SERVER_DOWN",
+                reinitializing: false,
+                description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+            }
+            notify();
+        })
+        var data = event.data;
+        var name = event.name;
+        var message = event.message;
+    }
 
 
     function notify() {
@@ -86,6 +156,49 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
     self.getStatus = function() {
         return status;
+    }
+
+    self.login = function( userName, password, errorListener) {
+        //console.log( "reef.login);
+        var data = {
+            "userName": userName,
+            "password": password
+        }
+        $http.post( "/services/login", data).
+            success(function(json) {
+                if( json.error) {
+                    errorListener( json.error)
+                } else {
+                    authToken = json.authToken;
+                    console.log( "login successful")
+                    if( redirectLocation)
+                        $location.path( redirectLocation)
+                }
+            }).
+            error(function (json, statusCode, headers, config) {
+                // called asynchronously if an error occurs
+                // or server returns response with status
+                // code outside of the <200, 400) range
+                console.log( "reef.login error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
+                var message = "Some problem";
+                if( statusCode == 0) {
+                    message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
+                    status = {
+                        servicesStatus: "APPLICATION_SERVER_DOWN",
+                        reinitializing: false,
+                        description: message
+                    };
+                } else {
+                    message = "Application server responded with status " + statusCode
+                    status = {
+                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                        reinitializing: false,
+                        description: message
+                    };
+                }
+                errorListener( message)
+                notify();
+            });
     }
 
     self.initialize = function( redirectLocation) {
@@ -130,10 +243,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             });
     }
 
-    var path = $location.path();
-    if( path.length == 0 || path.indexOf( "/loading") == 0)
-        path = "/entity"
-    self.initialize(path);
+    //self.initialize(redirectLocation);
 
 
     function isString( obj) {

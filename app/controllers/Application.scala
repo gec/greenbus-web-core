@@ -43,8 +43,8 @@ import org.totalgrid.reef.client.service.proto.Events.Event
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import Json._
-import models.ClientStatus._
-import models.ReefClientActor.{ChildActor, MakeChildActor, Reinitialize}
+import models.ConnectionStatus._
+import models.ReefClientActor._
 
 trait ReefClientCache {
   var clientStatus = INITIALIZING
@@ -52,7 +52,7 @@ trait ReefClientCache {
 }
 
 object ClientPushActorFactory extends ReefClientActorChildFactory{
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ClientStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
     // Create an Enumerator that the new actor will use for push
     val pushChannel =  Enumerator.imperative[JsValue]()
     val actorRef = parentContext.actorOf( Props( new ClientPushActor( clientStatus, client, pushChannel)), name = actorName)
@@ -64,7 +64,7 @@ object ClientPushActorFactory extends ReefClientActorChildFactory{
 
 object Application extends Controller with ReefClientCache {
   import JsonFormatters._
-  import models.ClientStatus._
+  import models.ConnectionStatus._
 
   import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
   val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor")
@@ -116,6 +116,35 @@ object Application extends Controller with ReefClientCache {
     Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "reinitializing" -> Json.toJson( clientStatus.reinitializing), "description" -> Json.toJson( clientStatus.description))).toString())
   }
 
+  def postLogin = Action { request =>
+    val bodyJson: Option[JsValue] = request.body.asJson
+
+    bodyJson.map { json =>
+      Logger.info( "postLogin json:" + json.toString())
+
+      val login = LoginFormat.reads( json)
+
+      val reefClient = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor." + login.userName)
+
+      // TODO: Async is need for Play 2.0.4
+      Async {
+        (reefClient ? login).asPromise.map {
+          case reply: LoginSuccess => {
+            Logger.info( "postLogin loginSuccess authToken:" + reply.authToken)
+            Ok( LoginSuccessFormat.writes( reply))
+          }
+          case reply: LoginError => {
+            Logger.info( "postLogin loginError: " + reply.status)
+            BadRequest( LoginErrorFormat.writes( reply))
+          }
+        }
+      }
+    }.getOrElse {
+      Logger.error( "ERROR: postLogin No json!")
+      BadRequest( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
+    }
+  }
+
   def getMessageNameAndData( json: JsValue): (String, JsValue) = json.as[JsObject].fields(0)
 
 
@@ -123,12 +152,16 @@ object Application extends Controller with ReefClientCache {
 
     Logger.info( "getWebSocket( " + authToken + ")")
 
+    if ( clientStatus != UP && !clientStatus.reinitializing) {
+      reefClientActor !  Reinitialize
+    }
+
     if( clientIsUp) {
       val userName = "SomeUser"
       val authToken2 = client.get.getHeaders.getAuthToken
       (reefClientActor ? MakeChildActor( userName, authToken)).asPromise.map {
         case ChildActor( actorRef, pushChannel) => {
-          Logger.info( "getWebSocket ChildActor")
+          Logger.info( "getWebSocket ChildActor returned from MakeChildActor")
 
           // Create an Iteratee to consume the feed from browser
           val iteratee = Iteratee.foreach[JsValue] { json =>
@@ -324,32 +357,11 @@ object Application extends Controller with ReefClientCache {
 
     Ok(Json.toJson(json))
   }
-/*
-  private def buildAlarm(alarm: Alarm): JsValue = {
-    val attr = Map("id" -> alarm.getId.getValue,
-      "state" -> alarm.getState.toString,
-      "type" -> alarm.getEvent.getEventType,
-      "event" -> buildEventJson( alarm.getEvent)
-//      "severity" -> alarm.getEvent.getSeverity.toString,
-//      "agent" -> alarm.getEvent.getUserId,
-//      "entity" -> alarm.getEvent.getEntity.getName,
-//      "message" -> alarm.getEvent.getRendered,
-//      "time" -> alarm.getEvent.getTime.toString
-    )
 
-    Json.toJson(attr.mapValues{ value =>
-      value match {
-        case jsValue : JsValue => jsValue
-        case _ => Json.toJson(_)
-      }
-    })
-  }
-*/
   def getAlarms = ServiceAction { (request, service) =>
 
     val alarms = service.getActiveAlarms(20).await()
 
-    //val json = alarms.map(buildAlarm)
     val json = alarms.map( a => AlarmFormat.writes( a))
 
     Ok(Json.toJson(json))

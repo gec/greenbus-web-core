@@ -44,7 +44,7 @@ function ReefStatusControl($rootScope, $scope, $timeout, reef) {
     });
 }
 
-function LoadingControl($rootScope, $scope, $timeout, reef, $http, $location) {
+function LoadingControl($rootScope, $scope, reef, $location) {
 
     $scope.status = reef.getStatus();
 
@@ -65,6 +65,44 @@ function LoadingControl($rootScope, $scope, $timeout, reef, $http, $location) {
         $scope.status = status;
         $scope.visible = $scope.status.servicesStatus !== "UP"
     });
+}
+
+function LoginControl($rootScope, $scope, reef, $location) {
+
+    $scope.error = null
+    $scope.status = reef.getStatus()
+    $scope.userName = null
+    $scope.password = ""
+
+    $scope.errorListener = function( description) {
+        $scope.error = description
+    }
+
+    $scope.login = function() {
+        reef.login( $scope.userName, $scope.password, $scope.errorListener);
+    }
+
+    /*
+    // if someone goes to the default path and reef is up, we go to the entity page by default.
+    //
+    if( $scope.status.servicesStatus === "UP") {
+        $location.path( "/entity");
+        return;
+    }
+    */
+
+    $rootScope.currentMenuItem = "loading";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Login" }
+    ];
+
+    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+        $scope.status = status;
+        $scope.visible = $scope.status.servicesStatus !== "UP"
+    });
+
+    $('#loginModal').modal( {keyboard: false}   )
 }
 
 function EntityControl($rootScope, $scope, reef) {

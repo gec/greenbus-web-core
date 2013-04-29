@@ -25,6 +25,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     "use strict";
     $routeProvider.
       when('/loading', {templateUrl: 'partials/loading.html', controller: LoadingControl}).
+      when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
       when('/measurement', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
       when('/entity', {templateUrl: 'partials/entities.html', controller: EntityControl}).
       when('/entity/:name', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl}).
@@ -42,5 +43,5 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
       when('/agent/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl}).
       when('/permissionset', {templateUrl: 'partials/permissionsets.html', controller: PermissionSetControl}).
       when('/permissionset/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: PermissionSetDetailControl}).
-      otherwise({redirectTo: '/loading'});
+      otherwise({redirectTo: '/login'});
   }]);
