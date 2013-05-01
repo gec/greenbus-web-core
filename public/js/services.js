@@ -48,7 +48,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
     };
 
-    var webSocketStatus = "NOT_OPEN"
     var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
     var webSocket = {
         send: function( jsonString) {
@@ -81,60 +80,72 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
             $location.path( redirectLocation)
     }
 
-    webSocket.onmessage = function(event) {
-        var data = JSON.parse(event.data)
+    /* Assign these WebSocket handlers to a newly created WebSocket */
+    var wsHanders = {
 
-        $rootScope.$apply(function () {
+        onmessage: function (event) {
+            var data = JSON.parse(event.data)
 
-            if( data.type === "ConnectionStatus") {
-                handleConnectionStatus( data.data)
-                return
-            }
+            $rootScope.$apply(function () {
 
-            // Handle errors
-            if(data.error) {
-                handleError( data)
-                return
-            }
+                if( data.type === "ConnectionStatus") {
+                    handleConnectionStatus( data.data)
+                    return
+                }
+
+                // Handle errors
+                if(data.error) {
+                    handleError( data)
+                    return
+                }
 
 
-            var listener = getListenerForMessage( data);
-            if( listener && listener.success)
-                listener.success( data.subscriptionId, data.type, data.data)
-        })
+                var listener = getListenerForMessage( data);
+                if( listener && listener.success)
+                    listener.success( data.subscriptionId, data.type, data.data)
+            })
+        },
+        onopen: function(event) {
+            console.log( "webSocket.onopen event: " + event)
+            $rootScope.$apply(function () {
+                status = {
+                    servicesStatus: "WEBSOCKET_OPEN",
+                    reinitializing: false,
+                    description: ""
+                }
+                notify();
+            })
+        },
+        onclose: function(event) {
+            console.log( "webSocket.onclose event: " + event)
+            var code = event.code;
+            var reason = event.reason;
+            var wasClean = event.wasClean;
+        },
+        onerror: function(event) {
+            console.log( "webSocket.onerror event: " + event)
+            $rootScope.$apply(function () {
+                status = {
+                    servicesStatus: "APPLICATION_SERVER_DOWN",
+                    reinitializing: false,
+                    description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+                }
+                notify();
+            })
+            var data = event.data;
+            var name = event.name;
+            var message = event.message;
+        }
     }
-    webSocket.onopen = function(event) {
-        console.log( "webSocket.onopen event: " + event)
-        $rootScope.$apply(function () {
-            status = {
-                servicesStatus: "WEBSOCKET_OPEN",
-                reinitializing: false,
-                description: ""
-            }
-            notify();
-        })
-    }
-    webSocket.onclose = function(event) {
-        console.log( "webSocket.onclose event: " + event)
-        var code = event.code;
-        var reason = event.reason;
-        var wasClean = event.wasClean;
-    }
-    webSocket.onerror = function(event) {
-        console.log( "webSocket.onerror event: " + event)
-        $rootScope.$apply(function () {
-            status = {
-                servicesStatus: "APPLICATION_SERVER_DOWN",
-                reinitializing: false,
-                description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-            }
-            notify();
-        })
-        var data = event.data;
-        var name = event.name;
-        var message = event.message;
-    }
 
+    function makeWebSocket( authToken) {
+        var ws = new WS("ws://localhost:9000/services/websocket?authToken=" + authToken)
+        ws.onmessage = wsHanders.onmessage
+        ws.onopen = wsHanders.onopen
+        ws.onclose = wsHanders.onclose
+        ws.onerror = wsHanders.onerror
+        return ws
+    }
 
     function notify() {
         $rootScope.$broadcast( 'reefService.statusUpdate', status);
@@ -158,7 +169,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                 } else {
                     authToken = json.authToken;
                     console.log( "login successful")
-                    webSocket = new WS("ws://localhost:9000/services/websocket?authToken=" + authToken)
+                    webSocket = makeWebSocket( authToken)
                     status = {
                         servicesStatus: "UP",
                         reinitializing: false,

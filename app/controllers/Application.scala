@@ -108,7 +108,7 @@ object Application extends Controller {
 
         case None =>
           Logger.info( "ReefClientAction authToken unrecognized")
-          ServiceUnavailable( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
+          AUTHTOKEN_UNRECOGNIZED.httpResults( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
       }
     }
   }
@@ -119,11 +119,9 @@ object Application extends Controller {
    */
   def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
     Action { request =>
-      Logger.info( "ServiceAction 1")
       getReefClient( request.headers) match {
 
         case Some( client) =>
-          Logger.info( "ServiceAction 2")
           Async {
             (client ? ServiceRequest).asPromise.map {
               case Service( service, status) =>
@@ -132,13 +130,13 @@ object Application extends Controller {
 
               case ServiceError( status) =>
                 Logger.info( "ServerAction ServiceError: " + status.toString)
-                ServiceUnavailable( ConnectionStatusFormat.writes( status))
+                status.httpResults( ConnectionStatusFormat.writes( status))
             }
           }
 
         case _ =>
           Logger.info( "ServiceAction authToken unrecognized")
-          ServiceUnavailable( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
+          Unauthorized( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
       }
 
     }
@@ -183,13 +181,13 @@ object Application extends Controller {
           case reply: LoginError => {
             Logger.info( "postLogin loginError: " + reply.status)
             Akka.system.stop( reefClient)
-            BadRequest( LoginErrorFormat.writes( reply))
+            reply.status.httpResults( LoginErrorFormat.writes( reply))
           }
         }
       }
     }.getOrElse {
       Logger.error( "ERROR: postLogin No json!")
-      BadRequest( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
+      INVALID_REQUEST.httpResults( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
     }
   }
 
