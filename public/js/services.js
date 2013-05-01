@@ -34,7 +34,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         timeout: 2000 // milliseconds
     }
     var status = {
-        servicesStatus: "UNKNOWN",
+        servicesStatus: "NOT_LOGGED_IN",
         reinitializing: true,
         description: "loading Reef client..."
     }
@@ -258,6 +258,14 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         $scope.loading = true;
         //console.log( "reef.get " + url + " retries:" + retries.get);
 
+
+        if( !authToken || status.servicesStatus == "NOT_LOGGED_IN") {
+            redirectLocation = $location.url() // save the current url so we can redirect the user back
+            authToken = null
+            $location.path('/login')
+            return
+        }
+
         // Register for controller.$destroy event and kill any retry tasks.
         $scope.$on( '$destroy', function( event) {
             //console.log( "reef.get destroy " + url + " retries:" + retries.get);
@@ -312,7 +320,16 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                         reinitializing: false,
                         description: "Application server is not responding. Your network connection is down or the application server appears to be down."
                     };
-                } else if( statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
+                } else if (statusCode == 401) {
+                    status = {
+                        servicesStatus: "NOT_LOGGED_IN",
+                        reinitializing: true,
+                        description: "Not logged in."
+                    };
+                    redirectLocation = $location.url(); // save the current url so we can redirect the user back
+                    authToken = null
+                    $location.path('/login');
+                } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
                     status = {
                         servicesStatus: "APPLICATION_REQUEST_FAILURE",
                         reinitializing: false,
@@ -441,14 +458,20 @@ angular.module('charlotte.services', []).
         // We need to catch this event to put up a message.
         //
 
-        var interceptor = ['$q', '$injector', function ($q, $injector) {
+        var interceptor = ['$q', '$injector', '$rootScope', function ($q, $injector, $rootScope) {
 
                 function success(response) {
                     return response;
                 }
 
                 function error(response) {
-                    if ((response.status === 404 || response.status === 0 ) && response.config.url.indexOf(".html")) {
+                    var status = response.status;
+                    if (status == 401) {
+                        var reef = $injector.get('reef');
+                        reef.redirectLocation = $location.url(); // save the current url so we can redirect the user back
+                        reef.authToken = null
+                        $location.path('/login');
+                    } else if ((response.status === 404 || response.status === 0 ) && response.config.url.indexOf(".html")) {
 
                         var status = {
                             servicesStatus: "APPLICATION_SERVER_DOWN",
@@ -456,7 +479,7 @@ angular.module('charlotte.services', []).
                             description: "Application server is not responding. Your network connection is down or the application server appears to be down."
                         };
 
-                        var $rootScope = $rootScope || $injector.get('$rootScope');
+                        //var $rootScope = $rootScope || $injector.get('$rootScope');
                         $rootScope.$broadcast( 'reefService.statusUpdate', status);
 
                         return response;
