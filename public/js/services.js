@@ -29,6 +29,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         subscribe: 0
     }
     var authToken = null;
+    var httpConfig = {
+        cache: false,
+        timeout: 2000 // milliseconds
+    }
     var status = {
         servicesStatus: "UNKNOWN",
         reinitializing: true,
@@ -44,9 +48,14 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
     };
 
-    var webSocketStatus = "UNKNOWN"
+    var webSocketStatus = "NOT_OPEN"
     var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
-    var webSocket = new WS("ws://localhost:9000/services/websocket?authToken=authToken1")
+    var webSocket = {
+        send: function( jsonString) {
+            console.error( "webSocket.send WebSocket is not initialized. Something tried to send: " + jsonString)
+        }
+    }
+
 
     function getListenerForMessage( data) {
         if( data.subscriptionId)
@@ -70,29 +79,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
         if( status.servicesStatus === "UP" && redirectLocation)
             $location.path( redirectLocation)
-    }
-
-    function receiveEvent(event) {
-        var data = JSON.parse(event.data)
-
-        $rootScope.$apply(function () {
-
-            if( data.type === "ConnectionStatus") {
-                handleConnectionStatus( data.data)
-                return
-            }
-
-            // Handle errors
-            if(data.error) {
-                handleError( data)
-                return
-            }
-
-
-            var listener = getListenerForMessage( data);
-            if( listener && listener.success)
-                listener.success( data.subscriptionId, data.type, data.data)
-        })
     }
 
     webSocket.onmessage = function(event) {
@@ -167,10 +153,18 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         $http.post( "/services/login", data).
             success(function(json) {
                 if( json.error) {
+                    // Shouldn't get here.
                     errorListener( json.error)
                 } else {
                     authToken = json.authToken;
                     console.log( "login successful")
+                    webSocket = new WS("ws://localhost:9000/services/websocket?authToken=" + authToken)
+                    status = {
+                        servicesStatus: "UP",
+                        reinitializing: false,
+                        description: ""
+                    }
+                    notify()
                     if( redirectLocation)
                         $location.path( redirectLocation)
                 }
@@ -180,7 +174,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                 // or server returns response with status
                 // code outside of the <200, 400) range
                 console.log( "reef.login error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                var message = "Some problem";
+                var message = json && json.error && json.error.description || "Unknown login failure";
                 if( statusCode == 0) {
                     message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
                     status = {
@@ -189,7 +183,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                         description: message
                     };
                 } else {
-                    message = "Application server responded with status " + statusCode
                     status = {
                         servicesStatus: "APPLICATION_REQUEST_FAILURE",
                         reinitializing: false,
@@ -278,7 +271,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
         retries.get = 0;
 
-        $http.get(url).
+        httpConfig.headers = {'Authorization': authToken}
+
+        $http.get(url, httpConfig).
             success(function(json) {
                 $scope[name] = json;
                 $scope.loading = false;

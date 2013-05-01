@@ -45,6 +45,16 @@ import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission,
 import Json._
 import models.ConnectionStatus._
 import models.ReefClientActor._
+import models.ReefClientActor.LoginSuccess
+import models.ReefClientActor.WebSocketOpen
+import models.ReefClientActor.WebSocketError
+import play.api.libs.json.JsString
+import models.ReefClientActor.LoginError
+import models.UnknownMessage
+import models.Unsubscribe
+import models.ReefClientActor.WebSocketActor
+import play.api.libs.json.JsObject
+import models.ReefClientActor.ClientReply
 
 trait ReefClientCache {
   var clientStatus = INITIALIZING
@@ -62,44 +72,98 @@ object ClientPushActorFactory extends ReefClientActorChildFactory{
 
 
 
-object Application extends Controller with ReefClientCache {
+object Application extends Controller {
   import JsonFormatters._
   import models.ConnectionStatus._
 
   import play.api.Play.current  // bring the current running Application into context for Play.classloader.getResourceAsStream
-  val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor")
+  type WebSocketChannels = (Iteratee[JsValue,Unit], Enumerator[JsValue])
+
+  //val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor")
   // For actor ask
-  implicit val timeout = Timeout(1 second)
+  implicit val timeout = Timeout(2 second)
 
+  val reefClients = collection.mutable.Map[String, ActorRef]()
 
-  def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
-    Action { request =>
-      if ( clientIsUp) {
-        Logger.info( "ServiceAction UP")
-        try {
-          f(request, client.get.getService(classOf[AllScadaService]))
-        } catch {
-          case ex => {
-            Logger.error( "ServiceAction exception " + ex.getMessage)
-            if( ex.getCause != null)
-              Logger.error( "ServiceAction exception cause " + ex.getCause.getMessage)
-            reefClientActor !  Reinitialize
-            ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( ex.getMessage))).toString())
-          }
+  def getReefClient( headers: Headers): Option[ActorRef] = {
+    Logger.debug( "headers: " + headers)
+    headers.get( AUTHORIZATION) match {
+      case Some( token) =>
+        Logger.info( "AUTHORIZATION: " + token)
+        reefClients.get( token) match {
+          case Some( client) => Some(client)
+          case _ => None
         }
-      } else {
-        Logger.info( "ServiceAction down clientStatus " + clientStatus)
+      case None => None
+    }
+  }
 
-        reefClientActor !  Reinitialize
-        Logger.info( "ServiceAction redirect( /assets/index.html)")
-        ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( clientStatus.description))).toString())
+
+  def ReefClientAction(f: (Request[AnyContent], ActorRef) => Result): Action[AnyContent] = {
+    Action { request =>
+
+      getReefClient( request.headers) match {
+
+        case client: ActorRef =>
+          f(request, client)
+
+        case None =>
+          Logger.info( "ReefClientAction authToken unrecognized")
+          ServiceUnavailable( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
       }
     }
   }
 
-  def clientIsUp: Boolean = {
-    clientStatus == UP && client.isDefined
+  def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
+    Action { request =>
+      Logger.info( "ServiceAction 1")
+      getReefClient( request.headers) match {
+
+        case Some( client) =>
+          Logger.info( "ServiceAction 2")
+          Async {
+            (client ? ServiceRequest).asPromise.map {
+              case Service( service, status) =>
+                Logger.info( "ServerAction ServiceRequest reply service, status " + status.toString)
+                f(request, service)
+
+              case ServiceError( status) =>
+                Logger.info( "ServerAction ServiceError: " + status.toString)
+                ServiceUnavailable( ConnectionStatusFormat.writes( status))
+            }
+          }
+
+        case _ =>
+          Logger.info( "ServiceAction authToken unrecognized")
+          ServiceUnavailable( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
+      }
+
+    }
   }
+
+  /*
+        if ( clientIsUp) {
+          Logger.info( "ServiceAction UP")
+          try {
+            f(request, client.get.getService(classOf[AllScadaService]))
+          } catch {
+            case ex => {
+              Logger.error( "ServiceAction exception " + ex.getMessage)
+              if( ex.getCause != null)
+                Logger.error( "ServiceAction exception cause " + ex.getCause.getMessage)
+              getReefClient( request.headers).map( _ !  Reinitialize)
+              ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( ex.getMessage))).toString())
+            }
+          }
+        } else {
+          Logger.info( "ServiceAction down clientStatus " + clientStatus)
+
+          getReefClient( request.headers).map( _ !  Reinitialize)
+          Logger.info( "ServiceAction redirect( /assets/index.html)")
+          ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( clientStatus.description))).toString())
+        }
+        */
+
 
 
   def index = Action { implicit request =>
@@ -107,13 +171,16 @@ object Application extends Controller with ReefClientCache {
     Redirect("/assets/index.html")
   }
 
-  def getServicesStatus = Action {
-
-    if ( clientStatus != UP && !clientStatus.reinitializing) {
-      reefClientActor !  Reinitialize
+  def getServicesStatus = ReefClientAction { (request, client) =>
+    // Async unwinds the promise.
+    Async {
+      (client ? StatusRequest).asPromise.map {
+        case StatusReply( status) => {
+          Logger.info( "getServicesStatus StatusReply: " + status.toString)
+          Ok( ConnectionStatusFormat.writes( status))
+        }
+      }
     }
-
-    Ok(Json.toJson( Map( "servicesStatus" -> Json.toJson( clientStatus.toString()), "reinitializing" -> Json.toJson( clientStatus.reinitializing), "description" -> Json.toJson( clientStatus.description))).toString())
   }
 
   def postLogin = Action { request =>
@@ -124,17 +191,19 @@ object Application extends Controller with ReefClientCache {
 
       val login = LoginFormat.reads( json)
 
-      val reefClient = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor." + login.userName)
+      val reefClient = Akka.system.actorOf(Props( new ReefClientActor( ClientPushActorFactory)))
 
       // TODO: Async is need for Play 2.0.4
       Async {
         (reefClient ? login).asPromise.map {
           case reply: LoginSuccess => {
             Logger.info( "postLogin loginSuccess authToken:" + reply.authToken)
+            reefClients += (reply.authToken -> reefClient)
             Ok( LoginSuccessFormat.writes( reply))
           }
           case reply: LoginError => {
             Logger.info( "postLogin loginError: " + reply.status)
+            Akka.system.stop( reefClient)
             BadRequest( LoginErrorFormat.writes( reply))
           }
         }
@@ -152,55 +221,57 @@ object Application extends Controller with ReefClientCache {
 
     Logger.info( "getWebSocket( " + authToken + ")")
 
-    if ( clientStatus != UP && !clientStatus.reinitializing) {
-      reefClientActor !  Reinitialize
-    }
+    // No AUTHENTICATION header for WebSocket. Using url parameter .../?authToken=value
+    reefClients.get( authToken) match {
 
-    if( clientIsUp) {
-      val userName = "SomeUser"
-      val authToken2 = client.get.getHeaders.getAuthToken
-      (reefClientActor ? MakeChildActor( userName, authToken)).asPromise.map {
-        case ChildActor( actorRef, pushChannel) => {
-          Logger.info( "getWebSocket ChildActor returned from MakeChildActor")
-
-          // Create an Iteratee to consume the feed from browser
-          val iteratee = Iteratee.foreach[JsValue] { json =>
-            val (messageName, data) = getMessageNameAndData( json)
-            Logger.info( "Iteratee.message  " + messageName + ": " + data)
-
-            messageName match {
-              case "subscribeToMeasurementsByNames" => actorRef ! SubscribeToMeasurementsByNamesFormat.reads( data)
-              case "subscribeToActiveAlarms" => actorRef ! SubscribeToActiveAlarmsFormat.reads( data)
-              case "unsubscribe" => actorRef ! Unsubscribe( data.as[String])
-              case _ => actorRef ! UnknownMessage( messageName)
-            }
-
-          }.mapDone { _ =>
-            actorRef ! Quit(userName)
-          }
-
-          (iteratee, pushChannel)
-
+      case Some( client) =>
+        (client ? WebSocketOpen( authToken)).asPromise.map {
+          case WebSocketActor( pushActor, pushChannel) => webSocketResult( pushActor, pushChannel)
+          case WebSocketError( error) => webSocketResultError( error)
         }
-      }
-      //ClientPushActor.join(userName)
 
-    } else {
-
-      // Connection error
-      Logger.error( "getWebSocket ERROR: Reef Client is not UP. No webSocket.")
-
-      // A finished Iteratee sending EOF
-      val iteratee = Done[JsValue,Unit]((),Input.EOF)
-
-      // Send an error and close the socket
-      val enumerator =  Enumerator[JsValue](JsObject(Seq("error" -> JsString("Reef Client is not UP: " + clientStatus.description)))).andThen(Enumerator.enumInput(Input.EOF))
-
-      Promise.pure( (iteratee,enumerator) )
+      case None =>
+        Logger.info( "ServiceAction authToken unrecognized")
+        Promise.pure( webSocketResultError( AUTHTOKEN_UNRECOGNIZED.description))
     }
 
   }
 
+
+  def webSocketResult( pushActor: ActorRef, pushChannel: PushEnumerator[JsValue]) : WebSocketChannels = {
+    Logger.info( "getWebSocket WebSocketActor returned from WebSocketOpen")
+
+    // Create an Iteratee to consume the feed from browser
+    val iteratee = Iteratee.foreach[JsValue] { json =>
+      val (messageName, data) = getMessageNameAndData( json)
+      Logger.info( "Iteratee.message  " + messageName + ": " + data)
+
+      messageName match {
+        case "subscribeToMeasurementsByNames" => pushActor ! SubscribeToMeasurementsByNamesFormat.reads( data)
+        case "subscribeToActiveAlarms" => pushActor ! SubscribeToActiveAlarmsFormat.reads( data)
+        case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
+        case _ => pushActor ! UnknownMessage( messageName)
+      }
+
+    }.mapDone { _ =>
+      pushActor ! Quit
+    }
+
+    (iteratee, pushChannel)
+  }
+
+  def webSocketResultError( error: String): WebSocketChannels = {
+    // Connection error
+    Logger.error( "getWebSocket.webSocketResultError ERROR: " + error)
+
+    // A finished Iteratee sending EOF
+    val iteratee = Done[JsValue,Unit]((),Input.EOF)
+
+    // Send an error and close the socket
+    val enumerator =  Enumerator[JsValue](JsObject(Seq("error" -> JsString(error)))).andThen(Enumerator.enumInput(Input.EOF))
+
+    (iteratee,enumerator)
+  }
 
   def getMeasurements = ServiceAction { (request, service) =>
 
@@ -214,6 +285,7 @@ object Application extends Controller with ReefClientCache {
   }
 
   def getEntities = ServiceAction { (request, service) =>
+    Logger.info( "getEntities")
 
     val entities = service.getEntities().await()
 
@@ -439,21 +511,6 @@ object Application extends Controller with ReefClientCache {
     val permSet = service.getPermissionSet(name).await()
 
     Ok(buildPermissionSetDetail(permSet))
-  }
-
-  def trySendReceive = {
-    import ReefClientActor._
-
-    val receiver = Akka.system.actorOf(Props( new Actor {
-      protected def receive = {
-        case ClientReply( status, theClient) => {
-          client = theClient
-          clientStatus = status
-        }
-      }
-    }), name = "applicationActor")
-
-    reefClientActor.tell( ReefClientActor.ClientRequest, receiver)
   }
 
 }

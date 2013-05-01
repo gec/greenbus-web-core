@@ -34,6 +34,8 @@ import play.api.libs.json.JsValue
 import akka.util.Timeout
 import akka.util.duration._
 import scala.Some
+import org.totalgrid.reef.client.service.proto.Model.Entity
+import org.totalgrid.reef.client.service.proto.Model
 
 
 object ConnectionStatus extends Enumeration {
@@ -47,6 +49,7 @@ object ConnectionStatus extends Enumeration {
   val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false)
   val INVALID_REQUEST = Value( "INVALID_REQUEST", "The request from the browser client was invalid.", false)
   val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false)
+  val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToke not recognized by application server.", false)
 
   class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean) extends Val(nextId, name)  {
     // This is not required for Scala 2.10
@@ -70,16 +73,26 @@ object ReefClientActor {
   case class LoginSuccess( authToken: String)
   case class LoginError( status: ConnectionStatus)
 
+  case object ServiceRequest
+  case class Service( service: AllScadaService, status: ConnectionStatus)
+  case class ServiceError( status: ConnectionStatus)
+
   case object StatusRequest
   case class StatusReply( status: ConnectionStatus)
 
   case object ClientRequest
   case class ClientReply( status: ConnectionStatus, client: Option[Client])
 
-  case class MakeChildActor( userName: String, uathToken: String)
-  case class ChildActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
+  case class WebSocketOpen( authToken: String)
+  case class WebSocketError( error: String)
+  case class WebSocketActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
 
   case class UpdateClient( status: ConnectionStatus, client: Option[Client])
+
+  case object GetEntities
+  case class GetEntity( name: String)
+  case class Entities( entities: List[Entity])
+  case class Error( error: String)
 }
 
 import ConnectionStatus._
@@ -97,7 +110,7 @@ trait ReefClientActorChildFactory {
  * 
  * @author Flint O'Brien
  */
-class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFactory: ReefClientActorChildFactory) extends Actor {
+class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends Actor {
 
   import ConnectionStatus._
   import ReefClientActor._
@@ -106,6 +119,7 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
 
   var clientStatus = NOT_LOGGED_IN
   var client : Option[Client] = None
+  var service : Option[AllScadaService] = None
 
   // Store agent info in order to reinitialize if Reef Client fails.
   var agentName: String = ""
@@ -119,46 +133,28 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
   def reset = {
     clientStatus = NOT_LOGGED_IN
     client = None
+    service = None
 
     agentName= ""
     agentPassword= ""
     authToken = ""
 
-    // don't reset initializing
+    // don't reset 'initializing'
   }
 
   def receive = {
 
     case Reinitialize => reinitializeIfNeeded
 
-    case login: Login => {
-      Logger.info( "ReefClientActor.receive Login " + login)
+    case Login( userName, password) => login( userName, password)
 
-      // Start from scratch and go through loading the config, getting a connection, etc.
-      //
-      reset
-      initializing = true;
-      clientStatus = INITIALIZING
-
-      // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
-      // UpdateClient back to this actor... to set the client.
-      //
-      val (aClientStatus, aClient) = initializeReefClient( login, REEF_CONFIG_FILENAME)
-      clientStatus = aClientStatus
-      client = aClient
-
-      if( clientStatus == UP) {
-        agentName = login.userName
-        agentPassword = login.password
-        authToken = client.get.getHeaders.getAuthToken
-        sender ! LoginSuccess( authToken)
-      } else {
-        sender ! LoginError( clientStatus)
+    case ServiceRequest =>
+      service match {
+        case Some( s) => sender !  Service( s, clientStatus)
+        case None => sender ! ServiceError( clientStatus)
       }
 
-      lastInitializeTime = System.currentTimeMillis() + TIMEOUT
-      initializing = false
-    }
+    case WebSocketOpen( anAuthToken) => webSocketOpen( anAuthToken)
 
     case StatusRequest => {
       sender ! StatusReply( clientStatus)
@@ -176,21 +172,48 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
       this.clientStatus = updateClient.status
       this.client = updateClient.client
 
-      // Update Application object's client cache. TODO: Is there a better way to handle this?
-      exportCache.clientStatus = clientStatus
-      exportCache.client = client
-
-      context.children foreach { _ ! updateClient }
+      updateChildrenWithClientStatus
     }
 
-    case MakeChildActor( userName, authToken) => {
-      Logger.info( "ReefClientActor.receive MakeDependentActor " + authToken)
+  }
 
-      val actorName = "clientPushActor." + userName + "." + authToken
-      val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
-      sender ! ChildActor( actorRef, pushChannel)
+
+  def updateChildrenWithClientStatus = {
+    val update = UpdateClient( clientStatus, client)
+    context.children foreach { _ ! update }
+  }
+
+
+  def login( userName: String, password: String) = {
+    Logger.info( "ReefClientActor.receive Login " + userName)
+
+    // Start from scratch and go through loading the config, getting a connection, etc.
+    //
+    reset
+    initializing = true;
+    clientStatus = INITIALIZING
+
+    // Init in separate thread. Pass in this actor's reference, so initializeReefClient can send
+    // UpdateClient back to this actor... to set the client.
+    //
+    val (aClientStatus, aClient) = initializeReefClient( userName, password, REEF_CONFIG_FILENAME)
+    clientStatus = aClientStatus
+    client = aClient
+    service = client.map( _.getService(classOf[AllScadaService]))
+
+    if( clientStatus == UP) {
+      agentName = userName
+      agentPassword = password
+      authToken = client.get.getHeaders.getAuthToken
+      sender ! LoginSuccess( authToken)
+    } else {
+      sender ! LoginError( clientStatus)
     }
 
+    lastInitializeTime = System.currentTimeMillis() + TIMEOUT
+    initializing = false
+
+    updateChildrenWithClientStatus
   }
 
   def reinitializeIfNeeded = {
@@ -248,7 +271,7 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
   }
 
 
-  def initializeReefClient( login: Login, cfg: String) : (ConnectionStatus, Option[Client]) = {
+  def initializeReefClient( userName: String, password: String, cfg: String) : (ConnectionStatus, Option[Client]) = {
     import scala.collection.JavaConversions._
 
     var status = INITIALIZING
@@ -287,7 +310,7 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
     // Set the client by sending a message to ReefClientActor
     try {
       Logger.info( "Logging into Reef")
-      val clientFromLogin = connection.login(new UserSettings( login.userName, login.password))
+      val clientFromLogin = connection.login(new UserSettings( userName, password))
       return ( UP, Some[Client](clientFromLogin))
     } catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
@@ -298,6 +321,18 @@ class ReefClientActor( exportCache: controllers.ReefClientCache, childActorFacto
       }
     }
 
+  }
+
+  def webSocketOpen( anAuthToken: String) = {
+    Logger.info( "ReefClientActor.receive WebSocketOpen " + anAuthToken)
+    if( anAuthToken.equals( authToken)) {
+      val actorName = "WebSocketActor." + agentName + "." + authToken
+      val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
+      sender ! WebSocketActor( actorRef, pushChannel)
+    } else {
+      Logger.error( "ReefClientActor.receive WebSocketRequest invalid authToken: " + anAuthToken)
+      sender ! WebSocketError( "WebSocket error: authorization token is invalid or user has not logged in.")
+    }
   }
 
 }

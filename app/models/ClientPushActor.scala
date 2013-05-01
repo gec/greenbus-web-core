@@ -47,7 +47,7 @@ case class Unsubscribe( id: String)
 case class Connected(enumerator:Enumerator[JsValue])
 case class CannotConnect(msg: String)
 case class UnknownMessage( messageName: String)
-case class Quit(username: String)
+case object Quit
 
 
 object ClientPushActor {
@@ -114,7 +114,7 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
       ))
     }
 
-    case Quit(username) => {
+    case Quit => {
       Logger.info( "ClientPushActor receive Quit")
       subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
     }

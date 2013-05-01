@@ -72,14 +72,16 @@ function LoginControl($rootScope, $scope, reef, $location) {
     $scope.error = null
     $scope.status = reef.getStatus()
     $scope.userName = null
-    $scope.password = ""
+    $scope.password = null
 
     $scope.errorListener = function( description) {
         $scope.error = description
+        $('#loginModal').modal( {keyboard: false} )
     }
 
     $scope.login = function() {
         reef.login( $scope.userName, $scope.password, $scope.errorListener);
+        $('#loginModal').modal( "hide" )
     }
 
     /*
@@ -91,7 +93,7 @@ function LoginControl($rootScope, $scope, reef, $location) {
     }
     */
 
-    $rootScope.currentMenuItem = "loading";
+    $rootScope.currentMenuItem = "loading";  // so the menus & breadcrumbs will stay hidden
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Login" }
@@ -102,7 +104,7 @@ function LoginControl($rootScope, $scope, reef, $location) {
         $scope.visible = $scope.status.servicesStatus !== "UP"
     });
 
-    $('#loginModal').modal( {keyboard: false}   )
+    $('#loginModal').modal( {keyboard: false} )
 }
 
 function EntityControl($rootScope, $scope, reef) {
@@ -111,7 +113,7 @@ function EntityControl($rootScope, $scope, reef) {
         { name: "Reef", url: "#/"},
         { name: "Entities" }
     ];
-
+    console.log( "/entity")
     reef.get( "/entity", "entities", $scope);
 }
 
