@@ -28,7 +28,7 @@ import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
-import controllers.{ReefClientCache, ClientPushActorFactory}
+import controllers.ClientPushActorFactory
 import play.api.libs.iteratee.{PushEnumerator, Enumerator}
 import play.api.libs.json.JsValue
 import akka.util.Timeout
@@ -77,8 +77,8 @@ object ReefClientActor {
   case class Service( service: AllScadaService, status: ConnectionStatus)
   case class ServiceError( status: ConnectionStatus)
 
-  case object StatusRequest
-  case class StatusReply( status: ConnectionStatus)
+  case object ClientStatusRequest
+  case class ClientStatus( status: ConnectionStatus)
 
   case object ClientRequest
   case class ClientReply( status: ConnectionStatus, client: Option[Client])
@@ -156,8 +156,8 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
 
     case WebSocketOpen( anAuthToken) => webSocketOpen( anAuthToken)
 
-    case StatusRequest => {
-      sender ! StatusReply( clientStatus)
+    case ClientStatusRequest => {
+      sender ! ClientStatus( clientStatus)
       reinitializeIfNeeded
     }
 

@@ -56,10 +56,6 @@ import models.ReefClientActor.WebSocketActor
 import play.api.libs.json.JsObject
 import models.ReefClientActor.ClientReply
 
-trait ReefClientCache {
-  var clientStatus = INITIALIZING
-  var client : Option[Client] = None
-}
 
 object ClientPushActorFactory extends ReefClientActorChildFactory{
   def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
@@ -98,7 +94,10 @@ object Application extends Controller {
     }
   }
 
-
+  /**
+   * An Action needing a reefClient ActorRef
+   *
+   */
   def ReefClientAction(f: (Request[AnyContent], ActorRef) => Result): Action[AnyContent] = {
     Action { request =>
 
@@ -114,6 +113,10 @@ object Application extends Controller {
     }
   }
 
+  /**
+   * An Action needing an AllScadaService
+   *
+   */
   def ServiceAction(f: (Request[AnyContent], AllScadaService) => Result): Action[AnyContent] = {
     Action { request =>
       Logger.info( "ServiceAction 1")
@@ -141,30 +144,6 @@ object Application extends Controller {
     }
   }
 
-  /*
-        if ( clientIsUp) {
-          Logger.info( "ServiceAction UP")
-          try {
-            f(request, client.get.getService(classOf[AllScadaService]))
-          } catch {
-            case ex => {
-              Logger.error( "ServiceAction exception " + ex.getMessage)
-              if( ex.getCause != null)
-                Logger.error( "ServiceAction exception cause " + ex.getCause.getMessage)
-              getReefClient( request.headers).map( _ !  Reinitialize)
-              ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( ex.getMessage))).toString())
-            }
-          }
-        } else {
-          Logger.info( "ServiceAction down clientStatus " + clientStatus)
-
-          getReefClient( request.headers).map( _ !  Reinitialize)
-          Logger.info( "ServiceAction redirect( /assets/index.html)")
-          ServiceUnavailable(Json.toJson( Map( "serviceException" -> Json.toJson( true), "servicesStatus" -> Json.toJson( clientStatus.toString()), "description" -> Json.toJson( clientStatus.description))).toString())
-        }
-        */
-
-
 
   def index = Action { implicit request =>
     Logger.info( "index")
@@ -174,8 +153,8 @@ object Application extends Controller {
   def getServicesStatus = ReefClientAction { (request, client) =>
     // Async unwinds the promise.
     Async {
-      (client ? StatusRequest).asPromise.map {
-        case StatusReply( status) => {
+      (client ? ClientStatusRequest).asPromise.map {
+        case ClientStatus( status) => {
           Logger.info( "getServicesStatus StatusReply: " + status.toString)
           Ok( ConnectionStatusFormat.writes( status))
         }
@@ -274,8 +253,6 @@ object Application extends Controller {
   }
 
   def getMeasurements = ServiceAction { (request, service) =>
-
-    //val service: AllScadaService = client.getService(classOf[AllScadaService])
 
     val points = service.getPoints().await()
 
