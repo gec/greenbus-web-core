@@ -25,6 +25,7 @@ import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measuremen
 import org.totalgrid.reef.client.service.proto.{Events, Model, Alarms, Measurements}
 
 import ConnectionStatus._
+import play.api.Logger
 
 /**
  *
@@ -187,6 +188,7 @@ object JsonFormatters {
     }
 
     def pushMessage( o: Alarms.Alarm, subscriptionId: String): JsValue = {
+      Logger.debug( "pushMessage Alarm: " + o.getId)
       JsObject(
         Seq(
           "subscriptionId" -> JsString( subscriptionId),

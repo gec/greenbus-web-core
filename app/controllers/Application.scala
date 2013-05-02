@@ -61,7 +61,7 @@ object ClientPushActorFactory extends ReefClientActorChildFactory{
   def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
     // Create an Enumerator that the new actor will use for push
     val pushChannel =  Enumerator.imperative[JsValue]()
-    val actorRef = parentContext.actorOf( Props( new ClientPushActor( clientStatus, client, pushChannel)), name = actorName)
+    val actorRef = parentContext.actorOf( Props( new ClientPushActor( clientStatus, client, pushChannel)) /*, name = actorName*/) // Getting two with the same name
     (actorRef, pushChannel)
   }
 }

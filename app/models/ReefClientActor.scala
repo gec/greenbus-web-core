@@ -207,8 +207,10 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
       agentName = userName
       agentPassword = password
       authToken = client.get.getHeaders.getAuthToken
+      Logger.debug( "ReefClientActor.login sender ! LoginSuccess( " + authToken + ")")
       sender ! LoginSuccess( authToken)
     } else {
+      Logger.debug( "ReefClientActor.login sender ! LoginError( " + clientStatus + ")")
       sender ! LoginError( clientStatus)
     }
 

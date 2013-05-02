@@ -30,17 +30,13 @@ function MenuControl($rootScope, $scope, $timeout, reef, $http) {
 
 function ReefStatusControl($rootScope, $scope, $timeout, reef) {
 
-    $scope.status = {
-        servicesStatus: "Loading...",
-        reinitializing: true,
-        description: "loading Reef client..."
+    $scope.status = reef.getStatus()
+    $scope.visible = $scope.status.status !== "UP"
 
-    };
-    $scope.visible = true;
-
-    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+    // This is not executed until after Reef AngularJS service is initialized
+    $scope.$on( 'reef.status', function( event, status) {
         $scope.status = status;
-        $scope.visible = $scope.status.servicesStatus !== "UP"
+        $scope.visible = $scope.status.status !== "UP"
     });
 }
 
@@ -50,7 +46,7 @@ function LoadingControl($rootScope, $scope, reef, $location) {
 
     // if someone goes to the default path and reef is up, we go to the entity page by default.
     //
-    if( $scope.status.servicesStatus === "UP") {
+    if( $scope.status.status === "UP") {
         $location.path( "/entity");
         return;
     }
@@ -61,9 +57,9 @@ function LoadingControl($rootScope, $scope, reef, $location) {
         { name: "Loading" }
     ];
 
-    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+    $scope.$on( 'reef.status', function( event, status) {
         $scope.status = status;
-        $scope.visible = $scope.status.servicesStatus !== "UP"
+        $scope.visible = $scope.status.status !== "UP"
     });
 }
 
@@ -87,7 +83,7 @@ function LoginControl($rootScope, $scope, reef, $timeout) {
     /*
     // if someone goes to the default path and reef is up, we go to the entity page by default.
     //
-    if( $scope.status.servicesStatus === "UP") {
+    if( $scope.status.status === "UP") {
         $location.path( "/entity");
         return;
     }
@@ -99,9 +95,9 @@ function LoginControl($rootScope, $scope, reef, $timeout) {
         { name: "Login" }
     ];
 
-    $scope.$on( 'reefService.statusUpdate', function( event, status) {
+    $scope.$on( 'reef.status', function( event, status) {
         $scope.status = status;
-        $scope.visible = $scope.status.servicesStatus !== "UP"
+        $scope.visible = $scope.status.status !== "UP"
     });
 
     $('#loginModal').modal( {keyboard: false} )
@@ -303,8 +299,9 @@ function EventControl($rootScope, $scope, reef) {
     reef.get( "/event", "events", $scope);
 }
 
-function AlarmControl($rootScope, $scope, reef) {
+function AlarmControl($rootScope, $scope, $attrs, reef) {
     $scope.alarms = []
+    $scope.limit = Number( $attrs.limit || 20);
 
     $rootScope.currentMenuItem = "alarm";
     $rootScope.breadcrumbs = [
@@ -313,15 +310,17 @@ function AlarmControl($rootScope, $scope, reef) {
     ];
 
     $scope.onAlarm = function( subscriptionId, type, alarm) {
-        console.log( "onAlarm " + alarm.name + " '" + alarm.value + "'")
+        console.log( "onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
         $scope.alarms.unshift( alarm)
+        while( $scope.alarms.length > $scope.limit)
+            $scope.alarms.pop()
     }
 
     $scope.onError = function( subscriptionId, type, data) {
 
     }
 
-    reef.subscribeToActiveAlarms( $scope, 20, $scope.onAlarm, $scope.onError)
+    reef.subscribeToActiveAlarms( $scope, $scope.limit, $scope.onAlarm, $scope.onError)
 
 
     //reef.get( "/alarm", "alarms", $scope);

@@ -29,19 +29,16 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         subscribe: 0
     }
     var status = {
-        servicesStatus: "NOT_LOGGED_IN",
+        status: "NOT_LOGGED_IN",
         reinitializing: true,
         description: "loading Reef client..."
     }
-    var authToken = $cookies.authToken;
-    if( authToken && authToken.length > 5) {
-        // Let's assume for now that we already logged in and have a valid authToken.
-        status = {
-            servicesStatus: "UP",
-            reinitializing: false,
-            description: ""
-        }
-    }
+    console.log( "status = " + status.status)
+
+    var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
+    var webSocket = null
+    var webSocketOpen = false
+    var webSocketPendingTasks = []
 
     var httpConfig = {
         cache: false,
@@ -56,38 +53,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         idCounter: 0,
         listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
     };
-
-    var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
-    var webSocket = {
-        send: function( jsonString) {
-            console.error( "webSocket.send WebSocket is not initialized. Something tried to send: " + jsonString)
-        }
-    }
-
-
-    function getListenerForMessage( data) {
-        if( data.subscriptionId)
-            return subscription.listeners[ data.subscriptionId]
-        else
-            return null
-    }
-
-    function handleError( data) {
-        //webSocket.close()
-        console.log( "webSocket.handleError data.error: " + data.error)
-
-        var listener = getListenerForMessage( data);
-        if( listener && listener.error)
-            listener.error( data.subscriptionId, data.type, data.data)
-    }
-
-    function handleConnectionStatus( json) {
-        status = json
-        notify();
-
-        if( status.servicesStatus === "UP" && redirectLocation)
-            $location.path( redirectLocation)
-    }
 
     /* Assign these WebSocket handlers to a newly created WebSocket */
     var wsHanders = {
@@ -117,33 +82,36 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         onopen: function(event) {
             console.log( "webSocket.onopen event: " + event)
             $rootScope.$apply(function () {
-                status = {
-                    servicesStatus: "WEBSOCKET_OPEN",
-                    reinitializing: false,
-                    description: ""
+                webSocketOpen = true;
+
+                while( webSocketPendingTasks.length) {
+                    var data = webSocketPendingTasks.shift()
+                    console.log( "onopen: send( " + data + ")")
+                    webSocket.send( data)
                 }
-                notify();
             })
         },
         onclose: function(event) {
-            console.log( "webSocket.onclose event: " + event)
+            webSocketOpen = false
             var code = event.code;
             var reason = event.reason;
             var wasClean = event.wasClean;
+            console.log( "webSocket.onclose code: " + code + ", wasClean: " + wasClean + ", reason: " + reason)
+            webSocket = null
+            window.location.href = "/login"
         },
         onerror: function(event) {
-            console.log( "webSocket.onerror event: " + event)
-            $rootScope.$apply(function () {
-                status = {
-                    servicesStatus: "APPLICATION_SERVER_DOWN",
-                    reinitializing: false,
-                    description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                }
-                notify();
-            })
             var data = event.data;
             var name = event.name;
             var message = event.message;
+            console.log( "webSocket.onerror name: " + name + ", message: " + message + ", data: " + data)
+            $rootScope.$apply(function () {
+                setStatus( {
+                    status: "APPLICATION_SERVER_DOWN",
+                    reinitializing: false,
+                    description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+                });
+            })
         }
     }
 
@@ -156,8 +124,50 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         return ws
     }
 
-    function notify() {
-        $rootScope.$broadcast( 'reefService.statusUpdate', status);
+
+    var authToken = $cookies.authToken;
+    if( authToken && authToken.length > 5) {
+        console.log( "found authToken: " + authToken)
+        // Let's assume, for now, that we already logged in and have a valid authToken.
+        setStatus( {
+            status: "UP",
+            reinitializing: false,
+            description: ""
+        })
+
+        //webSocket = makeWebSocket( authToken)
+    } else {
+        console.log( "no authToken")
+    }
+
+
+    function getListenerForMessage( data) {
+        if( data.subscriptionId)
+            return subscription.listeners[ data.subscriptionId]
+        else
+            return null
+    }
+
+    function handleError( data) {
+        //webSocket.close()
+        console.log( "webSocket.handleError data.error: " + data.error)
+
+        var listener = getListenerForMessage( data);
+        if( listener && listener.error)
+            listener.error( data.subscriptionId, data.type, data.data)
+    }
+
+    function handleConnectionStatus( json) {
+        setStatus( json);
+
+        if( status.status === "UP" && redirectLocation)
+            $location.path( redirectLocation)
+    }
+
+    function setStatus( s) {
+        status = s
+        console.log( "setStatus: " + status.status)
+        $rootScope.$broadcast( 'reef.status', status);
     }
 
     self.getStatus = function() {
@@ -178,13 +188,11 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                 } else {
                     authToken = json.authToken;
                     console.log( "login successful")
-                    webSocket = makeWebSocket( authToken)
-                    status = {
-                        servicesStatus: "UP",
+                    setStatus( {
+                        status: "UP",
                         reinitializing: false,
                         description: ""
-                    }
-                    notify()
+                    })
                     $cookies.authToken = authToken
                     console.log( "login success, setting cookie, redirectLocation: '" + redirectLocation + "'")
                     if( redirectLocation)
@@ -201,20 +209,19 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                 var message = json && json.error && json.error.description || "Unknown login failure";
                 if( statusCode == 0) {
                     message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
-                    status = {
-                        servicesStatus: "APPLICATION_SERVER_DOWN",
+                    setStatus( {
+                        status: "APPLICATION_SERVER_DOWN",
                         reinitializing: false,
                         description: message
-                    };
+                    });
                 } else {
-                    status = {
-                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                    setStatus( {
+                        status: "APPLICATION_REQUEST_FAILURE",
                         reinitializing: false,
                         description: message
-                    };
+                    });
                 }
                 errorListener( message)
-                notify();
             });
     }
 
@@ -222,10 +229,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         //console.log( "reef.initialize redirectLocation" + redirectLocation);
         $http.get( "/services/status").
             success(function(json) {
-                status = json;
-                notify();
+                setStatus( json);
 
-                if( status.servicesStatus === "UP") {
+                if( status.status === "UP") {
                     retries.initialize = 0;
                     if( redirectLocation)
                         $location.path( redirectLocation)
@@ -244,19 +250,18 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                 // code outside of the <200, 400) range
                 console.log( "reef.initialize error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
                 if( statusCode == 0) {
-                    status = {
-                        servicesStatus: "APPLICATION_SERVER_DOWN",
+                    setStatus( {
+                        status: "APPLICATION_SERVER_DOWN",
                         reinitializing: false,
                         description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                    };
+                    });
                 } else {
-                    status = {
-                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                    setStatus( {
+                        status: "APPLICATION_REQUEST_FAILURE",
                         reinitializing: false,
                         description: "Application server responded with status " + statusCode
-                    };
+                    });
                 }
-                notify();
             });
     }
 
@@ -272,8 +277,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         //console.log( "reef.get " + url + " retries:" + retries.get);
 
 
-        if( !authToken || status.servicesStatus == "NOT_LOGGED_IN") {
-            console.log( "self.get if( !authToken || status.servicesStatus == 'NOT_LOGGED_IN')")
+        if( !authToken || status.status == "NOT_LOGGED_IN") {
+            console.log( "self.get if( !authToken || status.status == 'NOT_LOGGED_IN')")
             redirectLocation = $location.url() // save the current url so we can redirect the user back
             authToken = null
             window.location.href = "/login" //$location.path('/login')
@@ -291,8 +296,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             }
         });
 
-        if( status.servicesStatus != "UP") {
-            console.log( "self.get ( status.servicesStatus != 'UP')")
+        if( status.status != "UP") {
+            console.log( "self.get ( status.status != 'UP')")
             retries.get ++;
             var delay = retries.get < 5 ? 1000 : 10000
 
@@ -317,45 +322,42 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                     successListener()
 
                 // If the get worked, the service must be up.
-                if( status.servicesStatus != "UP") {
-                    status = {
-                        servicesStatus: "UP",
+                if( status.status != "UP") {
+                    setStatus( {
+                        status: "UP",
                         reinitializing: false,
                         description: ""
-                    };
-                    notify();
+                    });
                 }
             }).
             error(function (json, statusCode, headers, config) {
 
                 console.log( "reef.get error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
                 if( statusCode == 0) {
-                    status = {
-                        servicesStatus: "APPLICATION_SERVER_DOWN",
+                    setStatus( {
+                        status: "APPLICATION_SERVER_DOWN",
                         reinitializing: false,
                         description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                    };
+                    });
                 } else if (statusCode == 401) {
-                    status = {
-                        servicesStatus: "NOT_LOGGED_IN",
+                    setStatus( {
+                        status: "NOT_LOGGED_IN",
                         reinitializing: true,
                         description: "Not logged in."
-                    };
+                    });
                     redirectLocation = $location.url(); // save the current url so we can redirect the user back
                     authToken = null
                     //$location.path('/login');
                     window.location.href = "/login"
                 } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
-                    status = {
-                        servicesStatus: "APPLICATION_REQUEST_FAILURE",
+                    setStatus( {
+                        status: "APPLICATION_REQUEST_FAILURE",
                         reinitializing: false,
                         description: "Application server responded with status " + statusCode
-                    };
+                    });
                 } else {
-                    status = json;
+                    setStatus( json);
                 }
-
-                notify();
 
                 // 404 means it's an internal error and the page will never be found so no use retrying.
                 if( statusCode != 404) {
@@ -398,6 +400,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     function getSubscriptionIdFromMessage( json) {
         var messageKey = Object.keys( json)[0]
         var messageValue = json[messageKey]
+        console.log( "getSubscriptionIdFromMessage messageKey: " + messageKey + " value.subscriptionId: " + messageValue.subscriptionId)
         var subscriptionId = messageValue.subscriptionId
         return subscriptionId
     }
@@ -409,7 +412,17 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         registerSubscriptionOnScope( $scope, subscriptionId);
         subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
 
-        webSocket.send(JSON.stringify( json))
+        var data = JSON.stringify( json)
+        if( webSocketOpen) {
+            console.log( "subscribe: send( " + data + ")")
+            webSocket.send( data)
+        } else {
+            // Lazy init of webSocket
+            console.log( "subscribe: waiting for open to send( " + data + ")")
+            webSocketPendingTasks.push( data)
+            if( ! webSocket)
+                webSocket = makeWebSocket( authToken)
+        }
         return subscriptionId
     }
 
@@ -474,9 +487,9 @@ angular.module('charlotte.services', ['ngCookies']).
             // This HTML will replace the alarmBanner directive.
             replace: true,
             transclude: true,
-            scope: { limit:'@limit' },
-            templateUrl: 'partials/measurements.html',
-            controller: ['$rootScope', '$scope', '$filter', 'reef', MeasurementControl],
+            scope: true,
+            templateUrl: 'partials/alarms.html',
+            controller: ['$rootScope', '$scope', '$attrs', 'reef', AlarmControl],
             // The linking function will add behavior to the template
             link: function(scope, element, attrs) {
                 // Title element
@@ -506,29 +519,29 @@ angular.module('charlotte.services', ['ngCookies']).
         // We need to catch this event to put up a message.
         //
 
-        var interceptor = ['$q', '$injector', '$rootScope', function ($q, $injector, $rootScope) {
+        var interceptor = ['$q', '$injector', '$rootScope', '$location', function ($q, $injector, $rootScope, $location) {
 
                 function success(response) {
                     return response;
                 }
 
                 function error(response) {
-                    var status = response.status;
-                    if (status == 401) {
+                    var httpStatus = response.status;
+                    if (httpStatus == 401) {
                         var reef = $injector.get('reef');
                         reef.redirectLocation = $location.url(); // save the current url so we can redirect the user back
                         reef.authToken = null
                         window.location.href = "/login" // $location.path('/login');
-                    } else if ((response.status === 404 || response.status === 0 ) && response.config.url.indexOf(".html")) {
+                    } else if ((httpStatus === 404 || httpStatus === 0 ) && response.config.url.indexOf(".html")) {
 
                         var status = {
-                            servicesStatus: "APPLICATION_SERVER_DOWN",
+                            status: "APPLICATION_SERVER_DOWN",
                             reinitializing: false,
                             description: "Application server is not responding. Your network connection is down or the application server appears to be down."
                         };
 
                         //var $rootScope = $rootScope || $injector.get('$rootScope');
-                        $rootScope.$broadcast( 'reefService.statusUpdate', status);
+                        $rootScope.$broadcast( 'reef.status', status);
 
                         return response;
                     } else {
