@@ -43,5 +43,5 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
       when('/agent/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl}).
       when('/permissionset', {templateUrl: 'partials/permissionsets.html', controller: PermissionSetControl}).
       when('/permissionset/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: PermissionSetDetailControl}).
-      otherwise({redirectTo: '/login'});
+      otherwise({redirectTo: '/entity'});
   }]);

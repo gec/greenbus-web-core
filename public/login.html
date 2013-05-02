@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" ng-app="charlotte">
+<head>
+  <meta charset="utf-8">
+  <title>Reef GUI</title>
+  <link rel="stylesheet" href="css/app.css"/>
+  <link rel="stylesheet" href="css/bootstrap.css">
+    <style type="text/css">
+        body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+        }
+        .sidebar-nav {
+        padding: 9px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid" ng-controller="LoginControl">
+        <div class="row-fluid">
+            <div class="span10">
+                <div ng-view></div>
+            </div>
+        </div>
+
+        <hr>
+
+        <footer>
+            <p>&copy; Green Energy Corp 2013</p>
+        </footer>
+
+    </div>
+
+
+
+
+  <!-- In production use:
+  <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.2/angular.min.js"></script>
+  -->
+  <script src="lib/angular/angular.js"></script>
+  <script src="lib/angular/angular-resource.js"></script>
+  <script src="lib/angular/angular-cookies.js"></script>
+  <script src="http://code.jquery.com/jquery-latest.js"></script>
+  <script src="lib/angular/bootstrap.min.js"></script>
+ <!-- <script src="lib/reef/reef.client.js"></script>
+  <script src="lib/reef/reef.client.core-services.js"></script>-->
+  <script src="js/appLogin.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/controllers.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/directives.js"></script>
+</body>
+</html>

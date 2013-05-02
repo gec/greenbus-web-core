@@ -142,10 +142,33 @@ object Application extends Controller {
     }
   }
 
+  def alreadyLoggedIn( request: Request[AnyContent]) = {
+    val authToken = request.session.get( "authToken").getOrElse("")
+    Logger.debug( "alreadyLoggedIn authToken: " + authToken + " reefClients().isDefined: " + reefClients.get( authToken).isDefined)
+    reefClients.get( authToken).isDefined
+  }
 
   def index = Action { implicit request =>
-    Logger.info( "index")
-    Redirect("/assets/index.html")
+    Logger.debug( "index")
+    if( alreadyLoggedIn( request)) {
+      Logger.debug( "index redirect /assets/index.html")
+      Redirect("/assets/index.html")
+    } else {
+      Logger.debug( "index redirect routes.Application.getLogin")
+      Redirect(routes.Application.getLogin).withSession( session - "authToken")
+    }
+  }
+
+  def getLogin = Action { implicit request =>
+
+    Logger.debug( "getLogin")
+    if( alreadyLoggedIn( request)) {
+      Logger.debug( "getLogin alreadyLoggedIn:true redirect routes.Application.index")
+      Redirect(routes.Application.index)
+    } else {
+      Logger.debug( "getLogin alreadyLoggedIn:false redirect /assets/login.html")
+      Redirect("/assets/login.html")
+    }
   }
 
   def getServicesStatus = ReefClientAction { (request, client) =>
@@ -176,7 +199,9 @@ object Application extends Controller {
           case reply: LoginSuccess => {
             Logger.info( "postLogin loginSuccess authToken:" + reply.authToken)
             reefClients += (reply.authToken -> reefClient)
-            Ok( LoginSuccessFormat.writes( reply))
+            Ok( LoginSuccessFormat.writes( reply)).withSession(
+              request.session + ("authToken" -> reply.authToken)
+            )
           }
           case reply: LoginError => {
             Logger.info( "postLogin loginError: " + reply.status)

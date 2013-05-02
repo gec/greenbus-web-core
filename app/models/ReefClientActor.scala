@@ -51,7 +51,7 @@ object ConnectionStatus extends Enumeration {
   val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false, Results.Unauthorized)
   val INVALID_REQUEST = Value( "INVALID_REQUEST", "The request from the browser client was invalid.", false, Results.BadRequest)
   val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false, Results.ServiceUnavailable)
-  val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToke not recognized by application server.", false, Results.Unauthorized)
+  val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToken not recognized by application server.", false, Results.Unauthorized)
 
   class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean, val httpResults: Results.Status) extends Val(nextId, name)  {
     // This is not required for Scala 2.10

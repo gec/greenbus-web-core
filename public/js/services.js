@@ -21,26 +21,35 @@
 /* Services */
 
 
-var ReefService = function( $rootScope, $timeout, $http, $location) {
+var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     var self = this;
     var retries = {
         initialize: 0,
         get: 0,
         subscribe: 0
     }
-    var authToken = null;
-    var httpConfig = {
-        cache: false,
-        timeout: 2000 // milliseconds
-    }
     var status = {
         servicesStatus: "NOT_LOGGED_IN",
         reinitializing: true,
         description: "loading Reef client..."
     }
+    var authToken = $cookies.authToken;
+    if( authToken && authToken.length > 5) {
+        // Let's assume for now that we already logged in and have a valid authToken.
+        status = {
+            servicesStatus: "UP",
+            reinitializing: false,
+            description: ""
+        }
+    }
+
+    var httpConfig = {
+        cache: false,
+        timeout: 2000 // milliseconds
+    }
     var redirectLocation = $location.path();
     if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
-        redirectLocation = "/entity"
+        redirectLocation = "/assets/index.html" // "/entity"
 
 
     var subscription = {
@@ -176,8 +185,12 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                         description: ""
                     }
                     notify()
+                    $cookies.authToken = authToken
+                    console.log( "login success, setting cookie, redirectLocation: '" + redirectLocation + "'")
                     if( redirectLocation)
-                        $location.path( redirectLocation)
+                        window.location.href = redirectLocation // $location.path( redirectLocation)
+                    else
+                        window.location.href = "/assets/index.html"
                 }
             }).
             error(function (json, statusCode, headers, config) {
@@ -260,9 +273,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
 
         if( !authToken || status.servicesStatus == "NOT_LOGGED_IN") {
+            console.log( "self.get if( !authToken || status.servicesStatus == 'NOT_LOGGED_IN')")
             redirectLocation = $location.url() // save the current url so we can redirect the user back
             authToken = null
-            $location.path('/login')
+            window.location.href = "/login" //$location.path('/login')
             return
         }
 
@@ -278,6 +292,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
         });
 
         if( status.servicesStatus != "UP") {
+            console.log( "self.get ( status.servicesStatus != 'UP')")
             retries.get ++;
             var delay = retries.get < 5 ? 1000 : 10000
 
@@ -328,7 +343,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
                     };
                     redirectLocation = $location.url(); // save the current url so we can redirect the user back
                     authToken = null
-                    $location.path('/login');
+                    //$location.path('/login');
+                    window.location.href = "/login"
                 } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
                     status = {
                         servicesStatus: "APPLICATION_REQUEST_FAILURE",
@@ -343,8 +359,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 
                 // 404 means it's an internal error and the page will never be found so no use retrying.
                 if( statusCode != 404) {
-                    self.initialize();
-                    self.get( url, name, $scope);
+                    console.log( "self.get error if( statusCode != 404)")
+                    //self.initialize();
+                    //self.get( url, name, $scope);
                 }
             });
 
@@ -447,9 +464,40 @@ var ReefService = function( $rootScope, $timeout, $http, $location) {
 }
 
 
-angular.module('charlotte.services', []).
-    factory('reef', function( $rootScope, $timeout, $http, $location){
-        return new ReefService( $rootScope, $timeout, $http, $location);
+angular.module('charlotte.services', ['ngCookies']).
+    factory('reef', function( $rootScope, $timeout, $http, $location, $cookies){
+        return new ReefService( $rootScope, $timeout, $http, $location, $cookies);
+    })
+    .directive('alarmBanner', function(){
+        return {
+            restrict: 'E',
+            // This HTML will replace the alarmBanner directive.
+            replace: true,
+            transclude: true,
+            scope: { limit:'@limit' },
+            templateUrl: 'partials/measurements.html',
+            controller: ['$rootScope', '$scope', '$filter', 'reef', MeasurementControl],
+            // The linking function will add behavior to the template
+            link: function(scope, element, attrs) {
+                // Title element
+                var title = angular.element(element.children()[0]),
+                // Opened / closed state
+                    opened = true;
+
+                // Clicking on title should open/close the alarmBanner
+                title.bind('click', toggle);
+
+                // Toggle the closed/opened state
+                function toggle() {
+                    opened = !opened;
+                    element.removeClass(opened ? 'closed' : 'opened');
+                    element.addClass(opened ? 'opened' : 'closed');
+                }
+
+                // initialize the alarmBanner
+                //toggle();
+            }
+        }
     }).
     config(['$httpProvider', function ($httpProvider) {
 
@@ -470,7 +518,7 @@ angular.module('charlotte.services', []).
                         var reef = $injector.get('reef');
                         reef.redirectLocation = $location.url(); // save the current url so we can redirect the user back
                         reef.authToken = null
-                        $location.path('/login');
+                        window.location.href = "/login" // $location.path('/login');
                     } else if ((response.status === 404 || response.status === 0 ) && response.config.url.indexOf(".html")) {
 
                         var status = {
