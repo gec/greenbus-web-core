@@ -42,11 +42,11 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
     var httpConfig = {
         cache: false,
-        timeout: 2000 // milliseconds
+        timeout: 5000 // milliseconds
     }
     var redirectLocation = $location.path();
     if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
-        redirectLocation = "/assets/index.html" // "/entity"
+        redirectLocation = "/assets/index.html" // "/entities"
 
 
     var subscription = {

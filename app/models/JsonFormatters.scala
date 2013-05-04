@@ -21,11 +21,14 @@ package models
 import play.api.libs.json._
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
+import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
 import org.totalgrid.reef.client.service.proto.{Events, Model, Alarms, Measurements}
+import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
 
 import ConnectionStatus._
 import play.api.Logger
+import controllers.PointWithTypes
 
 /**
  *
@@ -85,8 +88,9 @@ object JsonFormatters {
     overall + " (" + list.reverse.mkString("; ") + ")"
   }
 
-  def makeReefId( value:String): Model.ReefID =
-    Model.ReefID.newBuilder.setValue( value).build()
+  def makeReefId( value:String): Model.ReefID = Model.ReefID.newBuilder.setValue( value).build()
+
+  def makeReefUuid( value:String): Model.ReefUUID = Model.ReefUUID.newBuilder.setValue( value).build()
 
   trait PushMessage[T] {
     def pushMessage( o: T, subscriptionId: String): JsValue
@@ -109,6 +113,7 @@ object JsonFormatters {
       JsObject(
         List(
           "name" -> JsString( o.getName),
+          "pointUuid" -> JsString( o.getPointUuid.getValue),
           "value" -> JsString( measValue.toString),
           "unit" -> JsString( o.getUnit),
           "time" -> JsString( o.getTime.toString),
@@ -286,6 +291,96 @@ object JsonFormatters {
 
   }
 
+
+  implicit object EntityFormat extends Format[Entity] {
+
+    def writes( o: Entity): JsValue = JsObject(
+      List(
+        "name" -> JsString( o.getName),
+        "uuid" -> JsString( o.getUuid.getValue),
+        "types" -> JsArray( o.getTypesList.map( JsString))
+      )
+    )
+
+    def reads( json: JsValue) = {
+      val eBuider = Entity.newBuilder
+      eBuider.setName( (json \ "name").as[String])
+      (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
+      eBuider.build
+    }
+
+  }
+
+  implicit object PointFormat extends Format[Point] {
+
+    def writes( o: Point): JsValue = JsObject(
+      List(
+        "name" -> JsString( o.getName),
+        "uuid" -> JsString( o.getUuid.getValue),
+        "type" -> JsString( o.getType.name()),
+        "unit" -> JsString( o.getUnit),
+        "endpoint" -> JsString( o.getEndpoint.getName)
+      )
+    )
+
+    def reads( json: JsValue) = {
+      val eBuider = Point.newBuilder
+      eBuider.setName( (json \ "name").as[String])
+      (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
+      eBuider.build
+    }
+
+  }
+
+  implicit object PointWithTypesFormat extends Format[PointWithTypes] {
+
+    def writes( o: PointWithTypes): JsValue = JsObject(
+      List(
+        "name" -> JsString( o.point.getName),
+        "uuid" -> JsString( o.point.getUuid.getValue),
+        "pointType" -> JsString( o.point.getType.name()),    // ANALOG, COUNTER, STATUS
+        "unit" -> JsString( o.point.getUnit),
+        "endpoint" -> JsString( o.point.getEndpoint.getName),
+        "types" -> JsArray( o.types.map( JsString))
+      )
+    )
+
+    // TODO: will we ever call reads?
+    def reads( json: JsValue) = {
+      val eBuider = Point.newBuilder
+      eBuider.setName( (json \ "name").as[String])
+      (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
+      PointWithTypes( eBuider.build, List())
+    }
+
+  }
+
+
+
+  implicit object EntityWithPointsFormat extends Format[(Entity, List[PointWithTypes])] {
+
+    def writes( o: (Entity, List[PointWithTypes])): JsValue = JsObject(
+      List(
+        "name" -> JsString( o._1.getName),
+        "uuid" -> JsString( o._1.getUuid.getValue),
+        "types" -> JsArray( o._1.getTypesList.map( JsString)),
+        "points" -> JsArray( o._2.map( PointWithTypesFormat.writes))
+      )
+    )
+
+    def reads( json: JsValue) = {
+      ( EntityFormat.reads( json), List[PointWithTypes]())   // TODO do we need to get entities with points from browser?
+    }
+
+  }
+
+  implicit object EntitiesWithPointsFormat extends Format[Seq[(Entity, List[PointWithTypes])]] {
+
+    def writes( o: Seq[(Entity, List[PointWithTypes])]): JsValue = JsArray( o.map( EntityWithPointsFormat.writes))
+
+    def reads( json: JsValue) = json.asInstanceOf[JsArray].value.map( EntityWithPointsFormat.reads)
+
+  }
 
   implicit object SubscribeToMeasurementsByNamesFormat extends Format[SubscribeToMeasurementsByNames] {
 

@@ -1,0 +1,37 @@
+
+
+
+<div>
+
+    <h2>CES/DESS</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Capacity</th>
+                    <th>Standby</th>
+                    <th>Charging</th>
+                    <th>Charge %</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="ess in esses">
+                    <td>{{ess.name}}</td>
+                    <td>{{ess.capacity}}</td>
+                    <td>{{ess.standby}}</td>
+                    <td>{{ess.charging}}</td>
+                    <td>
+                        <div class="progress" style="width:100px">
+                            <div class="bar" style="width: {{ess.soc}}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div ng-include src="'partials/loadingprogress.html'"></div>
+</div>
+

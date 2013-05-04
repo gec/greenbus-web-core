@@ -27,6 +27,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
       when('/loading', {templateUrl: 'partials/loading.html', controller: LoadingControl}).
       when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
       when('/measurement', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
+      when('/esses', {templateUrl: 'partials/esses.html', controller: EssesControl}).
       when('/entity', {templateUrl: 'partials/entities.html', controller: EntityControl}).
       when('/entity/:name', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl}).
       when('/point', {templateUrl: 'partials/points.html', controller: PointControl}).

@@ -12,8 +12,9 @@ GET     /login                       controllers.Application.getLogin
 POST    /services/login             controllers.Application.postLogin
 GET     /services/status             controllers.Application.getServicesStatus
 GET     /services/websocket          controllers.Application.getWebSocket( authToken)
-GET     /entity                      controllers.Application.getEntities
+GET     /entities                    controllers.Application.getEntities(types: List[String])
 GET     /entity/*name                controllers.Application.getEntityDetail(name)
+GET     /equipmentwithpointsbytype   controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
 
 GET     /measurement                 controllers.Application.getMeasurements
 

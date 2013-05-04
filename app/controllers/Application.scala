@@ -26,8 +26,6 @@ import play.api.libs.iteratee._
 import models._
 import play.api.libs.json._
 import models.Quit
-import play.api.libs.json.JsString
-import play.api.libs.json.JsObject
 import akka.util.Timeout
 import akka.util.duration._
 
@@ -36,7 +34,7 @@ import org.totalgrid.reef.client.Client
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
-import org.totalgrid.reef.client.service.proto.Model.{Command, Point}
+import org.totalgrid.reef.client.service.proto.Model.{Entity, Command, Point}
 import org.totalgrid.reef.client.service.proto.FEP.EndpointConnection
 import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Events.Event
@@ -66,6 +64,7 @@ object ClientPushActorFactory extends ReefClientActorChildFactory{
   }
 }
 
+case class PointWithTypes( point: Point, types: List[String])
 
 
 object Application extends Controller {
@@ -284,11 +283,53 @@ object Application extends Controller {
     Ok(Json.toJson(measurements.map(MeasurementFormat.writes)))
   }
 
-  def getEntities = ServiceAction { (request, service) =>
+
+  def getEntityWithPointsByType( service: AllScadaService, entity: Entity, pointTypes: List[String]) = {
+    // Get the points as entities.
+    val entities = service.getEntityImmediateChildren( entity.getUuid, "owns", pointTypes).await()
+
+    // Entities don't have all the point info, so reget the entities as type Point.
+    val points = service.getPointsByUuids( entities.map( e => e.getUuid)).await()
+
+    // Combine the Point with the Enity.getTypes
+    val pointsWithTypes = points.map{ point =>
+      val entity = entities.find( e => e.getUuid.getValue.equals( point.getUuid.getValue)).get
+      PointWithTypes( point, entity.getTypesList.toList)
+    }
+
+    //pointsWithTypes.foreach( p => Logger.debug( "   Point " + p.point.getName + ", pointType: " + p.point.getType.name + " types: " + p.types))
+
+    ( entity, pointsWithTypes)
+  }
+
+  /**
+   * Get Equipment by type with child Points by type
+   */
+  def getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String]) = ServiceAction { (request, service) =>
+    Logger.info( "getEquipmentWithPointsByType( " + eqTypes + ", " + pointTypes + ")")
+
+    val entities = eqTypes.length match {
+      case 0 => service.getEntities().await()
+      case _ => service.getEntitiesWithTypes( eqTypes).await()
+    }
+    val entitiesWithPoints = entities.map{ entity => getEntityWithPointsByType( service, entity, pointTypes) }
+
+    for( ewp <- entitiesWithPoints) {
+      Logger.debug( "EntitiesWithPoints " + ewp._1.getName + ", points.length: " + ewp._2.length)
+      ewp._2.foreach( p => Logger.debug( "   Point " + p.point.getName + ", types: " + p.types))
+    }
+
+    //Ok( Json.toJson( entitiesWithPoints.map(  EntityWithPointsFormat.writes)))
+    Ok( EntitiesWithPointsFormat.writes( entitiesWithPoints))
+  }
+
+  def getEntities( types: List[String]) = ServiceAction { (request, service) =>
     Logger.info( "getEntities")
 
-    val entities = service.getEntities().await()
-
+    val entities = types.length match {
+      case 0 => service.getEntities().await()
+      case _ => service.getEntitiesWithTypes( types).await()
+    }
     val result = Json.toJson(entities.map(ent => Json.toJson(Map("name" -> Json.toJson(ent.getName), "types" -> Json.toJson(ent.getTypesList.toList)))))
 
     Ok(result.toString)

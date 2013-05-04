@@ -47,7 +47,7 @@ function LoadingControl($rootScope, $scope, reef, $location) {
     // if someone goes to the default path and reef is up, we go to the entity page by default.
     //
     if( $scope.status.status === "UP") {
-        $location.path( "/entity");
+        $location.path( "/entities");
         return;
     }
 
@@ -84,7 +84,7 @@ function LoginControl($rootScope, $scope, reef, $timeout) {
     // if someone goes to the default path and reef is up, we go to the entity page by default.
     //
     if( $scope.status.status === "UP") {
-        $location.path( "/entity");
+        $location.path( "/entities");
         return;
     }
     */
@@ -127,8 +127,8 @@ function EntityControl($rootScope, $scope, reef) {
         { name: "Reef", url: "#/"},
         { name: "Entities" }
     ];
-    console.log( "/entity")
-    reef.get( "/entity", "entities", $scope);
+    console.log( "/entities")
+    reef.get( "/entities", "entities", $scope);
 }
 
 function EntityDetailControl($rootScope, $scope, $routeParams, reef) {
@@ -208,6 +208,13 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
         }
     }
 
+    function getPercentCharge( value) {
+        var v = Math.abs( value)
+        if( v > 100)
+            v = v % 100
+        return v
+    }
+
     $scope.findPoint = function( name) {
         for( var index in $scope.measurements) {
             var point = $scope.measurements[ index]
@@ -221,8 +228,12 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
         if( measurement.unit == "status")
             console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
         var point = $scope.findPoint( measurement.name)
-        if( point)
+        if( point) {
+
             point.value = formatMeasurementValue( measurement.value)
+            if( point.unit.indexOf( "k") == 0 || point.unit.indexOf( "%") == 0)
+                point.percentCharge = getPercentCharge( point.value)
+        }
     }
 
     $scope.onError = function( subscriptionId, type, data) {
@@ -243,6 +254,116 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
 
 
     reef.get( "/measurement", "measurements", $scope, $scope.getSuccessListener);
+}
+
+/**
+ * Energy Storage Systems Control
+ */
+function EssesControl($rootScope, $scope, $filter, reef) {
+    $scope.esses = []     // our mappings of data from the server
+    $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
+    var pointNameMap = {}
+
+    $rootScope.currentMenuItem = "esses";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "CES/DESS" }
+    ];
+
+    var number = $filter('number')
+    function formatMeasurementValue( value) {
+        if ( typeof value == "boolean" || isNaN( value) || !isFinite(value)) {
+            return value
+        } else {
+            return number( value)
+        }
+    }
+
+    function getPercentCharge( value) {
+        var v = Math.abs( value)
+        if( v > 100)
+            v = v % 100
+        return v
+    }
+
+    function makeQueryStringFromArray( parameter, values) {
+        parameter = parameter + "="
+        var query = ""
+        for( var index in values) {
+            var value = values[index]
+            if( index == 0)
+                query = parameter + value
+            else
+                query = query + "&" + parameter + value
+        }
+        return query
+    }
+
+    $scope.findPoint = function( name) {
+        for( var index in $scope.esses) {
+            var point = $scope.esses[ index]
+            if( name == point.name)
+                return point
+        }
+        return null
+    }
+
+    $scope.onMeasurement = function( subscriptionId, type, measurement) {
+        console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
+        var info = pointNameMap[ measurement.name]
+
+        // Map the point.name to the standard types (i.e. capacity, standby, charging)
+        $scope.esses[ info.essIndex][info.type] = measurement.value
+    }
+
+    $scope.onError = function( subscriptionId, type, data) {
+
+    }
+
+    function makeEss( eq) {
+        return {
+            name: eq.name,
+            capacity: 0,
+            standby: false,
+            charging: false
+        }
+    }
+
+    var POINT_TYPES =  ["SOC", "Charging", "Standby", "Capacity"]
+    function getInterestingType( types) {
+
+        for( var index in types) {
+            var typ = types[index]
+            switch( typ) {
+                case "SOC":
+                case "Charging":
+                case "Standby":
+                case "Capacity":
+                    return typ.toLowerCase()
+            }
+        }
+    }
+    // Called after get /equipmentwithpointsbytype returns successful.
+    $scope.getSuccessListener = function( ) {
+        var pointNames = []
+        for( var index in $scope.equipment) {
+            var essIndex = $scope.esses.length
+            var eq = $scope.equipment[ index]
+            var pointNameToTypeMap = {}
+            for( var pIndex in eq.points) {
+                var point = eq.points[ pIndex]
+                pointNames.push( point.name)
+                pointNameMap[ point.name] = { "essIndex": essIndex, "type": getInterestingType( point.types)}
+            }
+            $scope.esses.push( makeEss( eq))
+        }
+        reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
+    }
+
+    var eqTypes = makeQueryStringFromArray( "eqTypes", ["CES", "DESS"])
+    var pointTypes = makeQueryStringFromArray( "pointTypes", ["SOC", "Charging", "Standby", "Capacity"])
+    var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
+    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
 }
 
 function EndpointControl($rootScope, $scope, reef) {

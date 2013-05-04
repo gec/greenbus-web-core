@@ -18,9 +18,9 @@ object ApplicationBuild extends Build {
 
   val main = PlayProject(appName, appVersion, appDependencies, mainLang = SCALA).settings(
     // Add your own project settings here
-   
     resolvers += "scala-tools" at "http://repo.typesafe.com/typesafe/scala-tools-releases-cache",
-    resolvers += "totalgrid-release" at "https://repo.totalgrid.org/artifactory/totalgrid-release"
+    resolvers += "totalgrid-release" at "https://repo.totalgrid.org/artifactory/totalgrid-release",
+    routesImport += "models.QueryBinders._"
   )
 
 }
