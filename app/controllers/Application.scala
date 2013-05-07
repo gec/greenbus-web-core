@@ -314,10 +314,10 @@ object Application extends Controller {
     }
     val entitiesWithPoints = entities.map{ entity => getEntityWithPointsByType( service, entity, pointTypes) }
 
-    for( ewp <- entitiesWithPoints) {
-      Logger.debug( "EntitiesWithPoints " + ewp._1.getName + ", points.length: " + ewp._2.length)
-      ewp._2.foreach( p => Logger.debug( "   Point " + p.point.getName + ", types: " + p.types))
-    }
+//    for( ewp <- entitiesWithPoints) {
+//      Logger.debug( "EntitiesWithPoints " + ewp._1.getName + ", points.length: " + ewp._2.length)
+//      ewp._2.foreach( p => Logger.debug( "   Point " + p.point.getName + ", types: " + p.types))
+//    }
 
     //Ok( Json.toJson( entitiesWithPoints.map(  EntityWithPointsFormat.writes)))
     Ok( EntitiesWithPointsFormat.writes( entitiesWithPoints))

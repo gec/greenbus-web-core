@@ -9,11 +9,12 @@
         <table class="table table-condensed">
             <thead>
                 <tr>
-                    <th>Name</th>
+                    <th>Device Name</th>
                     <th>Capacity</th>
-                    <th>Standby</th>
-                    <th>Charging</th>
-                    <th>Charge %</th>
+                    <th title="Online/Standby">Standby</th>
+                    <th>Charge/Discharge</th>
+                    <th title="State of Charge %">SOC %</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -22,11 +23,16 @@
                     <td>{{ess.capacity}}</td>
                     <td>{{ess.standby}}</td>
                     <td>{{ess.charging}}</td>
-                    <td>
-                        <div class="progress" style="width:100px">
-                            <div class="bar" style="width: {{ess.soc}}%;"></div>
+                    <td style="width: 60px">
+                        <div class="battery-wrapper">
+                            <div class="battery-soc charged" style="width:{{ess.soc}}%"></div>
+                            <div class="battery-soc uncharged" style="width:{{100-ess.soc}}%"></div>
+                            <div class="battery-overlay"></div>
+                            <div class="battery-charging" ng-show="ess.standby | essBatteryCharging: ess.charging"></div>
+                            <div class="battery-standby" ng-show="ess.standby | essBatteryStandby"></div>
                         </div>
                     </td>
+                    <td>{{ess.soc | number}}%</td>
                 </tr>
             </tbody>
         </table>

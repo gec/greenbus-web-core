@@ -369,9 +369,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
     }
 
-    function makeSubscriptionId() {
+    function makeSubscriptionId( objectType) {
         subscription.idCounter ++;
-        return "subscription." + subscription.idCounter;
+        return "subscription." + objectType +"."+ subscription.idCounter;
     }
 
     function saveSubscriptionOnScope( $scope, subscriptionId) {
@@ -432,7 +432,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         var json = {
             subscribeToMeasurementsByNames: {
-                "subscriptionId": makeSubscriptionId(),
+                "subscriptionId": makeSubscriptionId( "Measurement"),
                 "names": names
             }
         }
@@ -445,7 +445,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         var json = {
             subscribeToActiveAlarms: {
-                "subscriptionId": makeSubscriptionId(),
+                "subscriptionId": makeSubscriptionId( "Alarm"),
                 "limit": limit
             }
         }
@@ -458,7 +458,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         var json = {
             subscribeToMeasurementsByNames: {
-                "subscriptionId": makeSubscriptionId(),
+                "subscriptionId": makeSubscriptionId( "Event"),
                 "limit": limit
             }
         }

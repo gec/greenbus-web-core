@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Reef GUI</title>
+  <link rel="stylesheet" href="css/bootstrap.css">
+  <link rel="stylesheet" href="css/app.css"/>
+    <style type="text/css">
+        body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+        }
+        .sidebar-nav {
+        padding: 9px 0;
+        }
+    </style>
+</head>
+<body>
+
+
+    <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span10">
+                <table class="table table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th title="Online/Standby">Standby</th>
+                            <th>Charging</th>
+                            <th title="% State of Charge">SOC %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>one</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="" style="position: relative; width:100px; height: 30px;">
+                                    <div class="" style="position: absolute; left:  4px; top: 2px; width: 50px; height: 26px; background-color: black;"></div>
+                                    <div class="" style="position: absolute; left:  4px; top: 2px; width:  40%; height: 26px; background-color: green;"></div>
+                                    <div class="" style="position: absolute; left:  0px; width: 60px; height: 100%; background-image: url('img/battery60x30.png');"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>two</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="" style="display: block; width:100px; height: 30px;">
+                                    <div class="" style="display: block; float: left; margin-top: 0px; width: 4px; height: 26px; background-image: url('img/battery60x30.png');"></div>
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 40%; height: 26px; background-color: green;"></div>
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 10%; height: 26px; background-color: black;"></div>
+                                    <div class="" style="position: relative; left:  0px; width: 60px; height: 100%; background-image: url('img/battery60x30.png');"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>three</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="" style="display: block; width:100px; height: 30px;">
+                                    <div class="" style="display: block; float: left; margin-top: 0px; width: 4px; height: 26px; background-image: url('img/battery60x30.png');"></div>
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 40%; height: 26px; background-color: red;"></div>
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 50%; height: 26px; background-color: black;"></div>
+                                    <div class="" style="position: relative; left:  0px; width: 60px; height: 100%; background-image: url('img/battery60x30.png');"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>four</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="" style="display: block; width:50px; height: 30px; padding-left: 4px; padding-right: 20px;">
+                                    <!--<div class="" style="display: block; float: left; margin-top: 0px; width: 4px; height: 26px; background-image: url('img/battery60x30.png');"></div>-->
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 40%; height: 26px; background-color: red;"></div>
+                                    <div class="" style="display: block; float: left; margin-top: 2px; width: 60%; height: 26px; background-color: black;"></div>
+                                    <div class="" style="position: relative; left: -4px; width: 60px; height: 100%; background-image: url('img/battery60x30.png');"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>by class</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="battery-wrapper">
+                                    <div class="battery-soc charged" style="width:40%"></div>
+                                    <div class="battery-soc uncharged" style="width:60%"></div>
+                                    <div class="battery-overlay"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>by class</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="battery-wrapper">
+                                    <div class="battery-soc charged" style="width:40%"></div>
+                                    <div class="battery-soc uncharged" style="width:60%"></div>
+                                    <div class="battery-overlay"></div>
+                                    <div class="battery-charging"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>by class</td>
+                            <td>false</td>
+                            <td>true</td>
+                            <td>
+                                <div class="battery-wrapper">
+                                    <div class="battery-soc charged alarmed" style="width:40%"></div>
+                                    <div class="battery-soc uncharged alarmed" style="width:60%"></div>
+                                    <div class="battery-overlay"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row-fluid">
+            <div class="span10">
+                <hr>
+                <footer>
+                    <p>&copy; Green Energy Corp 2013</p>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+
+  <script src="http://code.jquery.com/jquery-latest.js"></script>
+  <script src="lib/angular/bootstrap.min.js"></script>
+</body>
+</html>

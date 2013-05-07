@@ -271,7 +271,7 @@ function EssesControl($rootScope, $scope, $filter, reef) {
     ];
 
     var number = $filter('number')
-    function formatMeasurementValue( value) {
+    function formatNumberValue( value) {
         if ( typeof value == "boolean" || isNaN( value) || !isFinite(value)) {
             return value
         } else {
@@ -308,22 +308,49 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         return null
     }
 
-    $scope.onMeasurement = function( subscriptionId, type, measurement) {
-        console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
-        var info = pointNameMap[ measurement.name]
+    function getValueWithinRange( value, min, max) {
+        if( value < min)
+            value = min
+        else if( value > max)
+            value = max
+        return value
+    }
 
+    function processValue( info, measurement) {
+        var value = measurement.value
+
+        switch (info.type) {
+            case "soc":
+                value = getValueWithinRange( value, 0, 100);
+                break;
+            case "capacity":
+                value = formatNumberValue( Math.abs( Number(value))) + " " + info.unit;
+                break;
+            case "charging":
+                value = formatNumberValue( Number(value)) + " " + info.unit;
+                break;
+            default:
+        }
+        return value
+    }
+
+    $scope.onMeasurement = function( subscriptionId, type, measurement) {
+        //console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
         // Map the point.name to the standard types (i.e. capacity, standby, charging)
-        $scope.esses[ info.essIndex][info.type] = measurement.value
+        var info = pointNameMap[ measurement.name]
+        $scope.esses[ info.essIndex][info.type] = processValue( info, measurement)
     }
 
     $scope.onError = function( subscriptionId, type, data) {
 
     }
 
+    //function makeEss( eq, capacityUnit) {
     function makeEss( eq) {
         return {
             name: eq.name,
             capacity: 0,
+//            "capacityUnit": capacityUnit,
             standby: false,
             charging: false
         }
@@ -349,12 +376,20 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         for( var index in $scope.equipment) {
             var essIndex = $scope.esses.length
             var eq = $scope.equipment[ index]
-            var pointNameToTypeMap = {}
+//            var capacityUnit = ""
             for( var pIndex in eq.points) {
                 var point = eq.points[ pIndex]
                 pointNames.push( point.name)
-                pointNameMap[ point.name] = { "essIndex": essIndex, "type": getInterestingType( point.types)}
+                var type = getInterestingType( point.types)
+                pointNameMap[ point.name] = {
+                    "essIndex": essIndex,
+                    "type": type,
+                    "unit": point.unit
+                }
+//                if( type == "capacity")
+//                    capacityUnit = point.unit
             }
+            //$scope.esses.push( makeEss( eq, capacityUnit))
             $scope.esses.push( makeEss( eq))
         }
         reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)

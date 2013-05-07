@@ -65,4 +65,19 @@ angular.module('charlotte.filters', []).
           return function(status) {
             return SERVICES_STATUS_PROGRESS[ status];
           };
-        });
+        }).
+    filter('essBatteryStandby', function() {
+        return function(standby) {
+            return ( standby === "OffAvailable" || standby === "true")
+        };
+    }).
+    filter('essBatteryCharging', function() {
+        return function(standby, charging) {
+            if( standby === "OffAvailable" || standby === "true")
+                return false
+            else if( charging == true || charging.indexOf("-") == 0)
+                return true
+            else
+                return false
+        };
+    });
