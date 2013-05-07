@@ -262,6 +262,7 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
 function EssesControl($rootScope, $scope, $filter, reef) {
     $scope.esses = []     // our mappings of data from the server
     $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
+    $scope.searchText = ""
     var pointNameMap = {}
 
     $rootScope.currentMenuItem = "esses";

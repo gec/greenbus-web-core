@@ -80,4 +80,40 @@ angular.module('charlotte.filters', []).
             else
                 return false
         };
+    }).
+    filter('essBatterySocChargedClass', function() {
+        return function(soc) {
+            if( soc > 10 )
+                return "battery-soc charged"
+            else
+                return "battery-soc charged alarmed"
+        };
+    }).
+    filter('essBatterySocUnchargedClass', function() {
+        return function(soc) {
+            if( soc > 10 )
+                return "battery-soc uncharged"
+            else
+                return "battery-soc uncharged alarmed"
+        };
+    }).
+    filter('searchContains', function() {
+        // Search each element in the 'objects' array for key values containing searchText
+        return function(objects, searchText, objectKeys) {
+            if( !!searchText || searchText.length == 0 || !!objectKeys || objectKeys.length == 0)
+                return objects;
+
+            var result = []
+            for( var index in objects) {
+                var o = objects[index]
+                for( var keyIndex in objectKeys) {
+                    var key = objectKeys[ keyIndex]
+                    if( o[key].indexOf( searchText) !== -1) {
+                        result.push( o)
+                        break;
+                    }
+                }
+            }
+            return result
+        };
     });
