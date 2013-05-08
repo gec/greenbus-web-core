@@ -42,7 +42,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
     var httpConfig = {
         cache: false,
-        timeout: 5000 // milliseconds
+        timeout: 10000 // milliseconds
     }
     var redirectLocation = $location.path();
     if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
@@ -98,7 +98,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             var wasClean = event.wasClean;
             console.log( "webSocket.onclose code: " + code + ", wasClean: " + wasClean + ", reason: " + reason)
             webSocket = null
-            window.location.href = "/login"
+
+            // Cannot redirect here because this webSocket thread fights with the get reply 401 thread.
+            // Let the get handle the redirect. Might need to coordinate something with get in the future.
         },
         onerror: function(event) {
             var data = event.data;
@@ -316,7 +318,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             success(function(json) {
                 $scope[name] = json;
                 $scope.loading = false;
-                console.log( "reef.get success " + url);
+                console.log( "reef.get success json.length: " + json.length + ", url: " + url);
 
                 if( successListener)
                     successListener()

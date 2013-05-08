@@ -314,6 +314,7 @@ object Application extends Controller {
     }
     val entitiesWithPoints = entities.map{ entity => getEntityWithPointsByType( service, entity, pointTypes) }
 
+    Logger.debug( "getEquipmentWithPointsByType entitiesWithPoints.length: " + entitiesWithPoints.length)
 //    for( ewp <- entitiesWithPoints) {
 //      Logger.debug( "EntitiesWithPoints " + ewp._1.getName + ", points.length: " + ewp._2.length)
 //      ewp._2.foreach( p => Logger.debug( "   Point " + p.point.getName + ", types: " + p.types))
