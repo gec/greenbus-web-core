@@ -93,7 +93,9 @@ angular.module('charlotte.filters', []).
     }).
     filter('essBatterySocUnchargedClass', function() {
         return function(soc) {
-            if( soc > 10 )
+            if( soc === null || soc === "" )
+                return "battery-soc unknown"
+            else if( soc > 10 )
                 return "battery-soc uncharged"
             else
                 return "battery-soc uncharged alarmed"

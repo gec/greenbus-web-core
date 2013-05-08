@@ -193,7 +193,6 @@ object JsonFormatters {
     }
 
     def pushMessage( o: Alarms.Alarm, subscriptionId: String): JsValue = {
-      Logger.debug( "*********************************** pushMessage Alarm: " + o.getId)
       JsObject(
         Seq(
           "subscriptionId" -> JsString( subscriptionId),

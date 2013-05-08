@@ -4,7 +4,7 @@
 <div>
     <div class="row-fluid">
         <div class="span3">
-            <h2>CES/DESS</h2>
+            <h2>CES</h2>
         </div>
         <div class="span7" style="margin-top: 12px;">
             <input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;">
@@ -19,7 +19,7 @@
                 <tr>
                     <th>Device Name</th>
                     <th>Capacity</th>
-                    <th title="Online/Standby">Standby</th>
+                    <th title="Online/Standby">Standby State</th>
                     <th>Charge/Discharge</th>
                     <th title="State of Charge %">SOC %</th>
                     <th></th>
@@ -28,19 +28,19 @@
             <tbody>
                 <tr ng-repeat="ess in esses | filter:searchText">
                     <td>{{ess.name}}</td>
-                    <td>{{ess.capacity}}</td>
-                    <td>{{ess.standby}}</td>
-                    <td>{{ess.charging}}</td>
+                    <td>{{ess.Capacity}}</td>
+                    <td>{{ess.Standby}}</td>
+                    <td>{{ess.Charging}}</td>
                     <td style="width: 60px">
                         <div class="battery-wrapper">
-                            <div class="{{ess.soc | essBatterySocChargedClass}}" style="width:{{ess.soc}}%"></div>
-                            <div class="{{ess.soc | essBatterySocUnchargedClass}}" style="width:{{100-ess.soc}}%"></div>
+                            <div class="{{ess['%SOC'] | essBatterySocChargedClass}}" style="width:{{ess['%SOC']}}%"></div>
+                            <div class="{{ess['%SOC'] | essBatterySocUnchargedClass}}" style="width:{{100-ess['%SOC']}}%"></div>
                             <div class="battery-overlay"></div>
-                            <div class="battery-charging" ng-show="ess.standby | essBatteryCharging: ess.charging"></div>
-                            <div class="battery-standby" ng-show="ess.standby | essBatteryStandby"></div>
+                            <div class="battery-charging" ng-show="ess.Standby | essBatteryCharging: ess.Charging"></div>
+                            <div class="battery-standby" ng-show="ess.Standby | essBatteryStandby"></div>
                         </div>
                     </td>
-                    <td>{{ess.soc | number}}%</td>
+                    <td>{{ess['%SOC']}}%</td>
                 </tr>
             </tbody>
         </table>

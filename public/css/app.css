@@ -97,6 +97,9 @@
 .battery-soc.charged.alarmed{
     background-color: red;
 }
+.battery-soc.unknown{
+    background-color: lightgray;
+}
 .battery-overlay {
     position: relative;
     left: -4px;

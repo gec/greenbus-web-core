@@ -268,30 +268,23 @@ function EssesControl($rootScope, $scope, $filter, reef) {
     $rootScope.currentMenuItem = "esses";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "CES/DESS" }
+        { name: "CES" }
     ];
 
     var number = $filter('number')
     function formatNumberValue( value) {
-        if ( typeof value == "boolean" || isNaN( value) || !isFinite(value)) {
+        if ( typeof value == "boolean" || isNaN( value) || !isFinite(value) || value === "") {
             return value
         } else {
-            return number( value)
+            return number( value, 0)
         }
-    }
-
-    function getPercentCharge( value) {
-        var v = Math.abs( value)
-        if( v > 100)
-            v = v % 100
-        return v
     }
 
     function makeQueryStringFromArray( parameter, values) {
         parameter = parameter + "="
         var query = ""
         for( var index in values) {
-            var value = values[index]
+            var value = encodeURIComponent( values[index])
             if( index == 0)
                 query = parameter + value
             else
@@ -319,16 +312,20 @@ function EssesControl($rootScope, $scope, $filter, reef) {
 
     function processValue( info, measurement) {
         var value = measurement.value
+        if( measurement.name.indexOf( "PowerHub") >= 0)
+            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
+        if( measurement.name.indexOf( "Sunverge") >= 0)
+            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
 
         switch (info.type) {
-            case "soc":
-                value = getValueWithinRange( value, 0, 100);
+            case "%SOC":
+                value = formatNumberValue( value);
                 break;
-            case "capacity":
-                value = formatNumberValue( Math.abs( Number(value))) + " " + info.unit;
+            case "Capacity":
+                value = formatNumberValue( value) + " " + info.unit;
                 break;
-            case "charging":
-                value = formatNumberValue( Number(value)) + " " + info.unit;
+            case "Charging":
+                value = formatNumberValue( value) + " " + info.unit;
                 break;
             default:
         }
@@ -350,24 +347,24 @@ function EssesControl($rootScope, $scope, $filter, reef) {
     function makeEss( eq) {
         return {
             name: eq.name,
-            capacity: 0,
-//            "capacityUnit": capacityUnit,
-            standby: false,
-            charging: false
+            Capacity: "",
+            Standby: "",
+            Charging: "",
+            "%SOC": ""
         }
     }
 
-    var POINT_TYPES =  ["SOC", "Charging", "Standby", "Capacity"]
+    var POINT_TYPES =  ["%SOC", "Charging", "Standby", "Capacity"]
     function getInterestingType( types) {
 
         for( var index in types) {
             var typ = types[index]
             switch( typ) {
-                case "SOC":
+                case "%SOC":
                 case "Charging":
                 case "Standby":
                 case "Capacity":
-                    return typ.toLowerCase()
+                    return typ
             }
         }
     }
@@ -397,7 +394,7 @@ function EssesControl($rootScope, $scope, $filter, reef) {
     }
 
     var eqTypes = makeQueryStringFromArray( "eqTypes", ["CES", "DESS"])
-    var pointTypes = makeQueryStringFromArray( "pointTypes", ["SOC", "Charging", "Standby", "Capacity"])
+    var pointTypes = makeQueryStringFromArray( "pointTypes", ["%SOC", "Charging", "Standby", "Capacity"])
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
     reef.get( url, "equipment", $scope, $scope.getSuccessListener);
 }
@@ -456,9 +453,11 @@ function EventControl($rootScope, $scope, reef) {
     reef.get( "/event", "events", $scope);
 }
 
-function AlarmControl($rootScope, $scope, $attrs, reef) {
+//function AlarmControl($rootScope, $scope, $attrs, reef) {
+function AlarmControl($rootScope, $scope, reef) {
     $scope.alarms = []
-    $scope.limit = Number( $attrs.limit || 20);
+//    $scope.limit = Number( $attrs.limit || 20);
+    $scope.limit = 20;
 
     $rootScope.currentMenuItem = "alarm";
     $rootScope.breadcrumbs = [

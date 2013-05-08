@@ -139,7 +139,7 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
   }
 
   def subscriptionHandler[T <: GeneratedMessage]( result: SubscriptionResult[List[T],T], subscriptionId: String, formatter: ReefFormat[T]): Subscription[T] = {
-    Logger.info( "**************************** subscriptionHandler subscriptionId: " + subscriptionId + ", result.length: " + result.getResult.length)
+    Logger.info( "subscriptionHandler subscriptionId: " + subscriptionId + ", result.length: " + result.getResult.length)
     // Push in reverse order so the newest are pushed last.
     result.getResult.reverse.map( m => pushChannel.push( formatter.pushMessage( m, subscriptionId)) )
 
