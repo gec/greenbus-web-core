@@ -71,13 +71,18 @@ angular.module('charlotte.filters', []).
             return ( standby === "OffAvailable" || standby === "true")
         };
     }).
+    filter('essBatterySimpleStandbyClass', function() {
+        return function(simpleStandby) {
+            return simpleStandby === "Standby" ? "label label-warning" : ""
+        };
+    }).
     filter('essBatteryCharging', function() {
         return function(standby, charging) {
             if( standby === "OffAvailable" || standby === "true")
                 return false
-            else if( typeof value == "boolean" && charging)
-                return true
-            else if( charging.indexOf === 'function' && charging.indexOf("-") == 0)
+            else if( typeof charging == "boolean")
+                return charging
+            else if( typeof charging.indexOf === 'function' && charging.indexOf("-") >= 0)
                 return true
             else
                 return false

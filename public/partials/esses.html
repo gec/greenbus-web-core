@@ -29,7 +29,8 @@
                 <tr ng-repeat="ess in esses | filter:searchText">
                     <td>{{ess.name}}</td>
                     <td>{{ess.Capacity}}</td>
-                    <td>{{ess.Standby}}</td>
+                    <!--<td><span class="label label-warning" ng-show="ess.standbyBool" title="{{ess.Standby}}">Standby</span></td>-->
+                    <td><span class="{{ess.simpleStandby | essBatterySimpleStandbyClass}}" style="color: black; text-shadow: 0 0 0" title="{{ess.Standby}}">{{ess.simpleStandby}}</span></td>
                     <td>{{ess.Charging}}</td>
                     <td style="width: 60px">
                         <div class="battery-wrapper">

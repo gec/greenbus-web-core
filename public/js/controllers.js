@@ -336,7 +336,14 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         //console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
         // Map the point.name to the standard types (i.e. capacity, standby, charging)
         var info = pointNameMap[ measurement.name]
-        $scope.esses[ info.essIndex][info.type] = processValue( info, measurement)
+        var value = processValue( info, measurement)
+        if( info.type == "Standby") {
+            if( value === "OffAvailable" || value === "true")
+                $scope.esses[ info.essIndex].simpleStandby = "Standby"
+            else
+                $scope.esses[ info.essIndex].simpleStandby = "Online"
+        }
+        $scope.esses[ info.essIndex][info.type] = value
     }
 
     $scope.onError = function( subscriptionId, type, data) {
@@ -350,7 +357,8 @@ function EssesControl($rootScope, $scope, $filter, reef) {
             Capacity: "",
             Standby: "",
             Charging: "",
-            "%SOC": ""
+            "%SOC": "",
+            simpleStandby: ""
         }
     }
 
