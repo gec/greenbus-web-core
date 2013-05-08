@@ -75,7 +75,9 @@ angular.module('charlotte.filters', []).
         return function(standby, charging) {
             if( standby === "OffAvailable" || standby === "true")
                 return false
-            else if( charging == true || charging.indexOf("-") == 0)
+            else if( typeof value == "boolean" && charging)
+                return true
+            else if( charging.indexOf === 'function' && charging.indexOf("-") == 0)
                 return true
             else
                 return false
