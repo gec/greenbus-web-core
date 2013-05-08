@@ -118,7 +118,12 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     }
 
     function makeWebSocket( authToken) {
-        var ws = new WS("ws://localhost:9000/services/websocket?authToken=" + authToken)
+        var location = window.location
+        var wsUri = location.protocol === "https:" ? "wss:" : "ws:"
+        // location.host includes port, ex: "localhost:9000"
+        wsUri += "//" + location.host
+        wsUri += "/services/websocket?authToken=" + authToken
+        var ws = new WS( wsUri)
         ws.onmessage = wsHanders.onmessage
         ws.onopen = wsHanders.onopen
         ws.onclose = wsHanders.onclose
