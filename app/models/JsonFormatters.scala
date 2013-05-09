@@ -29,6 +29,7 @@ import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
 import ConnectionStatus._
 import play.api.Logger
 import controllers.PointWithTypes
+import controllers.EquipmentWithPointsWithTypes
 
 /**
  *
@@ -356,28 +357,28 @@ object JsonFormatters {
 
 
 
-  implicit object EntityWithPointsFormat extends Format[(Entity, List[PointWithTypes])] {
+  implicit object EquipmentWithPointsWithTypesFormat extends Format[EquipmentWithPointsWithTypes] {
 
-    def writes( o: (Entity, List[PointWithTypes])): JsValue = JsObject(
+    def writes( o: EquipmentWithPointsWithTypes): JsValue = JsObject(
       List(
-        "name" -> JsString( o._1.getName),
-        "uuid" -> JsString( o._1.getUuid.getValue),
-        "types" -> JsArray( o._1.getTypesList.map( JsString)),
-        "points" -> JsArray( o._2.map( PointWithTypesFormat.writes))
+        "name" -> JsString( o.equipment.getName),
+        "uuid" -> JsString( o.equipment.getUuid.getValue),
+        "types" -> JsArray( o.equipment.getTypesList.map( JsString)),
+        "points" -> JsArray( o.pointsWithTypes.map( PointWithTypesFormat.writes))
       )
     )
 
     def reads( json: JsValue) = {
-      ( EntityFormat.reads( json), List[PointWithTypes]())   // TODO do we need to get entities with points from browser?
+      EquipmentWithPointsWithTypes( EntityFormat.reads( json), List[PointWithTypes]())   // TODO do we need to get entities with points from browser?
     }
 
   }
 
-  implicit object EntitiesWithPointsFormat extends Format[Seq[(Entity, List[PointWithTypes])]] {
+  implicit object EquipmentsWithPointsWithTypesFormat extends Format[Seq[EquipmentWithPointsWithTypes]] {
 
-    def writes( o: Seq[(Entity, List[PointWithTypes])]): JsValue = JsArray( o.map( EntityWithPointsFormat.writes))
+    def writes( o: Seq[EquipmentWithPointsWithTypes]): JsValue = JsArray( o.map( EquipmentWithPointsWithTypesFormat.writes))
 
-    def reads( json: JsValue) = json.asInstanceOf[JsArray].value.map( EntityWithPointsFormat.reads)
+    def reads( json: JsValue) = json.asInstanceOf[JsArray].value.map( EquipmentWithPointsWithTypesFormat.reads)
 
   }
 
