@@ -66,6 +66,7 @@
     display: block;
     width:50px;
     height: 30px;
+    margin-left: 36px;
     padding-left: 4px;
     padding-right: 20px;
     overflow: visible;
@@ -109,11 +110,11 @@
 }
 .battery-charging {
     position: relative;
-    top: -30px;
-    left: 18px;
-    width: 15px;
-    height: 100%;
-    background-image: url('../img/charging15x30.png');
+    top: -27px;
+    left: -38px;
+    width: 14px;
+    height: 24px;
+    background-image: url('../img/charging15x24.png');
 }
 .battery-standby {
     position: relative;

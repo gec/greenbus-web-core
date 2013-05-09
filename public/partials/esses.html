@@ -21,7 +21,7 @@
                     <th>Capacity</th>
                     <th title="Online/Standby">Standby State</th>
                     <th>Charge/Discharge</th>
-                    <th title="State of Charge %">SOC %</th>
+                    <th title="State of Charge %" style="text-align: center">SOC %</th>
                     <th></th>
                 </tr>
             </thead>
@@ -37,7 +37,7 @@
                             <div class="{{ess['%SOC'] | essBatterySocChargedClass}}" style="width:{{ess['%SOC']}}%"></div>
                             <div class="{{ess['%SOC'] | essBatterySocUnchargedClass}}" style="width:{{100-ess['%SOC']}}%"></div>
                             <div class="battery-overlay"></div>
-                            <div class="battery-charging" ng-show="ess.Standby | essBatteryCharging: ess.Charging"></div>
+                            <div class="battery-charging" ng-show="ess.Standby | essBatteryCharging: ess.Charging"><i class="icon-arrow-right" style="margin-left: 18px; margin-top:2px"></i></div>
                             <div class="battery-standby" ng-show="ess.Standby | essBatteryStandby"></div>
                         </div>
                     </td>
