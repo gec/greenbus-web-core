@@ -229,13 +229,13 @@ object Application extends Controller {
     reefClients.get( authToken) match {
 
       case Some( client) =>
-        (client ? WebSocketOpen( authToken)).asPromise.map {
+        (client ? WebSocketOpen).asPromise.map {
           case WebSocketActor( pushActor, pushChannel) => webSocketResult( pushActor, pushChannel)
           case WebSocketError( error) => webSocketResultError( error)
         }
 
       case None =>
-        Logger.info( "ServiceAction authToken unrecognized")
+        Logger.info( "ServiceAction authToken unrecognized: " + authToken)
         Promise.pure( webSocketResultError( AUTHTOKEN_UNRECOGNIZED.description))
     }
 
@@ -254,6 +254,7 @@ object Application extends Controller {
         case "subscribeToMeasurementsByNames" => pushActor ! SubscribeToMeasurementsByNamesFormat.reads( data)
         case "subscribeToActiveAlarms" => pushActor ! SubscribeToActiveAlarmsFormat.reads( data)
         case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
+        case "close" => pushActor ! Quit
         case _ => pushActor ! UnknownMessage( messageName)
       }
 

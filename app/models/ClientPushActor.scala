@@ -114,13 +114,7 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
         subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscribeToActiveAlarms( service.get, subscribe))
     }
 
-    case Unsubscribe( id) => {
-      Logger.info( "ClientPushActor receive Unsubscribe " + id)
-      subscriptionIdsMap.get(id) foreach{ subscription =>
-        subscription.cancel()
-        subscriptionIdsMap = subscriptionIdsMap - id
-      }
-    }
+    case Unsubscribe( id) => cancelSubscription( id)
 
     case UnknownMessage( messageName) => {
       Logger.info( "ClientPushActor receive UnknownMessage: " + messageName)
@@ -132,8 +126,10 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
     }
 
     case Quit => {
-      Logger.info( "ClientPushActor receive Quit")
-      subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
+      Logger.info( "ClientPushActor receive Quit.")
+      cancelAllSubscriptions
+      pushChannel.close()  // should already be closed, but just in case.
+      context.parent ! ChildActorStop( self)
     }
 
   }
@@ -161,4 +157,17 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
     return subscriptionHandler[Alarms.Alarm]( result, subscribe.id, AlarmFormat)
   }
 
+  private def cancelAllSubscriptions = {
+    Logger.info( "ClientPushActor.cancelAllSubscriptions: Cancelling " + subscriptionIdsMap.size + " subscriptions.")
+    subscriptionIdsMap.foreach{ case (subscriptionName, subscription) => subscription.cancel }
+    subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
+  }
+
+  private def cancelSubscription( id: String) = {
+    Logger.info( "ClientPushActor receive Unsubscribe " + id)
+    subscriptionIdsMap.get(id) foreach{ subscription =>
+      subscription.cancel()
+      subscriptionIdsMap = subscriptionIdsMap - id
+    }
+  }
 }

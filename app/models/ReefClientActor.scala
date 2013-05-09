@@ -85,9 +85,10 @@ object ReefClientActor {
   case object ClientRequest
   case class ClientReply( status: ConnectionStatus, client: Option[Client])
 
-  case class WebSocketOpen( authToken: String)
+  case object WebSocketOpen
   case class WebSocketError( error: String)
   case class WebSocketActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
+  case class ChildActorStop( childActor: ActorRef)
 
   case class UpdateClient( status: ConnectionStatus, client: Option[Client])
 
@@ -126,7 +127,6 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
   // Store agent info in order to reinitialize if Reef Client fails.
   var agentName: String = ""
   var agentPassword: String = ""
-  var authToken = ""
 
   var initializing = false
   var lastInitializeTime = 0L
@@ -139,7 +139,6 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
 
     agentName= ""
     agentPassword= ""
-    authToken = ""
 
     // don't reset 'initializing'
   }
@@ -156,7 +155,9 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
         case None => sender ! ServiceError( clientStatus)
       }
 
-    case WebSocketOpen( anAuthToken) => webSocketOpen( anAuthToken)
+    case WebSocketOpen => webSocketOpen
+
+    case ChildActorStop( childActor) => context.stop( childActor)
 
     case ClientStatusRequest => {
       sender ! ClientStatus( clientStatus)
@@ -206,7 +207,7 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
     if( clientStatus == UP) {
       agentName = userName
       agentPassword = password
-      authToken = client.get.getHeaders.getAuthToken
+      val authToken = client.get.getHeaders.getAuthToken
       Logger.debug( "ReefClientActor.login sender ! LoginSuccess( " + authToken + ")")
       sender ! LoginSuccess( authToken)
     } else {
@@ -327,16 +328,11 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
 
   }
 
-  def webSocketOpen( anAuthToken: String) = {
-    Logger.info( "ReefClientActor.receive WebSocketOpen " + anAuthToken)
-    if( anAuthToken.equals( authToken)) {
-      val actorName = "WebSocketActor." + agentName + "." + authToken
-      val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
-      sender ! WebSocketActor( actorRef, pushChannel)
-    } else {
-      Logger.error( "ReefClientActor.receive WebSocketRequest invalid authToken: " + anAuthToken)
-      sender ! WebSocketError( "WebSocket error: authorization token is invalid or user has not logged in.")
-    }
+  def webSocketOpen() = {
+    Logger.info( "ReefClientActor.receive WebSocketOpen ")
+    val actorName = "WebSocketActor." + agentName
+    val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
+    sender ! WebSocketActor( actorRef, pushChannel)
   }
 
 }
