@@ -50,7 +50,7 @@ import play.api.libs.concurrent.Execution.Implicits._
 
 object ClientPushActorFactory extends ReefClientActorChildFactory{
   def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): WebSocketChannels = {
-    // Create an Enumerator that the new actor will use for push
+    // Create a pushChannel that the new actor will use for push
     val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
     val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( clientStatus, client, pushChannel)) /*, name = actorName*/) // Getting two with the same name
     val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
@@ -194,13 +194,11 @@ object Application extends Controller {
       val reefClient = Akka.system.actorOf(Props( new ReefClientActor( ClientPushActorFactory)))
       Logger.info( "postLogin reefClient " + reefClient )
 
-    // TODO: Async is need for Play 2.0.4
       Async {
         (reefClient ? login).map {
           case reply: LoginSuccess => {
             Logger.info( "postLogin loginSuccess authToken:" + reply.authToken)
             reefClients += (reply.authToken -> reefClient)
-            //Ok( LoginSuccessFormat.writes( reply)).withSession(
             Ok( Json.toJson( reply)).withSession(
               request.session + ("authToken" -> reply.authToken)
             )
