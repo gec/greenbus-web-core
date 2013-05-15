@@ -20,15 +20,11 @@ package models
 
 import akka.actor._
 import akka.util.Timeout
-import akka.util.duration._
-import akka.pattern.ask
 import play.api.libs.iteratee._
 import play.api.libs.json._
-import play.api.libs.concurrent._
 import play.api._
 import org.totalgrid.reef.client._
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
-import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
 import models.JsonFormatters.{ReefFormat, AlarmFormat, MeasurementFormat}
 import org.totalgrid.reef.client.service.proto.{Alarms, Measurements}
@@ -36,6 +32,9 @@ import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
 import org.totalgrid.reef.client.service.proto.Events.EventSelect
 import com.google.protobuf.GeneratedMessage
+import scala.collection.JavaConversions._
+import scala.concurrent.duration._
+import scala.language.postfixOps // for postfix 'seconds'
 
 
 /*
@@ -67,7 +66,7 @@ case class UnknownMessage( messageName: String)
 case object Quit
 
 
-object ClientPushActor {
+object WebSocketPushActor {
 
   implicit val timeout = Timeout(1 second)
 
@@ -81,7 +80,7 @@ object ClientPushActor {
  *
  * @author Flint O'Brien
  */
-class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Option[Client], aPushChannel: PushEnumerator[JsValue]) extends Actor  {
+class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient : Option[Client], aPushChannel: Concurrent.Channel[JsValue]) extends Actor  {
 
   import ReefClientActor._
 
@@ -128,7 +127,7 @@ class ClientPushActor( initialClientStatus: ConnectionStatus, initialClient : Op
     case Quit => {
       Logger.info( "ClientPushActor receive Quit.")
       cancelAllSubscriptions
-      pushChannel.close()  // should already be closed, but just in case.
+      pushChannel.eofAndEnd()  // should already be closed, but just in case.
       context.parent ! ChildActorStop( self)
     }
 

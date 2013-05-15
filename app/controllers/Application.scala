@@ -25,9 +25,10 @@ import play.api.libs.concurrent._
 import play.api.libs.iteratee._
 import models._
 import play.api.libs.json._
-import models.Quit
 import akka.util.Timeout
-import akka.util.duration._
+import scala.concurrent.duration._
+import scala.language.postfixOps // for postfix 'seconds'
+import scala.Some
 
 import play.api.mvc._
 import org.totalgrid.reef.client.Client
@@ -41,27 +42,19 @@ import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission,
 import Json._
 import models.ConnectionStatus._
 import models.ReefClientActor._
-import models.ReefClientActor.ClientStatus
-import models.ReefClientActor.LoginSuccess
-import models.ReefClientActor.WebSocketOpen
-import models.ReefClientActor.WebSocketError
 import play.api.libs.json.JsString
-import scala.Some
-import models.ReefClientActor.LoginError
-import models.UnknownMessage
-import models.Unsubscribe
-import models.ReefClientActor.ServiceError
-import models.ReefClientActor.WebSocketActor
 import play.api.libs.json.JsObject
 import models.ReefClientActor.Service
+import play.api.libs.concurrent.Execution.Implicits._
 
 
 object ClientPushActorFactory extends ReefClientActorChildFactory{
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue]) = {
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): WebSocketChannels = {
     // Create an Enumerator that the new actor will use for push
-    val pushChannel =  Enumerator.imperative[JsValue]()
-    val actorRef = parentContext.actorOf( Props( new ClientPushActor( clientStatus, client, pushChannel)) /*, name = actorName*/) // Getting two with the same name
-    (actorRef, pushChannel)
+    val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
+    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( clientStatus, client, pushChannel)) /*, name = actorName*/) // Getting two with the same name
+    val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
+    WebSocketChannels( iteratee, enumerator)
   }
 }
 
@@ -79,7 +72,7 @@ object Application extends Controller {
 
   //val reefClientActor = Akka.system.actorOf(Props( new ReefClientActor( this, ClientPushActorFactory)), name = "reefClientActor")
   // For actor ask
-  implicit val timeout = Timeout(2 second)
+  implicit val timeout = Timeout(2 seconds)
 
   val reefClients = collection.mutable.Map[String, ActorRef]()
 
@@ -105,7 +98,7 @@ object Application extends Controller {
 
       getReefClient( request.headers) match {
 
-        case client: ActorRef =>
+        case Some( client: ActorRef) =>
           f(request, client)
 
         case None =>
@@ -125,7 +118,7 @@ object Application extends Controller {
 
         case Some( client) =>
           Async {
-            (client ? ServiceRequest).asPromise.map {
+            (client ? ServiceRequest).map {
               case Service( service, status) =>
                 Logger.info( "ServerAction ServiceRequest reply service, status " + status.toString)
                 f(request, service)
@@ -176,7 +169,7 @@ object Application extends Controller {
   def getServicesStatus = ReefClientAction { (request, client) =>
     // Async unwinds the promise.
     Async {
-      (client ? ClientStatusRequest).asPromise.map {
+      (client ? ClientStatusRequest).map {
         case ClientStatus( status) => {
           Logger.info( "getServicesStatus StatusReply: " + status.toString)
           Ok( ConnectionStatusFormat.writes( status))
@@ -185,23 +178,30 @@ object Application extends Controller {
     }
   }
 
-  def postLogin = Action { request =>
-    val bodyJson: Option[JsValue] = request.body.asJson
+  def postLogin = Action( parse.json) { request =>
+    request.body.validate( loginReads).map { login =>
+      postLoginAsync( request, login)
+    }.recoverTotal { error =>
+      Logger.error( "ERROR: postLogin bad json: " + JsError.toFlatJson(error))
+      //TODO: BadRequest("Detected error:"+ JsError.toFlatJson(error))
+      INVALID_REQUEST.httpResults( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
+      //INVALID_REQUEST.httpResults( LoginError( INVALID_REQUEST))
+    }
+  }
 
-    bodyJson.map { json =>
-      Logger.info( "postLogin json:" + json.toString())
-
-      val login = LoginFormat.reads( json)
+  def postLoginAsync( request: Request[JsValue], login: Login): AsyncResult = {
 
       val reefClient = Akka.system.actorOf(Props( new ReefClientActor( ClientPushActorFactory)))
+      Logger.info( "postLogin reefClient " + reefClient )
 
-      // TODO: Async is need for Play 2.0.4
+    // TODO: Async is need for Play 2.0.4
       Async {
-        (reefClient ? login).asPromise.map {
+        (reefClient ? login).map {
           case reply: LoginSuccess => {
             Logger.info( "postLogin loginSuccess authToken:" + reply.authToken)
             reefClients += (reply.authToken -> reefClient)
-            Ok( LoginSuccessFormat.writes( reply)).withSession(
+            //Ok( LoginSuccessFormat.writes( reply)).withSession(
+            Ok( Json.toJson( reply)).withSession(
               request.session + ("authToken" -> reply.authToken)
             )
           }
@@ -212,10 +212,6 @@ object Application extends Controller {
           }
         }
       }
-    }.getOrElse {
-      Logger.error( "ERROR: postLogin No json!")
-      INVALID_REQUEST.httpResults( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
-    }
   }
 
   def getMessageNameAndData( json: JsValue): (String, JsValue) = json.as[JsObject].fields(0)
@@ -229,8 +225,10 @@ object Application extends Controller {
     reefClients.get( authToken) match {
 
       case Some( client) =>
-        (client ? WebSocketOpen).asPromise.map {
-          case WebSocketActor( pushActor, pushChannel) => webSocketResult( pushActor, pushChannel)
+        (client ? WebSocketOpen).map {
+          case WebSocketChannels( iteratee, enumerator) =>
+            Logger.info( "getWebSocket WebSocketActor returned from WebSocketOpen")
+            (iteratee, enumerator)
           case WebSocketError( error) => webSocketResultError( error)
         }
 
@@ -239,30 +237,6 @@ object Application extends Controller {
         Promise.pure( webSocketResultError( AUTHTOKEN_UNRECOGNIZED.description))
     }
 
-  }
-
-
-  def webSocketResult( pushActor: ActorRef, pushChannel: PushEnumerator[JsValue]) : WebSocketChannels = {
-    Logger.info( "getWebSocket WebSocketActor returned from WebSocketOpen")
-
-    // Create an Iteratee to consume the feed from browser
-    val iteratee = Iteratee.foreach[JsValue] { json =>
-      val (messageName, data) = getMessageNameAndData( json)
-      Logger.info( "Iteratee.message  " + messageName + ": " + data)
-
-      messageName match {
-        case "subscribeToMeasurementsByNames" => pushActor ! SubscribeToMeasurementsByNamesFormat.reads( data)
-        case "subscribeToActiveAlarms" => pushActor ! SubscribeToActiveAlarmsFormat.reads( data)
-        case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
-        case "close" => pushActor ! Quit
-        case _ => pushActor ! UnknownMessage( messageName)
-      }
-
-    }.mapDone { _ =>
-      pushActor ! Quit
-    }
-
-    (iteratee, pushChannel)
   }
 
   def webSocketResultError( error: String): WebSocketChannels = {

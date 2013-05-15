@@ -29,15 +29,17 @@ import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import controllers.ClientPushActorFactory
-import play.api.libs.iteratee.{PushEnumerator, Enumerator}
-import play.api.libs.json.JsValue
+import play.api.libs.iteratee.{Iteratee, Concurrent, Enumerator}
+import play.api.libs.json.{JsValue, JsObject}
 import akka.util.Timeout
-import akka.util.duration._
+import scala.concurrent.duration._
+import scala.language.postfixOps // for postfix 'seconds'
 import scala.Some
 import org.totalgrid.reef.client.service.proto.Model.Entity
 import org.totalgrid.reef.client.service.proto.Model
 import play.api.mvc.Results.Status
 import play.api.mvc.Results
+import models.JsonFormatters.{SubscribeToActiveAlarmsFormat, SubscribeToMeasurementsByNamesFormat}
 
 
 object ConnectionStatus extends Enumeration {
@@ -67,7 +69,7 @@ object ReefClientActor {
   val TIMEOUT = 5L * 1000L  // 5 seconds
 
   // For actor ask
-  // implicit val timeout = Timeout(1 second)
+  //implicit val timeout = Timeout(1 second)
 
   case object Reinitialize
 
@@ -87,7 +89,7 @@ object ReefClientActor {
 
   case object WebSocketOpen
   case class WebSocketError( error: String)
-  case class WebSocketActor( actor: ActorRef, pushChannel: PushEnumerator[JsValue])
+  case class WebSocketChannels( iteratee: Iteratee[JsValue, Unit], enumerator: Enumerator[JsValue])
   case class ChildActorStop( childActor: ActorRef)
 
   case class UpdateClient( status: ConnectionStatus, client: Option[Client])
@@ -104,7 +106,8 @@ import ConnectionStatus._
  * Factory for creating actors that depend on the ReefClientActor (to manage the Reef client connection).
  */
 trait ReefClientActorChildFactory {
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): (ActorRef, PushEnumerator[JsValue])
+  import ReefClientActor.WebSocketChannels
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Option[Client]): WebSocketChannels
 }
 
 
@@ -176,6 +179,10 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
       this.client = updateClient.client
 
       updateChildrenWithClientStatus
+    }
+
+    case unknownMessage: AnyRef => {
+      Logger.error( "ReefClientActor.receive unknown message " + unknownMessage)
     }
 
   }
@@ -266,7 +273,7 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
       service.getAgentByName( agentName).await()
       true
     }  catch {
-      case ex => {
+      case ex : Throwable => {
         Logger.error( "isReefUp service.getAgentByName exception " + ex.getMessage)
         if( ex.getCause != null)
           Logger.error( "isReefUp service.getAgentByName exception cause " + ex.getCause.getMessage)
@@ -316,6 +323,7 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
     try {
       Logger.info( "Logging into Reef")
       val clientFromLogin = connection.login(new UserSettings( userName, password))
+//*********************** connection.createClient( authToken)
       return ( UP, Some[Client](clientFromLogin))
     } catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
@@ -330,9 +338,7 @@ class ReefClientActor( childActorFactory: ReefClientActorChildFactory) extends A
 
   def webSocketOpen() = {
     Logger.info( "ReefClientActor.receive WebSocketOpen ")
-    val actorName = "WebSocketActor." + agentName
-    val (actorRef, pushChannel) = childActorFactory.makeChildActor( context, actorName, clientStatus, client)
-    sender ! WebSocketActor( actorRef, pushChannel)
+    sender ! childActorFactory.makeChildActor( context, "WebSocketActor." + agentName, clientStatus, client)
   }
 
 }

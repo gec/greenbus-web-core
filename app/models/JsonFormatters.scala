@@ -19,6 +19,7 @@
 package models
 
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import play.api.libs.json.JsObject
 import play.api.libs.json.JsString
 import scala.collection.JavaConversions._
@@ -109,7 +110,7 @@ object JsonFormatters {
         case Measurement.Type.INT => o.getIntVal
         case Measurement.Type.STRING => o.getStringVal
         case Measurement.Type.BOOL => o.getBoolVal
-        case Measurement.Type.NONE => Json.toJson("")
+        case Measurement.Type.NONE => Json.toJson("") // or perhaps JsNull?
       }
       JsObject(
         List(
@@ -135,11 +136,11 @@ object JsonFormatters {
     }
 
     // TODO: Will we ever read a measurement from JSON?
-    def reads(json: JsValue) = {
+    def reads(json: JsValue): JsResult[Measurements.Measurement] = {
       val mBuider = Measurements.Measurement.newBuilder
       mBuider.setName( (json \ "name").as[String])
       mBuider.setStringVal( (json \ "value").as[String])
-      mBuider.build
+      JsSuccess( mBuider.build)
     }
 
   }
@@ -173,10 +174,10 @@ object JsonFormatters {
     }
 
     // TODO: Will we ever make an event from JSON?
-    def reads(json: JsValue) = {
+    def reads(json: JsValue): JsResult[Events.Event] = {
       val mBuider = Events.Event.newBuilder
       mBuider.setId( makeReefId( (json \ "id").as[String]) )
-      mBuider.build
+      JsSuccess( mBuider.build)
     }
 
   }
@@ -205,11 +206,11 @@ object JsonFormatters {
 
 
     // TODO: Will we ever make an alarm from JSON?
-    def reads(json: JsValue) = {
+    def reads(json: JsValue): JsResult[Alarms.Alarm] = {
       val mBuider = Alarms.Alarm.newBuilder
       mBuider.setId( makeReefId( (json \ "id").as[String]) )
       mBuider.setState( Alarms.Alarm.State.valueOf( (json \ "state").as[String]))
-      mBuider.build
+      JsSuccess( mBuider.build)
     }
 
   }
@@ -238,43 +239,27 @@ object JsonFormatters {
     }
 
     // TODO: Will we ever make an ConnectionStatus from JSON?
-    def reads(json: JsValue) = {
+    def reads(json: JsValue): JsResult[ConnectionStatus] = JsSuccess(
       ConnectionStatus.withName( (json \ "id").as[String]).asInstanceOf[ConnectionStatus]
-    }
-
-  }
-
-
-  implicit object LoginFormat extends Format[Login] {
-
-    def writes( o: Login): JsValue = JsObject(
-      List(
-        "userName" -> JsString( o.userName),
-        "password" -> JsString( o.password)
-      )
-    )
-
-    def reads( json: JsValue) = Login(
-      (json \ "userName").as[String],
-      (json \ "password").as[String]
     )
 
   }
 
-  implicit object LoginSuccessFormat extends Format[LoginSuccess] {
+  /** New 2.1 JSON parsing
+    *
+    */
+  implicit val loginReads = (
+    (__ \ "userName").read[String] and
+    (__ \ "password").read[String]
+  )(Login.apply _)
 
-    def writes( o: LoginSuccess): JsValue = JsObject(
-      List(
+  implicit val loginSuccessWrites = new Writes[LoginSuccess] {
+    def writes( o: LoginSuccess): JsValue =
+      Json.obj(
         "authToken" -> JsString( o.authToken)
       )
-    )
-
-    // We won't get a LoginSuccess from a web client!
-    def reads( json: JsValue) = LoginSuccess(
-      (json \ "authToken").as[String]
-    )
-
   }
+
 
   implicit object LoginErrorFormat extends Format[LoginError] {
 
@@ -285,9 +270,9 @@ object JsonFormatters {
     )
 
     // We won't get a LoginError from a web client!
-    def reads( json: JsValue) = LoginError(
-      ConnectionStatusFormat.reads( json)
-    )
+    def reads( json: JsValue): JsResult[LoginError] = JsSuccess( LoginError(
+      ConnectionStatusFormat.reads( json).get
+    ))
 
   }
 
@@ -302,11 +287,11 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = {
+    def reads( json: JsValue): JsResult[Entity] = {
       val eBuider = Entity.newBuilder
       eBuider.setName( (json \ "name").as[String])
       (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
-      eBuider.build
+      JsSuccess( eBuider.build)
     }
 
   }
@@ -323,11 +308,11 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = {
+    def reads( json: JsValue): JsResult[Point] = {
       val eBuider = Point.newBuilder
       eBuider.setName( (json \ "name").as[String])
       (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
-      eBuider.build
+      JsSuccess( eBuider.build)
     }
 
   }
@@ -346,11 +331,11 @@ object JsonFormatters {
     )
 
     // TODO: will we ever call reads?
-    def reads( json: JsValue) = {
+    def reads( json: JsValue): JsResult[PointWithTypes] = {
       val eBuider = Point.newBuilder
       eBuider.setName( (json \ "name").as[String])
       (json \ "uuid").asOpt[String].foreach( uuid => eBuider.setUuid( makeReefUuid( uuid)))
-      PointWithTypes( eBuider.build, List())
+      JsSuccess( PointWithTypes( eBuider.build, List()))
     }
 
   }
@@ -368,8 +353,9 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = {
-      EquipmentWithPointsWithTypes( EntityFormat.reads( json), List[PointWithTypes]())   // TODO do we need to get entities with points from browser?
+    def reads( json: JsValue): JsResult[EquipmentWithPointsWithTypes]= {
+      // TODO do we need to get entities with points from browser?
+      JsSuccess( EquipmentWithPointsWithTypes( EntityFormat.reads( json).get, List[PointWithTypes]()))
     }
 
   }
@@ -378,7 +364,7 @@ object JsonFormatters {
 
     def writes( o: Seq[EquipmentWithPointsWithTypes]): JsValue = JsArray( o.map( EquipmentWithPointsWithTypesFormat.writes))
 
-    def reads( json: JsValue) = json.asInstanceOf[JsArray].value.map( EquipmentWithPointsWithTypesFormat.reads)
+    def reads( json: JsValue): JsResult[Seq[EquipmentWithPointsWithTypes]] = JsSuccess( json.asInstanceOf[JsArray].value.map( e => EquipmentWithPointsWithTypesFormat.reads(e).get))
 
   }
 
@@ -392,10 +378,10 @@ object JsonFormatters {
     )
 
     // TODO: Will we ever make a measurement from JSON?
-    def reads( json: JsValue) = SubscribeToMeasurementsByNames(
+    def reads( json: JsValue): JsResult[SubscribeToMeasurementsByNames] = JsSuccess( SubscribeToMeasurementsByNames(
       (json \ "subscriptionId").as[String],
       (json \ "names").asInstanceOf[JsArray].value.map( name => name.as[String])
-    )
+    ))
 
   }
 
@@ -411,12 +397,12 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = SubscribeToMeasurementHistory(
+    def reads( json: JsValue): JsResult[SubscribeToMeasurementHistory] = JsSuccess( SubscribeToMeasurementHistory(
       (json \ "subscriptionId").as[String],
       (json \ "name").as[String],
       (json \ "since").asOpt[Long].getOrElse( 0),
       (json \ "limit").as[Int]
-    )
+    ))
 
   }
 
@@ -429,10 +415,10 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = SubscribeToActiveAlarms(
+    def reads( json: JsValue): JsResult[SubscribeToActiveAlarms] = JsSuccess( SubscribeToActiveAlarms(
       (json \ "subscriptionId").as[String],
       (json \ "limit").as[Int]
-    )
+    ))
 
   }
 
@@ -446,11 +432,11 @@ object JsonFormatters {
       )
     )
 
-    def reads( json: JsValue) = SubscribeToRecentEvents(
+    def reads( json: JsValue): JsResult[SubscribeToRecentEvents] = JsSuccess( SubscribeToRecentEvents(
       (json \ "subscriptionId").as[String],
       (json \ "eventTypes").asInstanceOf[JsArray].value.map( eventType => eventType.as[String]),
       (json \ "limit").as[Int]
-    )
+    ))
 
   }
 
