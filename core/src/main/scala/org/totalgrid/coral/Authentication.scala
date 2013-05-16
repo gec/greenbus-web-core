@@ -60,26 +60,30 @@ trait Authentication {
   }
   import AuthTokenLocation._
 
-  def authTokenLocationForLoginPage : AuthTokenLocation
+  def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation
   def authTokenLocationForLogout : AuthTokenLocation
 
   type LoginData
+  //type LoginSuccess
   type LoginFailure
   type AuthenticatedService
   def authTokenName = "authToken"
 
   def loginDataReads: Reads[LoginData]
-  def loginFuture( l: LoginData) : Future[Either[LoginFailure, (String, AuthenticatedService)]]
+  def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]]
   def logout( authToken: String) : Boolean
-  def getAuthenticatedService( authToken: String) : Option[ AuthenticatedService]
+  def getAuthenticatedService( authToken: String) : Future[ Option[ AuthenticatedService]]
 
 
+  /**
+   * Show the login page
+   */
   def presentLogin( request: RequestHeader): Result
 
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String, service: AuthenticatedService): PlainResult
+  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService*/): PlainResult
 
   /**
    * Where to redirect the user after a successful login.
@@ -92,6 +96,11 @@ trait Authentication {
   def logoutSucceeded(request: RequestHeader): Result
 
   /**
+   * Where to redirect the user after logging out
+   */
+  def logoutFailed(request: RequestHeader): Result
+
+  /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
    */
   //def authenticationFailed(request: RequestHeader): Result
@@ -102,27 +111,43 @@ trait Authentication {
   def loginInvalid(request: RequestHeader, error: JsError): Result
 
 
-  def getLoginPage = Action { implicit request: RequestHeader =>
+  /**
+   * GET /login
+   *
+   * Check if the user is already logged in. If so, call loginSucceeded.
+   * If not logged in, call presentLogin.
+   */
+  def getLoginOrAlreadyLoggedIn = Action { implicit request: RequestHeader =>
 
-    Logger.debug( "getLoginPage")
-    authenticateRequest( request, authTokenLocationForLoginPage) match {
-      case Some( ( token, service)) =>
-        Logger.debug( "getLoginPage authenticateRequest loginSucceeded")
-        loginSucceeded( request, token, service)
-      case None =>
-        Logger.debug( "getLoginPage authenticateRequest presentLogin")
-        presentLogin( request)
+    Logger.debug( "getLoginOrAlreadyLoggedIn: " + authTokenLocationForAlreadyLoggedIn.toString)
+    Async {
+      authenticateRequest( request, authTokenLocationForAlreadyLoggedIn).map {
+        case Some( ( token, service)) =>
+          Logger.debug( "getLoginPage authenticateRequest loginSucceeded")
+          loginSucceeded( request, token)
+        case None =>
+          // No authToken found or invalid authToken
+          Logger.debug( "getLoginPage authenticateRequest presentLogin (because no authToken or invalid authToken)")
+          presentLogin( request)
+      }
     }
   }
 
+  /**
+   * POST /login
+   *
+   * Login credentials are in the post data.
+   *
+   * @see loginDataReads
+   */
   def postLogin = Action( parse.json) { request =>
     Logger.debug( "postLogin")
     request.body.validate( loginDataReads).map { login =>
       Async {
         loginFuture( login).map {
-          case Right( ( token, service)) =>
+          case Right( token) =>
             // Success and store cookie to pass to index.html
-            loginSucceeded( request, token, service).withSession(
+            loginSucceeded( request, token).withSession(
               request.session + (authTokenName -> token)
             )
           case Left( loginFailure) =>
@@ -170,37 +195,51 @@ trait Authentication {
   }
   */
 
-  private def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): String = {
+  private def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {
     val authToken = authTokenLocation match {
-      case AuthTokenLocation.NO_AUTHTOKEN => ""
-      case AuthTokenLocation.COOKIE => request.session.get( authTokenName).getOrElse("")
-      case AuthTokenLocation.HEADER => request.headers.get( AUTHORIZATION).getOrElse("")
+      case AuthTokenLocation.NO_AUTHTOKEN => None
+      case AuthTokenLocation.COOKIE => request.session.get( authTokenName)
+      case AuthTokenLocation.HEADER => request.headers.get( AUTHORIZATION)
       case AuthTokenLocation.URL_QUERY_STRING => request.queryString.get( authTokenName) match {
-        case Some(values: Seq[String]) => values(0)
-        case _ => ""
+        case Some(values: Seq[String]) => values.headOption
+        case _ => None
       }
     }
     Logger.debug( "getAuthToken from " + authTokenLocation.toString + ", authToken: " + authToken)
     authToken
   }
 
-  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Option[ (String, AuthenticatedService)] = {
-    val authToken = getAuthToken( request, authTokenLocation)
-    getAuthenticatedService( authToken) match {
-      case Some( service) => Some( ( authToken, service))
-      case None => None
+  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Future[ Option[ (String, AuthenticatedService)]] = {
+    getAuthToken( request, authTokenLocation) match {
+      case Some( authToken) =>
+        Logger.debug( "authenticateRequest authToken: " + authToken)
+        getAuthenticatedService( authToken).map {
+          case Some( service) =>
+            Logger.debug( "authenticateRequest response authToken: " + authToken + ", service: " + service)
+            Some( ( authToken, service))
+          case _ =>
+            Logger.debug( "authenticateRequest response None ")
+            None
+        }
+      case None => Future(None)
     }
   }
 
+  /**
+   * GET /logout
+   *
+   * If there is an authToken, use it to logout. Present the login page.
+   */
   def getLogout = Action { implicit request: RequestHeader =>
-
     Logger.debug( "getLogout")
-
-    val authToken = getAuthToken( request, authTokenLocationForLogout)
-    if( logout( authToken))
-      logoutSucceeded( request)
-    else
-      presentLogin( request)
+    getAuthToken( request, authTokenLocationForLogout) match {
+      case Some( authToken) =>
+        if( logout( authToken))
+          logoutSucceeded( request)
+        else
+          logoutFailed( request)
+      case None => presentLogin( request)
+    }
   }
 
 }

@@ -1,6 +1,7 @@
 
 package controllers
 
+import play.api.Logger
 import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -9,8 +10,6 @@ import play.api.Play.current
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.Some
-import scala.concurrent.duration._
-import scala.language.postfixOps // for postfix 'seconds'
 
 import akka.actor._
 import akka.pattern.ask
@@ -19,61 +18,38 @@ import akka.util.Timeout
 import org.totalgrid.coral.Authentication
 
 
-object LoginActor {
-
-  implicit val timeout = Timeout(2 seconds)
-
-  case class MyLogin( userName: String, password: String)
-  case class MyLoginFailure( message: String)
-  case class MyLoginSuccess( authToken: String)
-  case class MyService( name: String)
-}
-
-class LoginActor extends Actor {
-  import LoginActor._
-
-  def receive = {
-    case MyLogin( userName, password) => sender ! ( "authToken1", MyService( "service1"))
-  }
-}
-
-
 trait AuthenticationImpl extends Authentication {
   self: Controller =>
-  import AuthTokenLocation._
-  import LoginActor._
 
-  def authTokenLocationForLoginPage : AuthTokenLocation = AuthTokenLocation.COOKIE
+  import AuthTokenLocation._
+  import ServiceManagerActor._
+
+  type LoginData = ServiceManagerActor.LoginRequest
+  //type LoginSuccess = ServiceManagerActor.LoginSuccess
+  type LoginFailure = ServiceManagerActor.LoginFailure
+  type AuthenticatedService = ServiceManagerActor.AuthenticatedService
+  def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
-
-  type LoginData = MyLogin
-  type LoginFailure = MyLoginFailure
-  type AuthenticatedService = MyService
-
-
-  val loginActor = Akka.system.actorOf(Props[LoginActor])
-  var service : Option[AuthenticatedService] = None
-
-  def loginDataReads: Reads[MyLogin] = (
+  def loginDataReads: Reads[LoginRequest] = (
     (__ \ "userName").read[String] and
       (__ \ "password").read[String]
-    )(MyLogin.apply _)
+    )(LoginRequest.apply _)
 
-  def loginFuture( l: LoginData) : Future[Either[LoginFailure, (String, AuthenticatedService)]] = {
-    (loginActor ? l).map {
-      case (authToken: String, s: AuthenticatedService) =>
-        service = Some( s)
-        Right( (authToken, s))
-      case b: LoginFailure => Left( b)
+  def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]] = {
+    (connectionManagerActor ? l).map {
+      case authToken: String => Right( authToken)
+      case LoginFailure( message) => Left( LoginFailure( message))
     }
   }
 
-  def logout( authToken: String) = true
-
-  def getAuthenticatedService( authToken: String) : Option[ AuthenticatedService] = {
-    service
+  def logout( authToken: String) : Boolean = {
+    connectionManagerActor ! LogoutRequest( authToken)
+    true
   }
+
+  def getAuthenticatedService( authToken: String) : Future[Option[ AuthenticatedService]] =
+    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ AuthenticatedService]]]
 
 
   def presentLogin( request: RequestHeader): Result = Ok( "presentLogin")
@@ -81,17 +57,22 @@ trait AuthenticationImpl extends Authentication {
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String, service: AuthenticatedService): PlainResult = Ok( "loginSucceeded")
+  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): PlainResult = Ok( "loginSucceeded")
 
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Results.Unauthorized( "loginFailed")
+  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Unauthorized( "loginFailed")
 
   /**
    * Where to redirect the user after logging out
    */
   def logoutSucceeded(request: RequestHeader): Result = Ok( "logoutSucceeded")
+
+  /**
+   * Where to redirect the user after logging out
+   */
+  def logoutFailed(request: RequestHeader): Result = BadRequest( "logoutSucceeded")
 
   /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
@@ -101,7 +82,7 @@ trait AuthenticationImpl extends Authentication {
   /**
    * Where to redirect the user when a request is invalid (no authToken)
    */
-  def loginInvalid(request: RequestHeader, error: JsError): Result = Results.BadRequest( "invalidRequest " + JsError.toFlatJson(error))
+  def loginInvalid(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
 
 }

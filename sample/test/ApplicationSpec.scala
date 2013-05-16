@@ -4,6 +4,7 @@ import org.specs2.mutable._
 
 import play.api.test._
 import play.api.test.Helpers._
+import java.io.File
 
 /**
  * Add your spec here.
@@ -15,18 +16,18 @@ class ApplicationSpec extends Specification {
   "Application" should {
     
     "send 404 on a bad request" in {
-      running(FakeApplication()) {
+      running(FakeApplication(path = new File("sample"))) {
         route(FakeRequest(GET, "/boum")) must beNone        
       }
     }
     
     "render the index page" in {
-      running(FakeApplication()) {
+      running(FakeApplication(path = new File("sample"))) {
         val home = route(FakeRequest(GET, "/")).get
         
         status(home) must equalTo(OK)
         contentType(home) must beSome.which(_ == "text/html")
-        contentAsString(home) must contain ("Your new application is ready.")
+        contentAsString(home) must contain ("Coral Framework")
       }
     }
   }

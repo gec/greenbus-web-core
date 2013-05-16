@@ -7,10 +7,10 @@ import play.api.libs.functional.syntax._
 import scala.concurrent.Future
 
 object Application extends Controller with AuthenticationImpl {
-  import LoginActor._
+  import ServiceManagerActor._
   
   def index = Action {
-    Ok(views.html.index("Your new application is ready."))
+    Ok(views.html.index("Coral Framework"))
   }
 
 

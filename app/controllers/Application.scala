@@ -140,7 +140,7 @@ object Application extends Controller {
   def alreadyLoggedIn( request: Request[AnyContent]) = {
     val authToken = request.session.get( "authToken").getOrElse("")
     Logger.debug( "alreadyLoggedIn authToken: " + authToken + " reefClients().isDefined: " + reefClients.get( authToken).isDefined)
-    reefClients.get( authToken).isDefined
+    reefClients.contains( authToken)
   }
 
   def index = Action { implicit request =>
