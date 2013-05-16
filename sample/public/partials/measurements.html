@@ -1,0 +1,39 @@
+
+
+
+<div>
+
+    <h2>Measurements</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Quality</th>
+                    <th>Time</th>
+                    <th>% Charge</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="meas in measurements">
+                    <td>{{meas.name}}</td>
+                    <td>{{meas.value}}</td>
+                    <td>{{meas.unit}}</td>
+                    <td>{{meas.shortQuality}}</td>
+                    <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>
+                        <div class="progress" style="width:100px" ng-show="meas.percentCharge">
+                            <div class="bar" style="width: {{meas.percentCharge}}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div ng-include src="'partials/loadingprogress.html'"></div>
+</div>
+

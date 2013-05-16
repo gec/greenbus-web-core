@@ -37,6 +37,7 @@ trait AuthenticationImpl extends Authentication {
     )(LoginRequest.apply _)
 
   def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]] = {
+    Logger.debug( "loginFuture: " + l)
     (connectionManagerActor ? l).map {
       case authToken: String => Right( authToken)
       case LoginFailure( message) => Left( LoginFailure( message))
@@ -57,12 +58,15 @@ trait AuthenticationImpl extends Authentication {
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): PlainResult = Ok( "loginSucceeded")
+  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): PlainResult = {
+
+    Ok( Json.obj( "authToken" -> authToken))
+  }
 
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Unauthorized( "loginFailed")
+  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * Where to redirect the user after logging out
@@ -72,17 +76,35 @@ trait AuthenticationImpl extends Authentication {
   /**
    * Where to redirect the user after logging out
    */
-  def logoutFailed(request: RequestHeader): Result = BadRequest( "logoutSucceeded")
+  def logoutFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
    */
-  //def authenticationFailed(request: RequestHeader): Result
+  def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
+  //Unauthorized( "unauthorized!")
 
   /**
    * Where to redirect the user when a request is invalid (no authToken)
    */
   def loginInvalid(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
+
+  def AuthenticatedAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
+    Action { request =>
+      Async {
+        authenticateRequest( request, authTokenLocationForAlreadyLoggedIn).map {
+          case Some( ( token, service)) =>
+            Logger.debug( "AuthenticatedAction authenticateRequest authenticated")
+            f( request, service)
+          case None =>
+            // No authToken found or invalid authToken
+            Logger.debug( "AuthenticatedAction authenticationFailed (because no authToken or invalid authToken)")
+            // TODO: how about this: Unauthorized( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
+            authenticationFailed( request)
+        }
+      }
+    }
+  }
 
 }

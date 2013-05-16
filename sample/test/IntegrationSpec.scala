@@ -18,7 +18,7 @@ class IntegrationSpec extends Specification {
 
         browser.goTo("http://localhost:3333/")
 
-        browser.pageSource must contain("Coral Framework")
+        browser.pageSource must contain("Coral Sample")
        
       }
     }

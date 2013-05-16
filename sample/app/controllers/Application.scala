@@ -8,9 +8,10 @@ import scala.concurrent.Future
 
 object Application extends Controller with AuthenticationImpl {
   import ServiceManagerActor._
-  
-  def index = Action {
-    Ok(views.html.index("Coral Framework"))
+
+  def index = AuthenticatedAction { (request, service) =>
+    Logger.debug( "Application.index")
+    Ok(views.html.index("Coral Sample"))
   }
 
 

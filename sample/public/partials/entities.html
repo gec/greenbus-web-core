@@ -1,0 +1,25 @@
+
+
+
+<div>
+    <h2>Entities</h2>
+    <div>
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Types</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="ent in entities">
+                    <td><a href="#/entity/{{ent.name}}">{{ent.name}}</a></td>
+                    <td>{{ent.types | csv}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div ng-include src="'partials/loadingprogress.html'"></div>
+</div>
+

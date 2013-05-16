@@ -12,7 +12,7 @@ import play.api.Play.current
 
 object ServiceManagerActor {
 
-  case class AuthenticatedService( name: String)
+  case class AuthenticatedService( name: String, authToken: String)
 
   case class LoginRequest( userName: String, password: String)
   case class LoginFailure( message: String)
@@ -51,17 +51,18 @@ class ServiceManagerActor extends Actor {
   }
 
   def login( userName: String, password: String) = {
-    if( userName.toLowerCase.startsWith( "bad"))
+    if( userName.toLowerCase.startsWith( "bad")) {
+      Logger.debug( "ServiceManagerActor.login bad user name: " + userName)
       sender ! LoginFailure( "bad user name")
-    else
-      sender ! getAuthTokenAndNewService( userName, password)
-  }
-
-  def getAuthTokenAndNewService( userName: String, password: String) = {
-    val authToken = makeAuthToken + "." + userName
-    val service = AuthenticatedService( "serviceFor." + userName)
-    authTokenToServiceMap +=  (authToken -> service)
-    (authToken, service)
+    }
+    else {
+      Logger.debug( "ServiceManagerActor.login with " + userName)
+      val authToken = makeAuthToken + "." + userName
+      val service = AuthenticatedService( "serviceFor." + userName, authToken)
+      authTokenToServiceMap +=  (authToken -> service)
+      Logger.debug( "ServiceManagerActor.login successful " + service)
+      sender ! authToken
+    }
   }
 
   def logout( authToken: String) = {

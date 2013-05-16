@@ -103,7 +103,7 @@ trait Authentication {
   /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
    */
-  //def authenticationFailed(request: RequestHeader): Result
+  def authenticationFailed(request: RequestHeader): Result
 
   /**
    * Where to redirect the user when a request is invalid (no authToken)

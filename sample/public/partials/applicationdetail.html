@@ -1,0 +1,36 @@
+
+
+
+<div>
+
+    <h2>Application: {{application.name}}</h2>
+
+    <div>
+        <table class="table table-condensed">
+            <tbody>
+            <tr>
+                <td>Version</td>
+                <td>{{application.version}}</td>
+            </tr>
+            <tr>
+                <td>Online</td>
+                <td>{{application.online}}</td>
+            </tr>
+            <tr>
+                <td>Expiration</td>
+                <td>{{application.expiry | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+            </tr>
+            <tr>
+                <td>Agent</td>
+                <td>{{application.agent}}</td>
+            </tr>
+            <tr>
+                <td>Capabilities</td>
+                <td>{{application.capabilities | csv}}</td>
+            </tr>
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
