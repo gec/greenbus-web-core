@@ -121,6 +121,18 @@ function LoginControl($rootScope, $scope, reef, $timeout) {
 
 }
 
+function LogoutControl($rootScope, $scope, reef, $timeout) {
+
+    $scope.status = reef.getStatus()
+    reef.logout();
+
+    $rootScope.currentMenuItem = "loading";  // so the menus & breadcrumbs will stay hidden
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Logout" }
+    ];
+}
+
 function EntityControl($rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "entity";
     $rootScope.breadcrumbs = [

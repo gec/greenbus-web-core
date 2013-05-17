@@ -6,7 +6,9 @@
 GET     /                           controllers.Application.index
 
 GET     /login                      controllers.Application.getLoginOrAlreadyLoggedIn
+GET     /logout                     controllers.Application.getLogout
 POST    /login                      controllers.Application.postLogin
+GET     /entities                   controllers.Application.getEntities(types: List[String])
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)

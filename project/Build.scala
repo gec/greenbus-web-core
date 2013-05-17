@@ -45,6 +45,8 @@ object ApplicationBuild extends Build {
     .settings(baseSettings: _*)
     .settings(
     libraryDependencies += "play" %% "play-test" % "2.1.1",
+    libraryDependencies += "org.totalgrid.reef" % "reef-client" % totalGridVersion,
+    libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % totalGridVersion,
     name := appName
   )
 

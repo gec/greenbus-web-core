@@ -26,6 +26,7 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
     $routeProvider.
       when('/loading', {templateUrl: 'partials/loading.html', controller: LoadingControl}).
       when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
+      when('/logout', {templateUrl: 'partials/login.html', controller: LogoutControl}).
       when('/measurement', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
       when('/esses', {templateUrl: 'partials/esses.html', controller: EssesControl}).
       when('/entity', {templateUrl: 'partials/entities.html', controller: EntityControl}).

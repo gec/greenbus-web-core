@@ -28,6 +28,7 @@ trait AuthenticationImpl extends Authentication {
   //type LoginSuccess = ServiceManagerActor.LoginSuccess
   type LoginFailure = ServiceManagerActor.LoginFailure
   type AuthenticatedService = ServiceManagerActor.AuthenticatedService
+  type ServiceFailure = ServiceManagerActor.ServiceFailure
   def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -49,8 +50,13 @@ trait AuthenticationImpl extends Authentication {
     true
   }
 
-  def getAuthenticatedService( authToken: String) : Future[Option[ AuthenticatedService]] =
-    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ AuthenticatedService]]]
+//  def getAuthenticatedService( authToken: String) : Future[Option[ AuthenticatedService]] =
+//    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ AuthenticatedService]]]
+def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, AuthenticatedService]] =
+  (connectionManagerActor ? ServiceRequest( authToken)).map {
+    case AuthenticatedService( name, authToken) => Right( AuthenticatedService( name, authToken))
+    case ServiceFailure( message) => Left( ServiceFailure( message))
+  }
 
 
   def presentLogin( request: RequestHeader): Result = Ok( "presentLogin")
@@ -58,10 +64,9 @@ trait AuthenticationImpl extends Authentication {
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): PlainResult = {
+  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): Result =
+    Redirect( routes.Application.index())
 
-    Ok( Json.obj( "authToken" -> authToken))
-  }
 
   /**
    * Where to redirect the user after a successful login.

@@ -20,7 +20,7 @@ package org.totalgrid.coral
 
 import play.api.mvc._
 import play.api.Logger
-import play.api.libs.json.{Reads, JsError, JsValue}
+import play.api.libs.json.{Json, Reads, JsError, JsValue}
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.Some
@@ -67,12 +67,13 @@ trait Authentication {
   //type LoginSuccess
   type LoginFailure
   type AuthenticatedService
+  type ServiceFailure
   def authTokenName = "authToken"
 
   def loginDataReads: Reads[LoginData]
   def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]]
   def logout( authToken: String) : Boolean
-  def getAuthenticatedService( authToken: String) : Future[ Option[ AuthenticatedService]]
+  def getAuthenticatedService( authToken: String) : Future[ Either[ServiceFailure, AuthenticatedService]]
 
 
   /**
@@ -83,7 +84,7 @@ trait Authentication {
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService*/): PlainResult
+  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService*/): Result
 
   /**
    * Where to redirect the user after a successful login.
@@ -145,10 +146,10 @@ trait Authentication {
     request.body.validate( loginDataReads).map { login =>
       Async {
         loginFuture( login).map {
-          case Right( token) =>
+          case Right( authToken) =>
             // Success and store cookie to pass to index.html
-            loginSucceeded( request, token).withSession(
-              request.session + (authTokenName -> token)
+            Ok( Json.obj( authTokenName -> authToken)).withSession(
+              request.session + (authTokenName -> authToken)
             )
           case Left( loginFailure) =>
             loginFailed( request, loginFailure)
@@ -214,11 +215,11 @@ trait Authentication {
       case Some( authToken) =>
         Logger.debug( "authenticateRequest authToken: " + authToken)
         getAuthenticatedService( authToken).map {
-          case Some( service) =>
+          case Right( service) =>
             Logger.debug( "authenticateRequest response authToken: " + authToken + ", service: " + service)
             Some( ( authToken, service))
-          case _ =>
-            Logger.debug( "authenticateRequest response None ")
+          case Left( failure) =>
+            Logger.debug( "authenticateRequest response None " + failure)
             None
         }
       case None => Future(None)

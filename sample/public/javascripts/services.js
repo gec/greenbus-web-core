@@ -45,8 +45,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         timeout: 10000 // milliseconds
     }
     var redirectLocation = $location.path();
+    console.log( "ReefService: redirectLocation 1 =" + redirectLocation)
     if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
         redirectLocation = "/#/entity"
+    console.log( "ReefService: redirectLocation 2 =" + redirectLocation)
 
 
     var subscription = {
@@ -203,7 +205,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                     $cookies.authToken = authToken
                     console.log( "login success, setting cookie, redirectLocation: '" + redirectLocation + "'")
                     if( redirectLocation)
-                        window.location.href = redirectLocation // $location.path( redirectLocation)
+                        //$location.path( redirectLocation)
+                        window.location.href = redirectLocation
                     else
                         window.location.href = "/#/entity"
                 }
@@ -229,6 +232,53 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                     });
                 }
                 errorListener( message)
+            });
+    }
+
+    self.logout = function( userName, password, errorListener) {
+        //console.log( "reef.login);
+        httpConfig.headers = {'Authorization': authToken}
+        $http.get( "/logout", httpConfig).
+            success(function(json) {
+                if( json.error) {
+                    // Shouldn't get here.
+                    console.error( "logout error: " + json)
+                    if( errorListener)
+                        errorListener( json.error)
+                } else {
+                    console.log( "logout successful")
+                    setStatus( {
+                        status: "UP",
+                        reinitializing: false,
+                        description: ""
+                    })
+                    authToken = null
+                    delete( $cookies.authToken)
+                    window.location.href = "/login"
+                }
+            }).
+            error(function (json, statusCode, headers, config) {
+                // called asynchronously if an error occurs
+                // or server returns response with status
+                // code outside of the <200, 400) range
+                console.log( "reef.logout error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
+                var message = json && json.error && json.error.description || "Unknown login failure";
+                if( statusCode == 0) {
+                    message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
+                    setStatus( {
+                        status: "APPLICATION_SERVER_DOWN",
+                        reinitializing: false,
+                        description: message
+                    });
+                } else {
+                    setStatus( {
+                        status: "APPLICATION_REQUEST_FAILURE",
+                        reinitializing: false,
+                        description: message
+                    });
+                }
+                if( errorListener)
+                    errorListener( message)
             });
     }
 
@@ -287,7 +337,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         if( !authToken || status.status == "NOT_LOGGED_IN") {
             console.log( "self.get if( !authToken || status.status == 'NOT_LOGGED_IN')")
             redirectLocation = $location.url() // save the current url so we can redirect the user back
+            console.log( "ReefService.get: saving redirectLocation: " + redirectLocation)
             authToken = null
+            console.log( "window.location.href = '/login'")
             window.location.href = "/login" //$location.path('/login')
             return
         }

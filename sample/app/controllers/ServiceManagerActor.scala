@@ -20,6 +20,7 @@ object ServiceManagerActor {
   case class LogoutRequest( authToken: String)
 
   case class ServiceRequest( authToken: String)
+  case class ServiceFailure( message: String)
 
   implicit val timeout = Timeout(2 seconds)
   val tokenCount = new AtomicInteger()
@@ -45,7 +46,11 @@ class ServiceManagerActor extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceRequest( authToken) => sender ! authTokenToServiceMap.get( authToken)
+    case ServiceRequest( authToken) =>
+      authTokenToServiceMap.get( authToken) match {
+        case Some( service) => sender ! service
+        case _ => sender ! ServiceFailure( "no service for authToken: '" + authToken + "'")
+      }
 
     case unknownMessage: AnyRef => Logger.error( "AmqpConnectionManagerActor.receive: Unknown message " + unknownMessage)
   }
