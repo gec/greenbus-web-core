@@ -302,7 +302,7 @@ object JsonFormatters {
       List(
         "name" -> JsString( o.getName),
         "uuid" -> JsString( o.getUuid.getValue),
-        "type" -> JsString( o.getType.name()),
+        "valueType" -> JsString( o.getType.name()),
         "unit" -> JsString( o.getUnit),
         "endpoint" -> JsString( o.getEndpoint.getName)
       )

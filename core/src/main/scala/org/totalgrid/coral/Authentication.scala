@@ -20,32 +20,35 @@ package org.totalgrid.coral
 
 import play.api.mvc._
 import play.api.Logger
-import play.api.libs.json.{Json, Reads, JsError, JsValue}
+import play.api.libs.json._
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
-import scala.Some
+import scala.concurrent.duration._
+import scala.language.postfixOps // for postfix 'seconds'
+import play.api.mvc.Cookie
 
 
-// See: https://github.com/t2v/play20-auth
-
-object Authentication {
-
-}
 
 /**
- * GET loginPage with authToken
- *  - Redirect to loginSucceeded( request, token, service)
+ * General authentication. This does not know about Reef -- that's for an implementation.
  *
- * GET loginPage with no authToken or invalid authToken
- *  - presentLogin( request)
+ * GET /login -- getLoginOrAlreadyLoggedIn
+ *    valid authentication - redirectToIndex
+ *    invalid authentication - loginPageContent
  *
- * POST login with valid authToken in json
- *  - loginRead( json)
- *  - loginFuture( request, l: Login)
+ * POST /login -- postLogin
+ *    valid credentials - loginSuccess
+ *    invalid credentials - loginFailure
  *
- * POST login with NO valid authToken in json
- *  - loginRead( json)
- *  - loginFailed( request)
+ * GET / -- index
+ *    valid authentication - indexPageContent
+ *    invalid authentication - redirectToLogin
+ *
+ * DELETE /login -- deleteLogin
+ *    valid authToken - logoutSuccess
+ *    invalid authToken - logoutFailure
+ *
+ * See: https://github.com/t2v/play20-auth
  */
 trait Authentication {
 
@@ -60,76 +63,108 @@ trait Authentication {
   }
   import AuthTokenLocation._
 
-  def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation
+  def authTokenLocation : AuthTokenLocation
   def authTokenLocationForLogout : AuthTokenLocation
 
   type LoginData
-  //type LoginSuccess
-  type LoginFailure
+  type AuthenticationFailure
   type AuthenticatedService
+  type UnauthenticatedService
   type ServiceFailure
-  def authTokenName = "authToken"
+  def authTokenName = "coralAuthToken" // Used for cookie and JSON reply
+  def authTokenCookieMaxAge = Some( (5 minutes).toSeconds.toInt)
 
   def loginDataReads: Reads[LoginData]
-  def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]]
+  def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]]
   def logout( authToken: String) : Boolean
+
+  /**
+   * Get a fully authenticated service. A service call is made to verify the authToken is valid.
+   *
+   * Since this is an extra round trip call to the service, it should only be used when it's
+   * absolutely necessary to validate the authToken -- like when first showing the index page.
+   */
   def getAuthenticatedService( authToken: String) : Future[ Either[ServiceFailure, AuthenticatedService]]
 
+  /**
+   * Get a service that contains the specified authToken but may be invalid.
+   */
+  def getUnauthenticatedService( authToken: String) : Future[ Either[ServiceFailure, UnauthenticatedService]]
+
 
   /**
-   * Show the login page
+   * Return the login page content
    */
-  def presentLogin( request: RequestHeader): Result
+  def loginPageContent( request: RequestHeader): Result
 
   /**
-   * Where to redirect the user after a successful login.
+   * Return the index page content
    */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService*/): Result
+  def indexPageContent( request: RequestHeader): Result
 
   /**
-   * Where to redirect the user after a successful login.
+   * Redirect the user to the index page (because they're already logged in).
    */
-  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result
+  def redirectToIndex(request: RequestHeader, authToken: String): Result
 
   /**
-   * Where to redirect the user after logging out
+   * Redirect the user to the login page (because they're not logged in).
    */
-  def logoutSucceeded(request: RequestHeader): Result
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result
 
   /**
-   * Where to redirect the user after logging out
+   * Ajax reply for successful login. Store the cookie so the index page
+   * can pick it up.
    */
-  def logoutFailed(request: RequestHeader): Result
+  def loginSuccess(request: RequestHeader, authToken: String): Result = {
+    Logger.debug( "Authentication.loginSuccess: returning JSON and setting cookie " + authTokenName + "=" + authToken)
+    Ok( Json.obj( authTokenName -> authToken))
+      .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
+  }
 
   /**
-   * If the user is not logged in and tries to access a protected resource then redirect them as follows:
+   * Ajax reply for login failure.
    */
-  def authenticationFailed(request: RequestHeader): Result
+  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result
 
   /**
-   * Where to redirect the user when a request is invalid (no authToken)
+   * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginInvalid(request: RequestHeader, error: JsError): Result
+  def loginJsError(request: RequestHeader, error: JsError): Result
+
+  /**
+   * Ajax reply for successful logout
+   *
+   * @see deleteLogin
+   */
+  def logoutSuccess(request: RequestHeader): PlainResult
+
+  /**
+   * Ajax reply for failed logout
+   *
+   * @see deleteLogin
+   */
+  def logoutFailure(request: RequestHeader): PlainResult
 
 
   /**
    * GET /login
    *
-   * Check if the user is already logged in. If so, call loginSucceeded.
-   * If not logged in, call presentLogin.
+   * Check if the user is already logged in. If so, call redirectToIndex.
+   * If not logged in, call loginPageContent.
    */
   def getLoginOrAlreadyLoggedIn = Action { implicit request: RequestHeader =>
 
-    Logger.debug( "getLoginOrAlreadyLoggedIn: " + authTokenLocationForAlreadyLoggedIn.toString)
+    Logger.debug( "getLoginOrAlreadyLoggedIn: " + authTokenLocation.toString)
     Async {
-      authenticateRequest( request, authTokenLocationForAlreadyLoggedIn).map {
+      authenticateRequest( request, authTokenLocation).map {
         case Some( ( token, service)) =>
-          Logger.debug( "getLoginPage authenticateRequest loginSucceeded")
-          loginSucceeded( request, token)
+          Logger.debug( "getLoginPage authenticateRequest redirectToIndex")
+          redirectToIndex( request, token)
         case None =>
           // No authToken found or invalid authToken
-          Logger.debug( "getLoginPage authenticateRequest presentLogin (because no authToken or invalid authToken)")
-          presentLogin( request)
+          Logger.debug( "getLoginPage authenticateRequest loginPageContent (because no authToken or invalid authToken)")
+          loginPageContent( request)
       }
     }
   }
@@ -147,59 +182,21 @@ trait Authentication {
       Async {
         loginFuture( login).map {
           case Right( authToken) =>
-            // Success and store cookie to pass to index.html
-            Ok( Json.obj( authTokenName -> authToken)).withSession(
-              request.session + (authTokenName -> authToken)
-            )
-          case Left( loginFailure) =>
-            loginFailed( request, loginFailure)
+            loginSuccess( request, authToken)
+          case Left( failure) =>
+            loginFailure( request, failure)
         }
       }
     }.recoverTotal { error =>
       Logger.error( "ERROR: postLogin bad json: " + JsError.toFlatJson(error))
-      loginInvalid( request, error)
+      loginJsError( request, error)
     }
   }
-
-  /*
-  def postLogin = Action { request =>
-    val bodyJson: Option[JsValue] = request.body.asJson
-
-    bodyJson.map { json =>
-      Logger.info( "postLogin json:" + json.toString())
-
-
-      loginRead( json) match {
-        case Right( l) =>  doLoginFuture( request, l)
-        case Left( loginFailure) => loginFailed( request, loginFailure)
-      }
-
-    }.getOrElse {
-      Logger.error( "ERROR: postLogin No json!")
-      //INVALID_REQUEST.httpResults( LoginErrorFormat.writes( LoginError( INVALID_REQUEST)))
-      loginInvalid( request)
-    }
-
-  }
-  private def doLoginFuture( request: RequestHeader, login: LoginData) = {
-    Async {
-      loginFuture( login).map {
-        case Right( ( token, service)) =>
-          // Success and store cookie to pass to index.html
-          loginSucceeded( request, token, service).withSession(
-            request.session + (authTokenName -> token)
-          )
-        case Left( loginFailure) =>
-          loginFailed( request, loginFailure)
-      }
-    }
-  }
-  */
 
   private def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {
     val authToken = authTokenLocation match {
       case AuthTokenLocation.NO_AUTHTOKEN => None
-      case AuthTokenLocation.COOKIE => request.session.get( authTokenName)
+      case AuthTokenLocation.COOKIE => request.cookies.get( authTokenName).map[String]( c => c.value)
       case AuthTokenLocation.HEADER => request.headers.get( AUTHORIZATION)
       case AuthTokenLocation.URL_QUERY_STRING => request.queryString.get( authTokenName) match {
         case Some(values: Seq[String]) => values.headOption
@@ -210,6 +207,9 @@ trait Authentication {
     authToken
   }
 
+  /**
+   * Authenticate the request by using the authToken to get a service and make a call on the service.
+   */
   def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Future[ Option[ (String, AuthenticatedService)]] = {
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
@@ -227,19 +227,40 @@ trait Authentication {
   }
 
   /**
-   * GET /logout
-   *
-   * If there is an authToken, use it to logout. Present the login page.
+   * Authenticate the request only to the extent they there is an authToken in the header.
+   * When a call is made on the service, it may fail with invalid.
    */
-  def getLogout = Action { implicit request: RequestHeader =>
-    Logger.debug( "getLogout")
+  def partiallyAuthenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Future[ Option[ (String, UnauthenticatedService)]] = {
+    getAuthToken( request, authTokenLocation) match {
+      case Some( authToken) =>
+        Logger.debug( "partiallyAuthenticateRequest authToken: " + authToken)
+        getUnauthenticatedService( authToken).map {
+          case Right( service) =>
+            Logger.debug( "partiallyAuthenticateRequest response authToken: " + authToken + ", service: " + service)
+            Some( ( authToken, service))
+          case Left( failure) =>
+            Logger.debug( "partiallyAuthenticateRequest response None " + failure)
+            None
+        }
+      case None => Future(None)
+    }
+  }
+
+  /**
+   * DELETE /login
+   *
+   * If there is an authToken, use it to logout. Return by calling success or error.
+   */
+  def deleteLogin = Action { implicit request: RequestHeader =>
+    Logger.debug( "deleteLogin")
     getAuthToken( request, authTokenLocationForLogout) match {
       case Some( authToken) =>
         if( logout( authToken))
-          logoutSucceeded( request)
+          logoutSuccess( request).discardingCookies( DiscardingCookie( authTokenName))
         else
-          logoutFailed( request)
-      case None => presentLogin( request)
+          logoutFailure( request).discardingCookies( DiscardingCookie( authTokenName))
+      case None =>
+        logoutFailure( request).discardingCookies( DiscardingCookie( authTokenName))
     }
   }
 

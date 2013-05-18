@@ -1,8 +1,26 @@
+/**
+ * Copyright 2013 Green Energy Corp.
+ *
+ * Licensed to Green Energy Corp (www.greenenergycorp.com) under one or more
+ * contributor license agreements. See the NOTICE file distributed with this
+ * work for additional information regarding copyright ownership. Green Energy
+ * Corp licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package controllers
 
 import play.api.mvc._
-import play.api.libs.json.{JsError, Json}
-import org.totalgrid.coral.ReefAuthentication
+import play.api.libs.json.{JsObject, JsError, Json}
+import org.totalgrid.coral.{ConnectionStatus, ReefAuthentication}
 
 /**
  *
@@ -10,40 +28,31 @@ import org.totalgrid.coral.ReefAuthentication
  */
 trait ReefAuthenticationImpl extends ReefAuthentication {
   self: Controller =>
+  import org.totalgrid.coral.ConnectionStatus._
 
-  def presentLogin( request: RequestHeader): Result = Ok( views.html.login( "presentLogin"))
+  def loginPageContent( request: RequestHeader): Result = Ok( views.html.login( "loginPageContent"))
 
-  /**
-   * Where to redirect the user after a successful login.
-   */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): Result =
-    Redirect( routes.Application.index())
+  def indexPageContent( request: RequestHeader): Result = Ok( views.html.index( "indexPageContent"))
 
-  /**
-   * Where to redirect the user after a successful login.
-   */
-  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Unauthorized( views.html.login("Logout failed"))
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result =
+    Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
 
-  /**
-   * Where to redirect the user after logging out
-   */
-  def logoutSucceeded(request: RequestHeader): Result = Ok( "logoutSucceeded")
+  def redirectToIndex(request: RequestHeader, authToken: String): Result =
+    Redirect( routes.Application.index)
 
-  /**
-   * Where to redirect the user after logging out
-   */
-  def logoutFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Logout failed"))
+  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result =
+    Unauthorized(  Json.toJson( loginFailure))
 
-  /**
-   * If the user is not logged in and tries to access a protected resource then redirect them as follows:
-   */
-  def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
-  //Unauthorized( "unauthorized!")
+  def logoutSuccess(request: RequestHeader): PlainResult =
+    Ok( Json.obj( "success" -> true))
 
-  /**
-   * Where to redirect the user when a request is invalid (no authToken)
-   */
-  def loginInvalid(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
+  def logoutFailure(request: RequestHeader): PlainResult =
+    Unauthorized( Json.obj( "error" -> ConnectionStatus.AUTHTOKEN_UNRECOGNIZED))
 
+  def authenticationFailed(request: RequestHeader, status: ConnectionStatus): Result =
+    Unauthorized( Json.obj( "error" -> status))
+
+  def loginJsError(request: RequestHeader, error: JsError): Result =
+    BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
 }

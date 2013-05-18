@@ -26,10 +26,10 @@ trait AuthenticationImpl extends Authentication {
 
   type LoginData = ServiceManagerActor.LoginRequest
   //type LoginSuccess = ServiceManagerActor.LoginSuccess
-  type LoginFailure = ServiceManagerActor.LoginFailure
+  type AuthenticationFailure = ServiceManagerActor.AuthenticationFailure
   type AuthenticatedService = ServiceManagerActor.AuthenticatedService
   type ServiceFailure = ServiceManagerActor.ServiceFailure
-  def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation = AuthTokenLocation.COOKIE
+  def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
   def loginDataReads: Reads[LoginRequest] = (
@@ -37,11 +37,11 @@ trait AuthenticationImpl extends Authentication {
       (__ \ "password").read[String]
     )(LoginRequest.apply _)
 
-  def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]] = {
+  def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
     Logger.debug( "loginFuture: " + l)
     (connectionManagerActor ? l).map {
       case authToken: String => Right( authToken)
-      case LoginFailure( message) => Left( LoginFailure( message))
+      case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
     }
   }
 
@@ -59,29 +59,28 @@ def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, 
   }
 
 
-  def presentLogin( request: RequestHeader): Result = Ok( "presentLogin")
+  def loginPageContent( request: RequestHeader): Result = Ok( "loginPageContent")
+  def indexPageContent( request: RequestHeader): Result = Ok( "indexPageContent")
 
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginSucceeded(request: RequestHeader, authToken: String /*, service: AuthenticatedService */): Result =
-    Redirect( routes.Application.index())
-
+  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
-   * Where to redirect the user after a successful login.
+   * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginFailed(request: RequestHeader, loginFailure: LoginFailure): Result = Unauthorized( views.html.login("Logout failed"))
+  def loginJsError(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutSucceeded(request: RequestHeader): Result = Ok( "logoutSucceeded")
+  def logoutSuccess(request: RequestHeader): PlainResult = Ok( "logoutSuccess")
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Logout failed"))
+  def logoutFailure(request: RequestHeader): PlainResult = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
@@ -89,22 +88,18 @@ def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, 
   def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
   //Unauthorized( "unauthorized!")
 
-  /**
-   * Where to redirect the user when a request is invalid (no authToken)
-   */
-  def loginInvalid(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
 
   def AuthenticatedAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
     Action { request =>
       Async {
-        authenticateRequest( request, authTokenLocationForAlreadyLoggedIn).map {
+        authenticateRequest( request, authTokenLocation).map {
           case Some( ( token, service)) =>
-            Logger.debug( "AuthenticatedAction authenticateRequest authenticated")
+            Logger.debug( "AuthenticatedAJaxAction authenticateRequest authenticated")
             f( request, service)
           case None =>
             // No authToken found or invalid authToken
-            Logger.debug( "AuthenticatedAction authenticationFailed (because no authToken or invalid authToken)")
+            Logger.debug( "AuthenticatedAJaxAction authenticationFailed (because no authToken or invalid authToken)")
             // TODO: how about this: Unauthorized( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
             authenticationFailed( request)
         }

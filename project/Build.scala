@@ -25,6 +25,7 @@ object ApplicationBuild extends Build {
     crossScalaVersions := Seq("2.10.0"),
     organization       := "org.totalgrid",
     scalacOptions += "-feature", // show compiler warnings for language features
+    scalacOptions += "-unchecked", // compiler warnings for type aliases and ???
     resolvers += "scala-tools" at "http://repo.typesafe.com/typesafe/scala-tools-releases-cache",
     credentials += Credentials( Path.userHome / ".ivy2" / ".credentials"),
     resolvers += "totalgrid-snapshot" at totalGridSnapshot,

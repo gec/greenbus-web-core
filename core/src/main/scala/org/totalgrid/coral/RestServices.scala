@@ -22,7 +22,7 @@ import play.api.mvc._
 import play.api.Logger
 import scala.Some
 import play.api.libs.json._
-import org.totalgrid.reef.client.service.proto.Model.Entity
+import org.totalgrid.reef.client.service.proto.Model.{Point, Entity}
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.collection.JavaConversions._
 import scala.Some
@@ -30,27 +30,26 @@ import scala.Some
 
 trait RestServices extends ReefAuthentication {
   self: Controller =>
+  import JsonFormatters._
 
-  implicit val entityWrites = new Writes[Entity] {
-    def writes( o: Entity): JsValue = {
-      Json.obj(
-        "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "types" -> o.getTypesList.toList
-      )
-    }
-  }
-
-  def getEntities( types: List[String]) = AuthenticatedAction { (request, service) =>
-    Logger.info( "GET /entities")
-
+  def getEntities( types: List[String]) = UnauthenticatedAjaxAction { (request, service) =>
     val entities = types.length match {
       case 0 => service.getEntities().await()
       case _ => service.getEntitiesWithTypes( types).await()
     }
-    Logger.info( "GET /entities count: " + entities.length)
-
     Ok( Json.toJson( entities))
+  }
+
+  def getPoints = UnauthenticatedAjaxAction { (request, service) =>
+    Ok( Json.toJson( service.getPoints().await()))
+  }
+
+  def getCommands = UnauthenticatedAjaxAction { (request, service) =>
+    Ok( Json.toJson( service.getCommands().await()))
+  }
+
+  def getCommand( name: String) = UnauthenticatedAjaxAction { (request, service) =>
+    Ok( Json.toJson( service.getCommandByName( name).await()))
   }
 
 }

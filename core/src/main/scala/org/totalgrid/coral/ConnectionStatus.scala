@@ -19,6 +19,7 @@
 package org.totalgrid.coral
 
 import play.api.mvc.Results
+import play.api.libs.json.{Json, JsValue, Writes}
 
 object ConnectionStatus extends Enumeration {
   type ConnectionStatus = ConnectionStatusVal
@@ -33,9 +34,21 @@ object ConnectionStatus extends Enumeration {
   val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false, Results.ServiceUnavailable)
   val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToken not recognized by application server.", false, Results.Unauthorized)
 
-  class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean, val httpResults: Results.Status) extends Val(nextId, name)  {
+  class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean, val httpResults: Results.Status) extends Val(nextId, name) with Pushable[ConnectionStatusVal] {
     // This is not required for Scala 2.10
     override def compare(that: Value): Int = id - that.id
   }
   protected final def Value(name: String, description: String, reinitializing: Boolean, httpResults: Results.Status): ConnectionStatusVal = new ConnectionStatusVal(name, description, reinitializing, httpResults)
+
+
+  implicit val connectionStatusWrites = new Writes[ConnectionStatus] {
+    def writes( o: ConnectionStatus): JsValue = {
+      Json.obj(
+        "name" -> o.toString,
+        "description" -> o.description,
+        "reinitializing" -> o.reinitializing
+      )
+    }
+  }
+
 }

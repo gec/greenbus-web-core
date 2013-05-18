@@ -163,7 +163,7 @@ function PointControl($rootScope, $scope, reef) {
         { name: "Points" }
     ];
 
-    reef.get( "/point", "points", $scope);
+    reef.get( "/points", "points", $scope);
 }
 
 function PointDetailControl($rootScope, $scope, $routeParams, reef) {
@@ -186,7 +186,7 @@ function CommandControl($rootScope, $scope, reef) {
         { name: "Commands" }
     ];
 
-    reef.get( "/command", "commands", $scope);
+    reef.get( "/commands", "commands", $scope);
 }
 
 function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
@@ -199,7 +199,7 @@ function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
         { name: commandName }
     ];
 
-    reef.get( '/command/' + commandName, "command", $scope);
+    reef.get( '/commands/' + commandName, "command", $scope);
 }
 
 function MeasurementControl($rootScope, $scope, $filter, reef) {

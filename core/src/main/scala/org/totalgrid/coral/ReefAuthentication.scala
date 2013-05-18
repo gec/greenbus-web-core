@@ -26,13 +26,13 @@ import play.api.libs.concurrent.Akka
 import play.api.Play.current
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
-import scala.Some
 
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
+import scala.Some
 
 
 trait ReefAuthentication extends Authentication {
@@ -40,25 +40,34 @@ trait ReefAuthentication extends Authentication {
 
   import AuthTokenLocation._
   import ReefServiceManagerActor._
+  import org.totalgrid.coral.ConnectionStatus._
 
   type LoginData = ReefServiceManagerActor.LoginRequest
   //type LoginSuccess = ReefServiceManagerActor.LoginSuccess
-  type LoginFailure = ReefServiceManagerActor.LoginFailure
+  type AuthenticationFailure = ReefServiceManagerActor.AuthenticationFailure
   type ServiceFailure = ReefServiceManagerActor.ServiceFailure
   type AuthenticatedService = AllScadaService
-  def authTokenLocationForAlreadyLoggedIn : AuthTokenLocation = AuthTokenLocation.COOKIE
+  type UnauthenticatedService = AllScadaService
+  def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
+
+  /**
+   * If the user is not logged in and tries to access a protected resource:
+   */
+  def authenticationFailed(request: RequestHeader, status: ConnectionStatus): Result
+
+
 
   def loginDataReads: Reads[LoginRequest] = (
     (__ \ "userName").read[String] and
       (__ \ "password").read[String]
     )(LoginRequest.apply _)
 
-  def loginFuture( l: LoginData) : Future[Either[LoginFailure, String]] = {
+  def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
     Logger.debug( "loginFuture: " + l)
     (connectionManagerActor ? l).map {
       case authToken: String => Right( authToken)
-      case LoginFailure( message) => Left( LoginFailure( message))
+      case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
     }
   }
 
@@ -68,16 +77,25 @@ trait ReefAuthentication extends Authentication {
   }
 
   def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, AuthenticatedService]] = {
-    Logger.error( "ReefAuthentication.getAuthenticatedService " + authToken)
-    (connectionManagerActor ? ServiceRequest( authToken)).map {
-      case service: AuthenticatedService => Right( service)
-      case failure: ServiceFailure => Left( failure)
+    Logger.debug( "ReefAuthentication.getAuthenticatedService " + authToken)
+    (connectionManagerActor ? AuthenticatedServiceRequest( authToken)).map {
+      case service: AllScadaService => Right( service)
+      case failure: ReefServiceManagerActor.ServiceFailure => Left( failure)
       case unknownMessage: AnyRef => {
         Logger.error( "ReefAuthentication.getAuthenticatedService AnyRef unknown message " + unknownMessage)
         Left( ServiceFailure( ConnectionStatus.REEF_FAILURE))
       }
-      case unknownMessage: Any => {
-        Logger.error( "ReefAuthentication.getAuthenticatedService Any unknown message " + unknownMessage)
+
+    }
+  }
+
+  def getUnauthenticatedService( authToken: String) : Future[Either[ServiceFailure, UnauthenticatedService]] = {
+    Logger.debug( "ReefAuthentication.getUnauthenticatedService " + authToken)
+    (connectionManagerActor ? UnauthenticatedServiceRequest( authToken)).map {
+      case service: AllScadaService => Right( service)
+      case failure: ReefServiceManagerActor.ServiceFailure => Left( failure)
+      case unknownMessage: AnyRef => {
+        Logger.error( "ReefAuthentication.getUnauthenticatedService AnyRef unknown message " + unknownMessage)
         Left( ServiceFailure( ConnectionStatus.REEF_FAILURE))
       }
 
@@ -86,18 +104,68 @@ trait ReefAuthentication extends Authentication {
 
 
 
-  def AuthenticatedAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
+  def AuthenticatedPageAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
     Action { request =>
+      Logger.info( "AuthenticatedPageAction: " + request)
       Async {
-        authenticateRequest( request, authTokenLocationForAlreadyLoggedIn).map {
-          case Some( ( token, service)) =>
-            Logger.debug( "AuthenticatedAction authenticateRequest authenticated")
-            f( request, service)
+        authenticateRequest( request, authTokenLocation).map {
+          case Some( ( authToken, service)) =>
+            Logger.debug( "AuthenticatedPageAction authenticateRequest authenticated")
+            try {
+              f( request, service)
+                .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
+            } catch {
+              case ex: org.totalgrid.reef.client.exception.UnauthorizedException => redirectToLogin( request, AuthenticationFailure(AUTHENTICATION_FAILURE))
+              case ex: org.totalgrid.reef.client.exception.ReefServiceException => redirectToLogin( request, AuthenticationFailure(REEF_FAILURE))
+            }
           case None =>
             // No authToken found or invalid authToken
-            Logger.debug( "AuthenticatedAction authenticationFailed (because no authToken or invalid authToken)")
-            // TODO: how about this: Unauthorized( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
-            authenticationFailed( request)
+            Logger.debug( "AuthenticatedPageAction redirectToLogin (because no authToken or invalid authToken)")
+            redirectToLogin( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
+        }
+      }
+    }
+  }
+
+  def AuthenticatedAJaxAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
+    Action { request =>
+      Logger.info( "AuthenticatedAjaxAction: " + request)
+      Async {
+        authenticateRequest( request, authTokenLocation).map {
+          case Some( ( token, service)) =>
+            Logger.debug( "AuthenticatedAJaxAction authenticateRequest authenticated")
+            try {
+              f( request, service)
+            } catch {
+              case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailed( request, AUTHENTICATION_FAILURE)
+              case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailed( request, REEF_FAILURE)
+            }
+          case None =>
+            // No authToken found or invalid authToken
+            Logger.debug( "AuthenticatedAJaxAction authenticationFailed (because no authToken or invalid authToken)")
+            authenticationFailed( request, AUTHENTICATION_FAILURE)
+        }
+      }
+    }
+  }
+
+  def UnauthenticatedAjaxAction( f: (Request[AnyContent], UnauthenticatedService) => Result): Action[AnyContent] = {
+    Action { request =>
+      Logger.info( "UnauthenticatedAjaxAction: " + request)
+      Async {
+        partiallyAuthenticateRequest( request, authTokenLocation).map {
+          case Some( ( token, service)) =>
+            Logger.debug( "UnauthenticatedAJaxAction authenticateRequest authenticated")
+            try {
+              f( request, service)
+            } catch {
+              case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailed( request, AUTHENTICATION_FAILURE)
+              case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailed( request, REEF_FAILURE)
+            }
+          case None =>
+            // No authToken found or invalid authToken
+            Logger.debug( "UnauthenticatedAJaxAction authenticationFailed (because no authToken or invalid authToken)")
+            authenticationFailed( request, AUTHENTICATION_FAILURE)
         }
       }
     }

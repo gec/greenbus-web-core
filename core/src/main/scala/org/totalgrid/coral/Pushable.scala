@@ -16,23 +16,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
+package org.totalgrid.coral
 
-import play.api._
-import play.api.mvc._
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import scala.concurrent.Future
-import org.totalgrid.coral._
+import play.api.libs.json.{Json, JsValue, Writes}
 
-//object Application extends Controller with AuthenticationImpl {
-object Application extends Controller with ReefAuthenticationImpl with RestServices {
-  import ServiceManagerActor._
-
-  def index = AuthenticatedPageAction { (request, service) =>
-    Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
+/**
+ *
+ * @author Flint O'Brien
+ */
+trait Pushable[T] { self: T =>
+  private val pushWriter = new Writes[T] {
+    def writes( m: T): JsValue = {
+      Json.obj(
+        "type" -> m.getClass.getSimpleName//,
+        //"data" -> m
+      )
+    }
   }
 
-
+  def push = pushWriter.writes( self)
 }
+
+

@@ -47,7 +47,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     var redirectLocation = $location.path();
     console.log( "ReefService: redirectLocation 1 =" + redirectLocation)
     if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
-        redirectLocation = "/#/entity"
+        redirectLocation = "/" // /#/entity"
     console.log( "ReefService: redirectLocation 2 =" + redirectLocation)
 
 
@@ -134,9 +134,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     }
 
 
-    var authToken = $cookies.authToken;
+    var authTokenName = "coralAuthToken"
+    var authToken = $cookies[authTokenName];
     if( authToken && authToken.length > 5) {
-        console.log( "found authToken: " + authToken)
+        console.log( "found " + authTokenName + "=" + authToken)
         // Let's assume, for now, that we already logged in and have a valid authToken.
         setStatus( {
             status: "UP",
@@ -146,7 +147,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         //webSocket = makeWebSocket( authToken)
     } else {
-        console.log( "no authToken")
+        console.log( "no " + authTokenName)
     }
 
 
@@ -195,18 +196,18 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                     // Shouldn't get here.
                     errorListener( json.error)
                 } else {
-                    authToken = json.authToken;
-                    console.log( "login successful")
+                    authToken = json[authTokenName];
+                    console.log( "login successful with " + authTokenName + "=" + authToken)
                     setStatus( {
                         status: "UP",
                         reinitializing: false,
                         description: ""
                     })
-                    $cookies.authToken = authToken
-                    console.log( "login success, setting cookie, redirectLocation: '" + redirectLocation + "'")
+                    $cookies[authTokenName] = authToken
+                    console.log( "login success, setting cookie, redirectLocation: '/#' + '" + redirectLocation + "'")
                     if( redirectLocation)
                         //$location.path( redirectLocation)
-                        window.location.href = redirectLocation
+                        window.location.href = "/#" + redirectLocation
                     else
                         window.location.href = "/#/entity"
                 }
@@ -236,9 +237,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     }
 
     self.logout = function( userName, password, errorListener) {
-        //console.log( "reef.login);
+        console.log( "reef.logout")
         httpConfig.headers = {'Authorization': authToken}
-        $http.get( "/logout", httpConfig).
+        $http.delete( "/login", httpConfig).
             success(function(json) {
                 if( json.error) {
                     // Shouldn't get here.
@@ -253,7 +254,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                         description: ""
                     })
                     authToken = null
-                    delete( $cookies.authToken)
+                    delete $cookies[authTokenName]
                     window.location.href = "/login"
                 }
             }).
