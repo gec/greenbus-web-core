@@ -17,12 +17,15 @@ import akka.util.Timeout
 
 import org.totalgrid.coral.Authentication
 
+import scala.Some
+
 
 trait AuthenticationImpl extends Authentication {
   self: Controller =>
 
   import AuthTokenLocation._
   import ServiceManagerActor._
+  import org.totalgrid.coral.ValidationTiming._
 
   type LoginData = ServiceManagerActor.LoginRequest
   //type LoginSuccess = ServiceManagerActor.LoginSuccess
@@ -52,8 +55,8 @@ trait AuthenticationImpl extends Authentication {
 
 //  def getAuthenticatedService( authToken: String) : Future[Option[ AuthenticatedService]] =
 //    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ AuthenticatedService]]]
-def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, AuthenticatedService]] =
-  (connectionManagerActor ? ServiceRequest( authToken)).map {
+def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceFailure, AuthenticatedService]] =
+  (connectionManagerActor ? ServiceRequest( authToken, validationTiming)).map {
     case AuthenticatedService( name, authToken) => Right( AuthenticatedService( name, authToken))
     case ServiceFailure( message) => Left( ServiceFailure( message))
   }
@@ -93,7 +96,7 @@ def getAuthenticatedService( authToken: String) : Future[Either[ServiceFailure, 
   def AuthenticatedAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
     Action { request =>
       Async {
-        authenticateRequest( request, authTokenLocation).map {
+        authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
           case Some( ( token, service)) =>
             Logger.debug( "AuthenticatedAJaxAction authenticateRequest authenticated")
             f( request, service)

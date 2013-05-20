@@ -30,7 +30,7 @@ trait RestServices extends ReefAuthentication {
   self: Controller =>
   import JsonFormatters._
 
-  def getEntities( types: List[String]) = UnauthenticatedAjaxAction { (request, service) =>
+  def getEntities( types: List[String]) = ReefServiceAction { (request, service) =>
     val entities = types.length match {
       case 0 => service.getEntities().await()
       case _ => service.getEntitiesWithTypes( types).await()
@@ -38,15 +38,15 @@ trait RestServices extends ReefAuthentication {
     Ok( Json.toJson( entities))
   }
 
-  def getPoints = UnauthenticatedAjaxAction { (request, service) =>
+  def getPoints = ReefServiceAction { (request, service) =>
     Ok( Json.toJson( service.getPoints().await()))
   }
 
-  def getCommands = UnauthenticatedAjaxAction { (request, service) =>
+  def getCommands = ReefServiceAction { (request, service) =>
     Ok( Json.toJson( service.getCommands().await()))
   }
 
-  def getCommand( name: String) = UnauthenticatedAjaxAction { (request, service) =>
+  def getCommand( name: String) = ReefServiceAction { (request, service) =>
     Ok( Json.toJson( service.getCommandByName( name).await()))
   }
 

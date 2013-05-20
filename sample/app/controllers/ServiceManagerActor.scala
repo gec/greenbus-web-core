@@ -22,13 +22,17 @@ import play.api.Logger
 import akka.util.Timeout
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
-import scala.language.postfixOps  // for 'seconds'
+import scala.language.postfixOps
+import scala.Some
+
+// for 'seconds'
 import akka.actor.{Props, Actor}
 import play.api.libs.concurrent.Akka
 import play.api.Play.current
 
 
 object ServiceManagerActor {
+  import org.totalgrid.coral.ValidationTiming._
 
   case class AuthenticatedService( name: String, authToken: String)
 
@@ -37,7 +41,7 @@ object ServiceManagerActor {
   case class LoginSuccess( authToken: String, service: AuthenticatedService)
   case class LogoutRequest( authToken: String)
 
-  case class ServiceRequest( authToken: String)
+  case class ServiceRequest( authToken: String, validationTiming: ValidationTiming)
   case class ServiceFailure( message: String)
 
   implicit val timeout = Timeout(2 seconds)
@@ -64,7 +68,7 @@ class ServiceManagerActor extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceRequest( authToken) =>
+    case ServiceRequest( authToken, validationTiming) =>
       authTokenToServiceMap.get( authToken) match {
         case Some( service) => sender ! service
         case _ => sender ! ServiceFailure( "no service for authToken: '" + authToken + "'")

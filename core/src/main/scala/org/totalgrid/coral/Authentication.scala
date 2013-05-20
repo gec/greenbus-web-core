@@ -53,6 +53,7 @@ import play.api.mvc.Cookie
 trait Authentication {
 
   self: Controller =>
+  import ValidationTiming._
 
   object AuthTokenLocation extends Enumeration {
     type AuthTokenLocation = Value
@@ -69,7 +70,6 @@ trait Authentication {
   type LoginData
   type AuthenticationFailure
   type AuthenticatedService
-  type UnauthenticatedService
   type ServiceFailure
   def authTokenName = "coralAuthToken" // Used for cookie and JSON reply
   def authTokenCookieMaxAge = Some( (5 minutes).toSeconds.toInt)
@@ -79,20 +79,19 @@ trait Authentication {
   def logout( authToken: String) : Boolean
 
   /**
-   * Get a fully authenticated service. A service call is made to verify the authToken is valid.
+   * Get a service. A service call is made to verify the authToken is valid.
    *
    * Since this is an extra round trip call to the service, it should only be used when it's
    * absolutely necessary to validate the authToken -- like when first showing the index page.
+   *
+   *
+   * @param authToken
+   * @param validationTiming
+   * @return
+   *
+   * @see ValidationTiming
    */
-  def getAuthenticatedService( authToken: String) : Future[ Either[ServiceFailure, AuthenticatedService]]
-
-  /**
-   * Get a service that contains the specified authToken but may be invalid. This forgoes
-   * a service validation call for a request that is likely valid. If the service is, in fact,
-   * not valid, the service request will through an exception.
-   */
-  def getUnauthenticatedService( authToken: String) : Future[ Either[ServiceFailure, UnauthenticatedService]]
-
+  def getService( authToken: String, validationTiming: ValidationTiming) : Future[ Either[ServiceFailure, AuthenticatedService]]
 
   /**
    * Return the login page content
@@ -159,7 +158,7 @@ trait Authentication {
 
     Logger.debug( "getLoginOrAlreadyLoggedIn: " + authTokenLocation.toString)
     Async {
-      authenticateRequest( request, authTokenLocation).map {
+      authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
         case Some( ( token, service)) =>
           Logger.debug( "getLoginPage authenticateRequest redirectToIndex")
           redirectToIndex( request, token)
@@ -210,38 +209,18 @@ trait Authentication {
   }
 
   /**
-   * Authenticate the request by using the authToken to get a service and make a call on the service.
+   * Authenticate the request by using the authToken.
    */
-  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Future[ Option[ (String, AuthenticatedService)]] = {
+  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, AuthenticatedService)]] = {
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
-        Logger.debug( "authenticateRequest authToken: " + authToken)
-        getAuthenticatedService( authToken).map {
+        Logger.debug( "authenticateRequest authToken: " + authToken + " validationTiming: " + validationTiming)
+        getService( authToken, validationTiming).map {
           case Right( service) =>
             Logger.debug( "authenticateRequest response authToken: " + authToken + ", service: " + service)
             Some( ( authToken, service))
           case Left( failure) =>
             Logger.debug( "authenticateRequest response None " + failure)
-            None
-        }
-      case None => Future(None)
-    }
-  }
-
-  /**
-   * Authenticate the request only to the extent they there is an authToken in the header.
-   * When a call is made on the service, it may fail with invalid.
-   */
-  def partiallyAuthenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation) : Future[ Option[ (String, UnauthenticatedService)]] = {
-    getAuthToken( request, authTokenLocation) match {
-      case Some( authToken) =>
-        Logger.debug( "partiallyAuthenticateRequest authToken: " + authToken)
-        getUnauthenticatedService( authToken).map {
-          case Right( service) =>
-            Logger.debug( "partiallyAuthenticateRequest response authToken: " + authToken + ", service: " + service)
-            Some( ( authToken, service))
-          case Left( failure) =>
-            Logger.debug( "partiallyAuthenticateRequest response None " + failure)
             None
         }
       case None => Future(None)

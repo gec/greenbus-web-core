@@ -40,13 +40,14 @@ import play.api.Play.current
 
 object ReefServiceManagerActor {
   import ConnectionStatus._
+  import ValidationTiming._
 
   case class LoginRequest( userName: String, password: String)
   case class AuthenticationFailure( status: ConnectionStatus)
   case class LogoutRequest( authToken: String)
 
-  case class UnauthenticatedServiceRequest( authToken: String)
-  case class AuthenticatedServiceRequest( authToken: String)
+  case class ProvisionallyAuthenticatedServiceRequest( authToken: String)
+  case class ServiceRequest( authToken: String, validationTiming: ValidationTiming)
   case class ServiceFailure( status: ConnectionStatus)
 
 
@@ -77,6 +78,7 @@ object ReefServiceManagerActor {
 class ReefServiceManagerActor extends Actor {
   import ReefServiceManagerActor._
   import ConnectionStatus._
+  import ValidationTiming._
 
   var connectionStatus: ConnectionStatus = INITIALIZING
   var connection: Option[Connection] = None
@@ -90,8 +92,7 @@ class ReefServiceManagerActor extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case AuthenticatedServiceRequest( authToken) => authenticatedServiceRequest( authToken)
-    case UnauthenticatedServiceRequest( authToken) => authenticatedServiceRequest( authToken)
+    case ServiceRequest( authToken, validation) => serviceRequest( authToken, validation)
 
     case unknownMessage: AnyRef => Logger.error( "ReefServiceManagerActor.receive: Unknown message " + unknownMessage)
   }
@@ -151,10 +152,10 @@ class ReefServiceManagerActor extends Actor {
    * Since this is an extra round trip call to the service, it should only be used when it's
    * absolutely necessary to validate the authToken -- like when first showing the index page.
    */
-  def authenticatedServiceRequest( authToken: String): Unit = {
+  def serviceRequest( authToken: String, validation: ValidationTiming): Unit = {
 
     if( connectionStatus != AMQP_UP) {
-      Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest AMQP is not UP: " + connectionStatus)
+      Logger.debug( "ReefServiceManagerActor.serviceRequest AMQP is not UP: " + connectionStatus)
       sender ! ServiceFailure( connectionStatus)
       return
     }
@@ -176,49 +177,27 @@ class ReefServiceManagerActor extends Actor {
 
       try {
         val service = client.get.getService(classOf[AllScadaService])
-        service.findEntityByName("Just checking if this service is authorized.").await()
+        if( validation == PREVALIDATED)
+          service.findEntityByName("Just checking if this service is authorized.").await()
         //authTokenToServiceMap +=  (authToken -> service)
         sender ! service
       }  catch {
         case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-          Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest( " + authToken + "): UnauthorizedException " + ex)
+          Logger.debug( "ReefServiceManagerActor.serviceRequest( " + authToken + "): UnauthorizedException " + ex)
           sender ! ServiceFailure( AUTHENTICATION_FAILURE)
         }
         case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-          Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest( " + authToken + "): ReefServiceException " + ex)
+          Logger.debug( "ReefServiceManagerActor.serviceRequest( " + authToken + "): ReefServiceException " + ex)
           sender ! ServiceFailure( REEF_FAILURE)
         }
         case ex: Throwable => {
-          Logger.error( "ReefServiceManagerActor.authenticatedServiceRequest( " + authToken + "): Throwable " + ex)
+          Logger.error( "ReefServiceManagerActor.serviceRequest( " + authToken + "): Throwable " + ex)
           sender ! ServiceFailure( REEF_FAILURE)
         }
       }
 
     } else {
-      Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest failure: " + status)
-      sender ! ServiceFailure( status)
-    }
-  }
-
-  /**
-   * Get a service that contains the specified authToken but may be invalid.
-   */
-  def unauthenticatedServiceRequest( authToken: String): Unit = {
-
-    if( connectionStatus != AMQP_UP) {
-      Logger.debug( "ReefServiceManagerActor.unauthenticatedServiceRequest AMQP is not UP: " + connectionStatus)
-      sender ! ServiceFailure( connectionStatus)
-      return
-    }
-
-    val (status, client) = getReefClient( authToken)
-
-    if( status == UP & client.isDefined) {
-      val service = client.get.getService(classOf[AllScadaService])
-      Logger.debug( "ReefServiceManagerActor.unauthenticatedServiceRequest with " + authToken)
-      sender ! service
-    } else {
-      Logger.debug( "ReefServiceManagerActor.unauthenticatedServiceRequest failure: " + status)
+      Logger.debug( "ReefServiceManagerActor.serviceRequest failure: " + status)
       sender ! ServiceFailure( status)
     }
   }
