@@ -20,7 +20,17 @@ package controllers
 
 import play.api.mvc._
 import play.api.libs.json.{JsObject, JsError, Json}
+import play.api.Play.current
 import org.totalgrid.coral.controllers.ReefAuthentication
+import play.api.libs.concurrent.Akka
+import akka.actor.{ActorRef, Props}
+import org.totalgrid.coral.ReefConnectionManager
+
+object ReefAuthenticationImpl {
+
+  lazy val reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManager])
+}
+
 
 /**
  *
@@ -29,6 +39,8 @@ import org.totalgrid.coral.controllers.ReefAuthentication
 trait ReefAuthenticationImpl extends ReefAuthentication {
   self: Controller =>
   import org.totalgrid.coral.ConnectionStatus._
+
+  def reefConnectionManager: ActorRef = ReefAuthenticationImpl.reefConnectionManager;
 
   def loginPageContent( request: RequestHeader): Result = Ok( views.html.login( "loginPageContent"))
 
