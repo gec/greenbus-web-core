@@ -16,7 +16,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.totalgrid.coral
+package org.totalgrid.coral.controllers
 
 import play.api.Logger
 import play.api.mvc._
@@ -33,6 +33,27 @@ import akka.util.Timeout
 
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import scala.Some
+import org.totalgrid.coral.{ConnectionStatus, ReefServiceManagerActor, Authentication}
+import scala.Some
+import play.api.mvc.Cookie
+import org.totalgrid.coral.ReefServiceManagerActor._
+import scala.Some
+import play.api.mvc.Cookie
+import scala.Some
+import play.api.mvc.Cookie
+import scala.Some
+import play.api.mvc.Cookie
+import scala.Some
+import play.api.mvc.Cookie
+import scala.Some
+import play.api.mvc.Cookie
+import org.totalgrid.coral.ReefServiceManagerActor.LoginRequest
+import org.totalgrid.coral.ReefServiceManagerActor.LogoutRequest
+import scala.Some
+import org.totalgrid.coral.ReefServiceManagerActor.AuthenticatedServiceRequest
+import play.api.mvc.Cookie
+import org.totalgrid.coral.ReefServiceManagerActor.AuthenticationFailure
+import org.totalgrid.coral.ReefServiceManagerActor.ServiceFailure
 
 
 trait ReefAuthentication extends Authentication {

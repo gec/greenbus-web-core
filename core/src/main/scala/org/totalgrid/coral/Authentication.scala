@@ -87,7 +87,9 @@ trait Authentication {
   def getAuthenticatedService( authToken: String) : Future[ Either[ServiceFailure, AuthenticatedService]]
 
   /**
-   * Get a service that contains the specified authToken but may be invalid.
+   * Get a service that contains the specified authToken but may be invalid. This forgoes
+   * a service validation call for a request that is likely valid. If the service is, in fact,
+   * not valid, the service request will through an exception.
    */
   def getUnauthenticatedService( authToken: String) : Future[ Either[ServiceFailure, UnauthenticatedService]]
 

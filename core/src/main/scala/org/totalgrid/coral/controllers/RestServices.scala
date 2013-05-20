@@ -16,16 +16,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.totalgrid.coral
+package org.totalgrid.coral.controllers
 
 import play.api.mvc._
 import play.api.Logger
-import scala.Some
 import play.api.libs.json._
-import org.totalgrid.reef.client.service.proto.Model.{Point, Entity}
-import scala.concurrent.ExecutionContext.Implicits._
-import scala.collection.JavaConversions._
-import scala.Some
+//import scala.concurrent.ExecutionContext.Implicits._
+//import scala.collection.JavaConversions._
+import org.totalgrid.coral.JsonFormatters
 
 
 trait RestServices extends ReefAuthentication {

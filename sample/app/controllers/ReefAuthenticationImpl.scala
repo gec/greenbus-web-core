@@ -20,7 +20,7 @@ package controllers
 
 import play.api.mvc._
 import play.api.libs.json.{JsObject, JsError, Json}
-import org.totalgrid.coral.{ConnectionStatus, ReefAuthentication}
+import org.totalgrid.coral.controllers.ReefAuthentication
 
 /**
  *
@@ -47,7 +47,7 @@ trait ReefAuthenticationImpl extends ReefAuthentication {
     Ok( Json.obj( "success" -> true))
 
   def logoutFailure(request: RequestHeader): PlainResult =
-    Unauthorized( Json.obj( "error" -> ConnectionStatus.AUTHTOKEN_UNRECOGNIZED))
+    Unauthorized( Json.obj( "error" -> AUTHTOKEN_UNRECOGNIZED))
 
   def authenticationFailed(request: RequestHeader, status: ConnectionStatus): Result =
     Unauthorized( Json.obj( "error" -> status))
