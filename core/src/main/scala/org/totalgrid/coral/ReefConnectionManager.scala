@@ -37,7 +37,6 @@ import akka.actor.{Props, Actor}
 import play.api.libs.concurrent.Akka
 import play.api.Play.current
 
-
 object ReefConnectionManager {
   import ConnectionStatus._
   import ValidationTiming._

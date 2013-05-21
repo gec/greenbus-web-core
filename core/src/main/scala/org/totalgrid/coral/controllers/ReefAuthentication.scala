@@ -22,52 +22,25 @@ import play.api.Logger
 import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.libs.concurrent.Akka
-import play.api.Play.current
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
-
 import akka.actor._
 import akka.pattern.ask
-import akka.util.Timeout
-
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
-import scala.Some
-import org.totalgrid.coral.{ConnectionStatus, ReefServiceManagerActor, Authentication}
-import scala.Some
-import play.api.mvc.Cookie
-import org.totalgrid.coral.ReefServiceManagerActor._
-import scala.Some
-import play.api.mvc.Cookie
-import scala.Some
-import play.api.mvc.Cookie
-import scala.Some
-import play.api.mvc.Cookie
-import scala.Some
-import play.api.mvc.Cookie
-import scala.Some
-import play.api.mvc.Cookie
-import org.totalgrid.coral.ReefServiceManagerActor.LoginRequest
-import org.totalgrid.coral.ReefServiceManagerActor.LogoutRequest
-import scala.Some
-import org.totalgrid.coral.ReefServiceManagerActor.ServiceRequest
-import play.api.mvc.Cookie
-import org.totalgrid.coral.ReefServiceManagerActor.AuthenticationFailure
-import org.totalgrid.coral.ReefServiceManagerActor.ServiceFailure
+import org.totalgrid.coral.{ConnectionStatus, ReefConnectionManager, Authentication}
 
 
 trait ReefAuthentication extends Authentication {
   self: Controller =>
 
   import AuthTokenLocation._
-  import ReefServiceManagerActor._
+  import ReefConnectionManager._
   import org.totalgrid.coral.ValidationTiming._
   import org.totalgrid.coral.ConnectionStatus._
 
-  type LoginData = ReefServiceManagerActor.LoginRequest
-  //type LoginSuccess = ReefServiceManagerActor.LoginSuccess
-  type AuthenticationFailure = ReefServiceManagerActor.AuthenticationFailure
-  type ServiceFailure = ReefServiceManagerActor.ServiceFailure
+  type LoginData = ReefConnectionManager.LoginRequest
+  type AuthenticationFailure = ReefConnectionManager.AuthenticationFailure
+  type ServiceFailure = ReefConnectionManager.ServiceFailure
   type AuthenticatedService = AllScadaService
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
@@ -76,6 +49,12 @@ trait ReefAuthentication extends Authentication {
    * If the user is not logged in and tries to access a protected resource:
    */
   def authenticationFailed(request: RequestHeader, status: ConnectionStatus): Result
+
+  /**
+   * Return an ActorRef for ReefServiceManagerActor. This is a singleton object
+   * that manages the Reef connection to AMQP.
+   */
+  def reefConnectionManager: ActorRef
 
 
 
@@ -86,22 +65,22 @@ trait ReefAuthentication extends Authentication {
 
   def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
     Logger.debug( "loginFuture: " + l)
-    (connectionManagerActor ? l).map {
+    (reefConnectionManager ? l).map {
       case authToken: String => Right( authToken)
       case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
     }
   }
 
   def logout( authToken: String) : Boolean = {
-    connectionManagerActor ! LogoutRequest( authToken)
+    reefConnectionManager ! LogoutRequest( authToken)
     true
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceFailure, AuthenticatedService]] = {
     Logger.debug( "ReefAuthentication.getService " + authToken)
-    (connectionManagerActor ? ServiceRequest( authToken, validationTiming)).map {
+    (reefConnectionManager ? ServiceRequest( authToken, validationTiming)).map {
       case service: AllScadaService => Right( service)
-      case failure: ReefServiceManagerActor.ServiceFailure => Left( failure)
+      case failure: ReefConnectionManager.ServiceFailure => Left( failure)
       case unknownMessage: AnyRef => {
         Logger.error( "ReefAuthentication.getService AnyRef unknown message " + unknownMessage)
         Left( ServiceFailure( ConnectionStatus.REEF_FAILURE))
@@ -141,9 +120,7 @@ trait ReefAuthentication extends Authentication {
   }
 
   /**
-   *
-   * @param action
-   * @return
+   * Action for Ajax request.
    */
   def ReefServiceAction( action: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
     Action { request =>
