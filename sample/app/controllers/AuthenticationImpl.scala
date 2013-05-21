@@ -30,8 +30,8 @@ trait AuthenticationImpl extends Authentication {
   type LoginData = ServiceManagerActor.LoginRequest
   //type LoginSuccess = ServiceManagerActor.LoginSuccess
   type AuthenticationFailure = ServiceManagerActor.AuthenticationFailure
-  type AuthenticatedService = ServiceManagerActor.AuthenticatedService
-  type ServiceFailure = ServiceManagerActor.ServiceFailure
+  type ServiceClient = ServiceManagerActor.Client
+  type ServiceClientFailure = ServiceManagerActor.ServiceClientFailure
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -53,12 +53,12 @@ trait AuthenticationImpl extends Authentication {
     true
   }
 
-//  def getAuthenticatedService( authToken: String) : Future[Option[ AuthenticatedService]] =
-//    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ AuthenticatedService]]]
-def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceFailure, AuthenticatedService]] =
-  (connectionManagerActor ? ServiceRequest( authToken, validationTiming)).map {
-    case AuthenticatedService( name, authToken) => Right( AuthenticatedService( name, authToken))
-    case ServiceFailure( message) => Left( ServiceFailure( message))
+//  def getServiceClient( authToken: String) : Future[Option[ ServiceClient]] =
+//    (connectionManagerActor ? ServiceRequest( authToken)).asInstanceOf[Future[Option[ ServiceClient]]]
+def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] =
+  (connectionManagerActor ? ServiceClientRequest( authToken, validationTiming)).map {
+    case Client( name, authToken) => Right( Client( name, authToken))
+    case ServiceClientFailure( message) => Left( ServiceClientFailure( message))
   }
 
 
@@ -93,13 +93,13 @@ def getService( authToken: String, validationTiming: ValidationTiming) : Future[
 
 
 
-  def AuthenticatedAction( f: (Request[AnyContent], AuthenticatedService) => Result): Action[AnyContent] = {
+  def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action { request =>
       Async {
         authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
-          case Some( ( token, service)) =>
+          case Some( ( token, serviceClient)) =>
             Logger.debug( "AuthenticatedAJaxAction authenticateRequest authenticated")
-            f( request, service)
+            f( request, serviceClient)
           case None =>
             // No authToken found or invalid authToken
             Logger.debug( "AuthenticatedAJaxAction authenticationFailed (because no authToken or invalid authToken)")

@@ -69,8 +69,8 @@ trait Authentication {
 
   type LoginData
   type AuthenticationFailure
-  type AuthenticatedService
-  type ServiceFailure
+  type ServiceClient
+  type ServiceClientFailure
   def authTokenName = "coralAuthToken" // Used for cookie and JSON reply
   def authTokenCookieMaxAge = Some( (5 minutes).toSeconds.toInt)
 
@@ -91,7 +91,7 @@ trait Authentication {
    *
    * @see ValidationTiming
    */
-  def getService( authToken: String, validationTiming: ValidationTiming) : Future[ Either[ServiceFailure, AuthenticatedService]]
+  def getService( authToken: String, validationTiming: ValidationTiming) : Future[ Either[ServiceClientFailure, ServiceClient]]
 
   /**
    * Return the login page content
@@ -211,7 +211,7 @@ trait Authentication {
   /**
    * Authenticate the request by using the authToken.
    */
-  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, AuthenticatedService)]] = {
+  def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, ServiceClient)]] = {
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
         Logger.debug( "authenticateRequest authToken: " + authToken + " validationTiming: " + validationTiming)

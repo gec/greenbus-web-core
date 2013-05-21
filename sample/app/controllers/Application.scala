@@ -29,7 +29,7 @@ import org.totalgrid.coral.controllers._
 //object Application extends Controller with AuthenticationImpl {
 object Application extends Controller with ReefAuthenticationImpl with RestServices {
 
-  def index = AuthenticatedPageAction { (request, service) =>
+  def index = AuthenticatedPageAction { (request, client) =>
     Logger.debug( "Application.index")
     Ok(views.html.index("Coral Sample"))
   }

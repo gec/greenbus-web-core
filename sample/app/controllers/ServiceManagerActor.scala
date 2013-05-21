@@ -34,20 +34,20 @@ import play.api.Play.current
 object ServiceManagerActor {
   import org.totalgrid.coral.ValidationTiming._
 
-  case class AuthenticatedService( name: String, authToken: String)
+  case class Client( name: String, authToken: String)
 
   case class LoginRequest( userName: String, password: String)
   case class AuthenticationFailure( message: String)
-  case class LoginSuccess( authToken: String, service: AuthenticatedService)
+  case class LoginSuccess( authToken: String, service: Client)
   case class LogoutRequest( authToken: String)
 
-  case class ServiceRequest( authToken: String, validationTiming: ValidationTiming)
-  case class ServiceFailure( message: String)
+  case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
+  case class ServiceClientFailure( message: String)
 
   implicit val timeout = Timeout(2 seconds)
   val tokenCount = new AtomicInteger()
 
-  private val authTokenToServiceMap = collection.mutable.Map[String, AuthenticatedService]()
+  private val authTokenToServiceMap = collection.mutable.Map[String, Client]()
 
 
   def makeAuthToken = {
@@ -68,10 +68,10 @@ class ServiceManagerActor extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceRequest( authToken, validationTiming) =>
+    case ServiceClientRequest( authToken, validationTiming) =>
       authTokenToServiceMap.get( authToken) match {
         case Some( service) => sender ! service
-        case _ => sender ! ServiceFailure( "no service for authToken: '" + authToken + "'")
+        case _ => sender ! ServiceClientFailure( "no service for authToken: '" + authToken + "'")
       }
 
     case unknownMessage: AnyRef => Logger.error( "AmqpConnectionManagerActor.receive: Unknown message " + unknownMessage)
@@ -85,7 +85,7 @@ class ServiceManagerActor extends Actor {
     else {
       Logger.debug( "ServiceManagerActor.login with " + userName)
       val authToken = makeAuthToken + "." + userName
-      val service = AuthenticatedService( "serviceFor." + userName, authToken)
+      val service = Client( "serviceFor." + userName, authToken)
       authTokenToServiceMap +=  (authToken -> service)
       Logger.debug( "ServiceManagerActor.login successful " + service)
       sender ! authToken

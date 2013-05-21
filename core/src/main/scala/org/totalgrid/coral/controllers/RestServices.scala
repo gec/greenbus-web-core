@@ -21,6 +21,8 @@ package org.totalgrid.coral.controllers
 import play.api.mvc._
 import play.api.Logger
 import play.api.libs.json._
+import org.totalgrid.reef.client.sapi.rpc.{PointService, EntityService, CommandService}
+
 //import scala.concurrent.ExecutionContext.Implicits._
 //import scala.collection.JavaConversions._
 import org.totalgrid.coral.JsonFormatters
@@ -30,7 +32,8 @@ trait RestServices extends ReefAuthentication {
   self: Controller =>
   import JsonFormatters._
 
-  def getEntities( types: List[String]) = ReefServiceAction { (request, service) =>
+  def getEntities( types: List[String]) = ReefClientAction { (request, client) =>
+    val service = client.getService( classOf[EntityService])
     val entities = types.length match {
       case 0 => service.getEntities().await()
       case _ => service.getEntitiesWithTypes( types).await()
@@ -38,15 +41,18 @@ trait RestServices extends ReefAuthentication {
     Ok( Json.toJson( entities))
   }
 
-  def getPoints = ReefServiceAction { (request, service) =>
+  def getPoints = ReefClientAction { (request, client) =>
+    val service = client.getService( classOf[PointService])
     Ok( Json.toJson( service.getPoints().await()))
   }
 
-  def getCommands = ReefServiceAction { (request, service) =>
+  def getCommands = ReefClientAction { (request, client) =>
+    val service = client.getService( classOf[CommandService])
     Ok( Json.toJson( service.getCommands().await()))
   }
 
-  def getCommand( name: String) = ReefServiceAction { (request, service) =>
+  def getCommand( name: String) = ReefClientAction { (request, client) =>
+    val service = client.getService( classOf[CommandService])
     Ok( Json.toJson( service.getCommandByName( name).await()))
   }
 

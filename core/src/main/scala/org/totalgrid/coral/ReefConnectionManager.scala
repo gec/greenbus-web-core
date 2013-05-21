@@ -19,23 +19,19 @@
 package org.totalgrid.coral
 
 import play.api.Logger
+import play.api.libs.json._
+import akka.actor.Actor
 import akka.util.Timeout
-import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import org.totalgrid.reef.client.sapi.rpc.AllScadaService
+import java.io.IOException
+import org.totalgrid.reef.client.sapi.rpc.{EntityService, AllScadaService}
 import org.totalgrid.reef.client.{Connection, Client}
 import org.totalgrid.reef.client.settings.util.PropertyReader
-import java.io.IOException
 import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
-import play.api.libs.json.{Json, JsValue, Writes}
 
-// for 'seconds'
-import akka.actor.{Props, Actor}
-import play.api.libs.concurrent.Akka
-import play.api.Play.current
 
 object ReefConnectionManager {
   import ConnectionStatus._
@@ -46,8 +42,8 @@ object ReefConnectionManager {
   case class LogoutRequest( authToken: String)
 
   case class ProvisionallyAuthenticatedServiceRequest( authToken: String)
-  case class ServiceRequest( authToken: String, validationTiming: ValidationTiming)
-  case class ServiceFailure( status: ConnectionStatus)
+  case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
+  case class ServiceClientFailure( status: ConnectionStatus)
 
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
@@ -62,8 +58,8 @@ object ReefConnectionManager {
   implicit val authenticationFailureWrites = new Writes[AuthenticationFailure] {
     def writes( o: AuthenticationFailure): JsValue = Json.obj( "error" -> o.status)
   }
-  implicit val serviceFailureWrites = new Writes[ServiceFailure] {
-    def writes( o: ServiceFailure): JsValue = Json.obj( "error" -> o.status)
+  implicit val serviceClientFailureWrites = new Writes[ServiceClientFailure] {
+    def writes( o: ServiceClientFailure): JsValue = Json.obj( "error" -> o.status)
   }
 }
 
@@ -89,7 +85,7 @@ class ReefConnectionManager extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceRequest( authToken, validation) => serviceRequest( authToken, validation)
+    case ServiceClientRequest( authToken, validation) => serviceClientRequest( authToken, validation)
 
     case unknownMessage: AnyRef => Logger.error( "ReefServiceManagerActor.receive: Unknown message " + unknownMessage)
   }
@@ -101,7 +97,6 @@ class ReefConnectionManager extends Actor {
     if( status == UP & client.isDefined) {
       val authToken = client.get.getHeaders.getAuthToken
       Logger.debug( "ReefServiceManagerActor.login( " + userName + ") authToken: " + authToken)
-      val service = client.get.getService(classOf[AllScadaService])
       //authTokenToServiceMap +=  (authToken -> service)
       sender ! client.get.getHeaders.getAuthToken
     } else {
@@ -131,11 +126,11 @@ class ReefConnectionManager extends Actor {
    * Since this is an extra round trip call to the service, it should only be used when it's
    * absolutely necessary to validate the authToken -- like when first showing the index page.
    */
-  private def serviceRequest( authToken: String, validation: ValidationTiming): Unit = {
+  private def serviceClientRequest( authToken: String, validation: ValidationTiming): Unit = {
 
     if( connectionStatus != AMQP_UP) {
-      Logger.debug( "ReefServiceManagerActor.serviceRequest AMQP is not UP: " + connectionStatus)
-      sender ! ServiceFailure( connectionStatus)
+      Logger.debug( "ReefServiceManagerActor.serviceClientRequest AMQP is not UP: " + connectionStatus)
+      sender ! ServiceClientFailure( connectionStatus)
       return
     }
 
@@ -155,29 +150,30 @@ class ReefConnectionManager extends Actor {
     if( status == UP & client.isDefined) {
 
       try {
-        val service = client.get.getService(classOf[AllScadaService])
-        if( validation == PREVALIDATED)
+        if( validation == PREVALIDATED) {
+          val service = client.get.getService(classOf[EntityService])
           service.findEntityByName("Just checking if this service is authorized.").await()
+        }
         //authTokenToServiceMap +=  (authToken -> service)
-        sender ! service
+        sender ! client.get
       }  catch {
         case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-          Logger.debug( "ReefServiceManagerActor.serviceRequest( " + authToken + "): UnauthorizedException " + ex)
-          sender ! ServiceFailure( AUTHENTICATION_FAILURE)
+          Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
+          sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
         }
         case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-          Logger.debug( "ReefServiceManagerActor.serviceRequest( " + authToken + "): ReefServiceException " + ex)
-          sender ! ServiceFailure( REEF_FAILURE)
+          Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
+          sender ! ServiceClientFailure( REEF_FAILURE)
         }
         case ex: Throwable => {
-          Logger.error( "ReefServiceManagerActor.serviceRequest( " + authToken + "): Throwable " + ex)
-          sender ! ServiceFailure( REEF_FAILURE)
+          Logger.error( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): Throwable " + ex)
+          sender ! ServiceClientFailure( REEF_FAILURE)
         }
       }
 
     } else {
-      Logger.debug( "ReefServiceManagerActor.serviceRequest failure: " + status)
-      sender ! ServiceFailure( status)
+      Logger.debug( "ReefServiceManagerActor.serviceClientRequest failure: " + status)
+      sender ! ServiceClientFailure( status)
     }
   }
 
