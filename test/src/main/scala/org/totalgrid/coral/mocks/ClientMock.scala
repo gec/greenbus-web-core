@@ -24,9 +24,7 @@ class ClientMock extends Client {
 
   def getService[A](klass: Class[A]): A = {
     klass match {
-      case k if klass == classOf[EntityService] =>
-        Logger.debug( "ClientMock.getService")
-        EntityServiceMock.service.asInstanceOf[A]
+      case k if klass == classOf[EntityService] => EntityServiceMock.service.asInstanceOf[A]
     }
 
   }

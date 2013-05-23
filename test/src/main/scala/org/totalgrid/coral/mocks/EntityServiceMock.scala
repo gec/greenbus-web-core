@@ -6,13 +6,13 @@ import org.totalgrid.reef.client.Promise
 import org.totalgrid.reef.client.service.entity.EntityRelation
 import scala.concurrent.Future
 import src.test.scala.org.totalgrid.coral.mocks.PromiseMock
+import play.api.Logger
 
 object EntityServiceMock {
 
   val service = new EntityServiceMock
 
-  val id1 = "id1"
-  val uuid1: ReefUUID = ReefUUID.newBuilder.setValue( id1 ).build();
+  val uuid1: ReefUUID = ReefUUID.newBuilder.setValue( "uuid1" ).build();
   val entity1: Entity =
     Entity.newBuilder
       .setName( "entity1")

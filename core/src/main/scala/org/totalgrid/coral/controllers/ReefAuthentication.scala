@@ -59,7 +59,6 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
     )(LoginRequest.apply _)
 
   def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
-    Logger.debug( "loginFuture: " + l)
     (connectionManager ? l).map {
       case authToken: String => Right( authToken)
       case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
@@ -72,7 +71,6 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
-    Logger.debug( "ReefAuthentication.getService " + authToken)
     (connectionManager ? ServiceClientRequest( authToken, validationTiming)).map {
       case service: Client => Right( service)
       case failure: ReefConnectionManager.ServiceClientFailure => Left( failure)
@@ -93,11 +91,10 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
    */
   def AuthenticatedPageAction( action: (Request[AnyContent], Client) => Result): Action[AnyContent] = {
     Action { request =>
-      Logger.info( "AuthenticatedPageAction: " + request)
       Async {
         authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
           case Some( ( authToken, serviceClient)) =>
-            Logger.debug( "AuthenticatedPageAction authenticateRequest authenticated")
+            Logger.debug( "AuthenticatedPageAction " + request + " authenticateRequest authenticated")
             try {
               action( request, serviceClient)
                 .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
@@ -107,7 +104,7 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
             }
           case None =>
             // No authToken found or invalid authToken
-            Logger.debug( "AuthenticatedPageAction redirectToLogin (because no authToken or invalid authToken)")
+            Logger.debug( "AuthenticatedPageAction " + request + " redirectToLogin (because no authToken or invalid authToken)")
             redirectToLogin( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
         }
       }
@@ -119,11 +116,10 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
    */
   def ReefClientAction( action: (Request[AnyContent], Client) => Result): Action[AnyContent] = {
     Action { request =>
-      Logger.info( "ReefClientAction: " + request)
       Async {
         authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
           case Some( ( token, serviceClient)) =>
-            Logger.debug( "ReefClientAction authenticateRequest authenticated")
+            Logger.debug( "ReefClientAction " + request + " authenticated")
             try {
               action( request, serviceClient)
             } catch {
@@ -132,7 +128,7 @@ trait ReefAuthentication extends Authentication with ConnectionManagerRef {
             }
           case None =>
             // No authToken found or invalid authToken
-            Logger.debug( "ReefClientAction authenticationFailed (because no authToken or invalid authToken)")
+            Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
             authenticationFailed( request, AUTHENTICATION_FAILURE)
         }
       }

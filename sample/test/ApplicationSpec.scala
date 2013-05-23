@@ -20,22 +20,22 @@ package test
 
 import org.specs2.mutable._
 
+import play.api._
+import play.api.mvc._
+import play.api.libs.concurrent.Akka
+import play.api.libs.json._
+import play.api.Play.current
+import play.api.Application
 import play.api.test._
 import play.api.test.Helpers._
 import java.io.File
-import play.api.{Application, GlobalSettings, Logger}
-import org.totalgrid.coral.test.CoralFakeApplication
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
-import play.api.mvc.{AsyncResult, Cookie}
-import play.api.libs.concurrent.Akka
 import akka.actor.{ActorRef, Props}
 import org.totalgrid.coral.ReefConnectionManager
 import org.totalgrid.coral.mocks.ReefConnectionManagerMock
-import play.api.Play.current
 import controllers.Application
-import play.api.Application
 
 object GlobalMock extends GlobalSettings {
 
@@ -44,10 +44,8 @@ object GlobalMock extends GlobalSettings {
 
   override def onStart(app: Application) {
     super.onStart(app)
-    Logger.info( "ApplicationSpec Application started")
 
     reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
-    Logger.info( "ApplicationSpec Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
   }
 }
@@ -70,9 +68,6 @@ class ApplicationSpec extends Specification {
     
     "send 404 on a bad request" in {
       running(FakeApplication(path = new File("sample"), withGlobal = globalMock) ) {
-        Logger.debug( "")
-        Logger.debug( "")
-        Logger.debug( "ApplicationSpec.Application.send 404 on a bad request")
         val result = route(FakeRequest(GET, "/boum"))
         result match {
           case Some( noPage) =>
@@ -88,9 +83,6 @@ class ApplicationSpec extends Specification {
     
     "render the index page" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
-        Logger.debug( "")
-        Logger.debug( "")
-        Logger.debug( "ApplicationSpec.Application.render the index page")
         val home = route(goodRequest).get
         
         status(home) must equalTo(OK)
@@ -101,7 +93,6 @@ class ApplicationSpec extends Specification {
 
     "request index, but no authToken so redirect to login" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
-        Logger.debug( "ApplicationSpec.Application.render the index page")
         val home = route(
           FakeRequest(GET, "/")
         ).get
@@ -110,9 +101,8 @@ class ApplicationSpec extends Specification {
       }
     }
 
-    "request index, but invalid authToken so redirect to login" in {
+    "request index, but with invalid authToken so redirect to login" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
-        Logger.debug( "ApplicationSpec.Application.render the index page")
         val home = route(
           FakeRequest(GET, "/")
           .withCookies( Cookie(cookieName, authTokenBad))
@@ -122,15 +112,68 @@ class ApplicationSpec extends Specification {
       }
     }
 
-    "request login, but with valid authToken so redirect to index" in {
+    "request login page, but with valid authToken so redirect to index" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
-        Logger.debug( "ApplicationSpec.Application.render the index page")
         val home = route(
           FakeRequest(GET, "/login")
             .withCookies( Cookie(cookieName, authTokenGood))
         ).get
         status(home) must equalTo(SEE_OTHER)
         header( LOCATION, home).get must equalTo( "/")
+      }
+    }
+
+    "request login page" in {
+      running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
+        val home = route(
+          FakeRequest(GET, "/login")
+        ).get
+        status(home) must equalTo(OK)
+        contentType(home) must beSome.which(_ == "text/html")
+        contentAsString(home) must contain ("Login")
+      }
+    }
+
+    "GET /entities with valid authToken" in {
+      running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
+
+        val resultAsync = route(
+          FakeRequest(GET, "/entities")
+            .withCookies( Cookie(cookieName, authTokenGood))
+        ).getOrElse( failure( "No result from GET /entities"))
+
+        whenReady( resultAsync.asInstanceOf[AsyncResult].result) { resultAsync2 =>
+          whenReady( resultAsync2.asInstanceOf[AsyncResult].result) { result =>
+            status(result) must equalTo(OK)
+            contentType(result) must beSome.which(_ == "application/json")
+
+            val json = Json.parse( contentAsString(result)).as[JsArray]
+            json.value.length == 1 must beTrue
+            (json(0) \ "name").as[String] mustEqual "entity1"
+            (json(0) \ "uuid").as[String] mustEqual "uuid1"
+          }
+        }
+      }
+    }
+
+    "GET /entities, but with invalid authToken should return json error AUTHENTICATION_FAILURE" in {
+      running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
+
+        val resultAsync = route(
+          FakeRequest(GET, "/entities")
+            .withCookies( Cookie(cookieName, authTokenBad))
+        ).getOrElse( failure( "No result from GET /entities"))
+
+        whenReady( resultAsync.asInstanceOf[AsyncResult].result) { resultAsync2 =>
+          whenReady( resultAsync2.asInstanceOf[AsyncResult].result) { result =>
+            status(result) must equalTo(UNAUTHORIZED)
+            contentType(result) must beSome.which(_ == "application/json")
+
+            val json = Json.parse( contentAsString(result))
+            val error = (json \ "error")
+            (error \ "name").as[String] mustEqual "AUTHENTICATION_FAILURE"
+          }
+        }
       }
     }
 

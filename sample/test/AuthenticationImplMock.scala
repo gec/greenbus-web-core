@@ -29,7 +29,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import controllers.routes
 
-object AuthenticationTestImpl {
+object AuthenticationImplMock {
 
   case class Client( name: String, authToken: String)
 
@@ -46,23 +46,23 @@ object AuthenticationTestImpl {
  *
  * @author Flint O'Brien
  */
-trait AuthenticationTestImpl extends Authentication {
+trait AuthenticationImplMock extends Authentication {
 
   self: Controller =>
 
   import org.totalgrid.coral.AuthTokenLocation
   import org.totalgrid.coral.AuthTokenLocation._
   import org.totalgrid.coral.ValidationTiming._
-  import AuthenticationTestImpl._
+  import AuthenticationImplMock._
 
   val authToken1 = "authToken1"
   val client1 = "client1"
 
 
-  type LoginData = AuthenticationTestImpl.LoginRequest
-  type AuthenticationFailure = AuthenticationTestImpl.AuthenticationFailure
+  type LoginData = AuthenticationImplMock.LoginRequest
+  type AuthenticationFailure = AuthenticationImplMock.AuthenticationFailure
   type ServiceClient = Client
-  type ServiceClientFailure = AuthenticationTestImpl.ServiceClientFailure
+  type ServiceClientFailure = AuthenticationImplMock.ServiceClientFailure
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -127,7 +127,7 @@ trait AuthenticationTestImpl extends Authentication {
   /**
    * Redirect the user to the login page (because they're not logged in).
    */
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationTestImpl#AuthenticationFailure): Result = Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationImplMock#AuthenticationFailure): Result = Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
 
 
   def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {

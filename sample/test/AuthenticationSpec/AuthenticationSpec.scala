@@ -22,16 +22,16 @@ import org.specs2.mutable._
 import org.specs2.mock.Mockito
 import org.mockito.Matchers._
 
+import play.api._
 import play.api.mvc.{Cookie, Result, RequestHeader, Controller}
 import play.api.libs.concurrent.Execution.Implicits._
-import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import org.totalgrid.coral.{ValidationTiming, Authentication}
-import play.api.Logger
-import scala.concurrent.{Future, Awaitable, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.concurrent.{Future, Awaitable, Await}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  *
@@ -40,10 +40,10 @@ import scala.language.postfixOps
 class AuthenticationSpec extends Specification with Mockito {
   import org.totalgrid.coral.AuthTokenLocation._
   import org.totalgrid.coral.ValidationTiming._
-  import AuthenticationTestImpl._
+  import AuthenticationImplMock._
 
 
-  val controller = new Controller with AuthenticationTestImpl
+  val controller = new Controller with AuthenticationImplMock
   val cookieName = "coralAuthToken"
   val authTokenGood = "goodAuthToken"
   val authTokenBad = "badAuthToken"

@@ -110,7 +110,6 @@ trait Authentication {
    * can pick it up.
    */
   def loginSuccess(request: RequestHeader, authToken: String): Result = {
-    Logger.debug( "Authentication.loginSuccess: returning JSON and setting cookie " + authTokenName + "=" + authToken)
     Ok( Json.obj( authTokenName -> authToken))
       .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
   }
@@ -148,15 +147,12 @@ trait Authentication {
    */
   def getLoginOrAlreadyLoggedIn = Action { implicit request: RequestHeader =>
 
-    Logger.debug( "getLoginOrAlreadyLoggedIn: " + authTokenLocation.toString)
     Async {
       authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
         case Some( ( token, service)) =>
-          Logger.debug( "getLoginPage authenticateRequest redirectToIndex")
           redirectToIndex( request, token)
         case None =>
           // No authToken found or invalid authToken
-          Logger.debug( "getLoginPage authenticateRequest loginPageContent (because no authToken or invalid authToken)")
           loginPageContent( request)
       }
     }
@@ -170,7 +166,6 @@ trait Authentication {
    * @see loginDataReads
    */
   def postLogin = Action( parse.json) { request =>
-    Logger.debug( "postLogin")
     request.body.validate( loginDataReads).map { login =>
       Async {
         loginFuture( login).map {
@@ -181,7 +176,6 @@ trait Authentication {
         }
       }
     }.recoverTotal { error =>
-      Logger.error( "ERROR: postLogin bad json: " + JsError.toFlatJson(error))
       loginJsError( request, error)
     }
   }
@@ -196,7 +190,6 @@ trait Authentication {
         case _ => None
       }
     }
-    Logger.debug( "getAuthToken from " + authTokenLocation.toString + ", authToken: " + authToken)
     authToken
   }
 
@@ -206,14 +199,9 @@ trait Authentication {
   def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, ServiceClient)]] = {
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
-        Logger.debug( "authenticateRequest authToken: " + authToken + " validationTiming: " + validationTiming)
         getService( authToken, validationTiming).map {
-          case Right( service) =>
-            Logger.debug( "authenticateRequest response authToken: " + authToken + ", service: " + service)
-            Some( ( authToken, service))
-          case Left( failure) =>
-            Logger.debug( "authenticateRequest response None " + failure)
-            None
+          case Right( service) => Some((authToken, service))
+          case Left( failure) => None
         }
       case None => Future(None)
     }
@@ -225,7 +213,6 @@ trait Authentication {
    * If there is an authToken, use it to logout. Return by calling success or error.
    */
   def deleteLogin = Action { implicit request: RequestHeader =>
-    Logger.debug( "deleteLogin")
     getAuthToken( request, authTokenLocationForLogout) match {
       case Some( authToken) =>
         if( logout( authToken))

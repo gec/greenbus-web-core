@@ -5,7 +5,6 @@ import org.specs2.mutable._
 import play.api.test._
 import play.api.test.Helpers._
 import play.api.Logger
-import org.totalgrid.coral.test.CoralFakeApplication
 import java.io.File
 
 /**
@@ -18,7 +17,7 @@ class IntegrationSpec extends Specification {
     
     "work from within a browser" in {
       Logger.debug( "IntegrationSpec.Application.work from within a browser 0")
-      running(TestServer(3333, new CoralFakeApplication( path = new File("sample"))), HTMLUNIT) { browser =>
+      running(TestServer(3333, new FakeApplication( path = new File("sample"))), HTMLUNIT) { browser =>
         Logger.debug( "IntegrationSpec.Application.work from within a browser 1")
         browser.goTo("http://localhost:3333/")
 
