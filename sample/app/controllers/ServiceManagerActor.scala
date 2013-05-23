@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.Some
+import org.totalgrid.coral.models.ValidationTiming
 
 // for 'seconds'
 import akka.actor.{Props, Actor}
@@ -32,7 +33,7 @@ import play.api.Play.current
 
 
 object ServiceManagerActor {
-  import org.totalgrid.coral.ValidationTiming._
+  import ValidationTiming._
 
   case class Client( name: String, authToken: String)
 

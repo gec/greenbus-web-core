@@ -5,7 +5,6 @@ import org.totalgrid.reef.client.service.proto.Model.{Entity, EntityEdge, Entity
 import org.totalgrid.reef.client.Promise
 import org.totalgrid.reef.client.service.entity.EntityRelation
 import scala.concurrent.Future
-import src.test.scala.org.totalgrid.coral.mocks.PromiseMock
 import play.api.Logger
 
 object EntityServiceMock {

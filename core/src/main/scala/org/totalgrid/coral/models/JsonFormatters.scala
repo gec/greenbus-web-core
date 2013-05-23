@@ -16,7 +16,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.totalgrid.coral
+package org.totalgrid.coral.models
 
 import play.api.libs.json.{Json, JsValue, Writes}
 import org.totalgrid.reef.client.service.proto.Model.{Command, Point, Entity}

@@ -33,7 +33,6 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, Props}
-import org.totalgrid.coral.ReefConnectionManager
 import org.totalgrid.coral.mocks.ReefConnectionManagerMock
 import controllers.Application
 

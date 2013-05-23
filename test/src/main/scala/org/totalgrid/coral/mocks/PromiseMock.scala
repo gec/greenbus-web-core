@@ -1,7 +1,7 @@
-package src.test.scala.org.totalgrid.coral.mocks
+package org.totalgrid.coral.mocks
 
 import org.totalgrid.reef.client
-import org.totalgrid.reef.client.{PromiseListener, PromiseTransform, Promise, PromiseErrorTransform}
+import org.totalgrid.reef.client._
 
 /**
  *

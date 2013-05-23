@@ -23,14 +23,10 @@ import play.api.Logger
 import play.api.libs.json._
 import org.totalgrid.reef.client.sapi.rpc.{PointService, EntityService, CommandService}
 
-//import scala.concurrent.ExecutionContext.Implicits._
-//import scala.collection.JavaConversions._
-import org.totalgrid.coral.JsonFormatters
-
 
 trait RestServices extends ReefAuthentication {
   self: Controller =>
-  import JsonFormatters._
+  import org.totalgrid.coral.models.JsonFormatters._
 
   def getEntities( types: List[String]) = ReefClientAction { (request, client) =>
     val service = client.getService( classOf[EntityService])

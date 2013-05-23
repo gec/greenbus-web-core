@@ -27,7 +27,6 @@ import play.api.mvc.{Cookie, Result, RequestHeader, Controller}
 import play.api.libs.concurrent.Execution.Implicits._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
-import org.totalgrid.coral.{ValidationTiming, Authentication}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.{Future, Awaitable, Await}
@@ -38,8 +37,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @author Flint O'Brien
  */
 class AuthenticationSpec extends Specification with Mockito {
-  import org.totalgrid.coral.AuthTokenLocation._
-  import org.totalgrid.coral.ValidationTiming._
+  import org.totalgrid.coral.models.AuthTokenLocation._
+  import org.totalgrid.coral.models.ValidationTiming._
   import AuthenticationImplMock._
 
 

@@ -1,10 +1,9 @@
-package src.test.scala.org.totalgrid.coral.mocks
+package org.totalgrid.coral.mocks
 
 import org.totalgrid.reef.client._
 import org.totalgrid.reef.client.operations.{ServiceOperations, RequestListenerManager}
 import org.totalgrid.reef.client.sapi.rpc.EntityService
-import org.totalgrid.coral.mocks.EntityServiceMock
-import play.api.Logger
+  import play.api.Logger
 
 object ClientMock {
   val client = new ClientMock

@@ -22,6 +22,7 @@ import play.api.mvc._
 import play.api.libs.json._
 import org.totalgrid.coral.controllers.ReefAuthentication
 import play.api.Logger
+import org.totalgrid.coral.models.ConnectionStatus
 
 
 /**
@@ -30,7 +31,7 @@ import play.api.Logger
  */
 trait ReefAuthenticationImpl extends ReefAuthentication {
   self: Controller =>
-  import org.totalgrid.coral.ConnectionStatus._
+  import ConnectionStatus._
 
 
   def loginPageContent( request: RequestHeader): Result = {

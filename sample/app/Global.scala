@@ -4,7 +4,7 @@ import play.api.libs.concurrent.Akka
 import play.api.{Logger, Application, GlobalSettings}
 import play.api.Play.current
 import akka.actor.Props
-import org.totalgrid.coral.ReefConnectionManager
+import org.totalgrid.coral.models.ReefConnectionManager
 
 /**
  *

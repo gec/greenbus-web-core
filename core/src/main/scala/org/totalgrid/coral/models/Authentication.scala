@@ -16,7 +16,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.totalgrid.coral
+package org.totalgrid.coral.models
 
 import play.api.mvc._
 import play.api.Logger
@@ -24,8 +24,7 @@ import play.api.libs.json._
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps // for postfix 'seconds'
-import play.api.mvc.Cookie
+import scala.language.postfixOps
 
 
 

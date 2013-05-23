@@ -1,4 +1,4 @@
-package org.totalgrid.coral
+package org.totalgrid.coral.models
 
 /**
  *

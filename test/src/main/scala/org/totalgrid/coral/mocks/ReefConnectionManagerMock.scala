@@ -20,15 +20,15 @@ package org.totalgrid.coral.mocks
 
 import akka.actor.Actor
 import play.api.Logger
-import src.test.scala.org.totalgrid.coral.mocks.ClientMock
+import org.totalgrid.coral.models._
 
 /**
  *
  * @author Flint O'Brien
  */
 class ReefConnectionManagerMock extends Actor {
-  import org.totalgrid.coral.ReefConnectionManager._
-  import org.totalgrid.coral.ConnectionStatus._
+  import ReefConnectionManager._
+  import ConnectionStatus._
 
   val authToken1 = "authToken1"
 

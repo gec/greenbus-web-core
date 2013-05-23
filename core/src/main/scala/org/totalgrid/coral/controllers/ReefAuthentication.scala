@@ -26,20 +26,19 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
 import akka.pattern.ask
-import org.totalgrid.coral.{ConnectionStatus, ReefConnectionManager, Authentication}
 import org.totalgrid.reef.client.Client
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.totalgrid.coral.models._
 
 
 trait ReefAuthentication extends Authentication with ConnectionManagerRef {
   self: Controller =>
 
-  import org.totalgrid.coral.AuthTokenLocation
-  import org.totalgrid.coral.AuthTokenLocation._
+  import AuthTokenLocation._
   import ReefConnectionManager._
-  import org.totalgrid.coral.ValidationTiming._
-  import org.totalgrid.coral.ConnectionStatus._
+  import ValidationTiming._
+  import ConnectionStatus._
 
   type LoginData = ReefConnectionManager.LoginRequest
   type AuthenticationFailure = ReefConnectionManager.AuthenticationFailure

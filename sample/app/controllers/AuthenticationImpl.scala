@@ -32,19 +32,18 @@ import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
 
-import org.totalgrid.coral.Authentication
 
 import scala.Some
 import org.totalgrid.coral.controllers.ConnectionManagerRef
+import org.totalgrid.coral.models._
 
 
 trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
   self: Controller =>
 
-  import org.totalgrid.coral.AuthTokenLocation
-  import org.totalgrid.coral.AuthTokenLocation._
+  import AuthTokenLocation._
   import ServiceManagerActor._
-  import org.totalgrid.coral.ValidationTiming._
+  import ValidationTiming._
 
   type LoginData = ServiceManagerActor.LoginRequest
   //type LoginSuccess = ServiceManagerActor.LoginSuccess
