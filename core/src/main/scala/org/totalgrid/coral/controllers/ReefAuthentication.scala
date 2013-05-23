@@ -28,12 +28,15 @@ import akka.actor._
 import akka.pattern.ask
 import org.totalgrid.coral.{ConnectionStatus, ReefConnectionManager, Authentication}
 import org.totalgrid.reef.client.Client
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 
-trait ReefAuthentication extends Authentication {
+trait ReefAuthentication extends Authentication with ConnectionManagerRef {
   self: Controller =>
 
-  import AuthTokenLocation._
+  import org.totalgrid.coral.AuthTokenLocation
+  import org.totalgrid.coral.AuthTokenLocation._
   import ReefConnectionManager._
   import org.totalgrid.coral.ValidationTiming._
   import org.totalgrid.coral.ConnectionStatus._
@@ -50,14 +53,6 @@ trait ReefAuthentication extends Authentication {
    */
   def authenticationFailed(request: RequestHeader, status: ConnectionStatus): Result
 
-  /**
-   * Return an ActorRef for ReefServiceManagerActor. This is a singleton object
-   * that manages the Reef connection to AMQP.
-   */
-  def reefConnectionManager: ActorRef
-
-
-
   def loginDataReads: Reads[LoginRequest] = (
     (__ \ "userName").read[String] and
       (__ \ "password").read[String]
@@ -65,20 +60,20 @@ trait ReefAuthentication extends Authentication {
 
   def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
     Logger.debug( "loginFuture: " + l)
-    (reefConnectionManager ? l).map {
+    (connectionManager ? l).map {
       case authToken: String => Right( authToken)
       case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
     }
   }
 
   def logout( authToken: String) : Boolean = {
-    reefConnectionManager ! LogoutRequest( authToken)
+    connectionManager ! LogoutRequest( authToken)
     true
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
     Logger.debug( "ReefAuthentication.getService " + authToken)
-    (reefConnectionManager ? ServiceClientRequest( authToken, validationTiming)).map {
+    (connectionManager ? ServiceClientRequest( authToken, validationTiming)).map {
       case service: Client => Right( service)
       case failure: ReefConnectionManager.ServiceClientFailure => Left( failure)
       case unknownMessage: AnyRef => {

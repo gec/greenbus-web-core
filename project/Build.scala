@@ -6,6 +6,7 @@ object ApplicationBuild extends Build {
 
   val appName         = "coral"
   val appVersion      = "0.1.0"
+  val playVersion     = "2.1.1"
   val totalGridRelease = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot    = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
   val totalGridVersion = "0.5.0-SNAPSHOT" // "0.4.8"
@@ -45,16 +46,25 @@ object ApplicationBuild extends Build {
   lazy val core = Project("core", base = file("core"))
     .settings(baseSettings: _*)
     .settings(
-    libraryDependencies += "play" %% "play-test" % "2.1.1",
-    libraryDependencies += "org.totalgrid.reef" % "reef-client" % totalGridVersion,
-    libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % totalGridVersion,
-    name := appName
-  )
+      libraryDependencies += "play" %% "play" % playVersion,
+      libraryDependencies += "org.totalgrid.reef" % "reef-client" % totalGridVersion,
+      libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % totalGridVersion,
+      libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
+      name := appName
+    )
+
+  lazy val test = Project("test", base = file("test"))
+    .settings(baseSettings: _*)
+    .settings(
+      name := appName + ".test",
+      libraryDependencies += "play" %% "play-test" % playVersion,
+      libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5"
+    )
+    .dependsOn(core)
 
   lazy val sample = play.Project("sample", path = file("sample"))
     .settings(baseSettings: _*)
-    .dependsOn(core)
-    //.dependsOn(main, test % "test")
+    .dependsOn(core, test % "test")
 
   lazy val root = Project("root", base = file("."))
     .settings(baseSettings: _*)

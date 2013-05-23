@@ -16,27 +16,19 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
+package org.totalgrid.coral.controllers
 
-import play.api._
-import play.api.mvc._
-import org.totalgrid.coral.controllers._
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import akka.actor.ActorRef
 
-object Application extends Controller with ReefAuthenticationImpl with RestServices {
+/**
+ *
+ * @author Flint O'Brien
+ */
+trait ConnectionManagerRef {
 
-  implicit val timeout = Timeout(2 seconds)
-
-  var reefConnectionManager: ActorRef = null
-  def connectionManager: ActorRef = reefConnectionManager
-
-  def index = AuthenticatedPageAction { (request, client) =>
-    Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
-  }
-
-
+  /**
+   * Return an ActorRef for ReefServiceManagerActor. This is a singleton object
+   * that manages the Reef connection to AMQP.
+   */
+  def connectionManager : ActorRef
 }

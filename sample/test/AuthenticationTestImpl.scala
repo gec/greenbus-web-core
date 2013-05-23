@@ -16,41 +16,53 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
-
-import play.api.Logger
-import play.api.mvc._
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import play.api.libs.concurrent.Akka
-import play.api.Play.current
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits._
-import scala.Some
-
-import akka.actor._
-import akka.pattern.ask
-import akka.util.Timeout
+package test
 
 import org.totalgrid.coral.Authentication
+import org.totalgrid.coral.ValidationTiming._
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+import play.api.Logger
+import play.api.mvc._
+import play.api.libs.concurrent.Execution.Implicits._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import controllers.routes
 
-import scala.Some
-import org.totalgrid.coral.controllers.ConnectionManagerRef
+object AuthenticationTestImpl {
 
+  case class Client( name: String, authToken: String)
 
-trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
+  case class LoginRequest( userName: String, password: String)
+  case class AuthenticationFailure( message: String)
+  case class LoginSuccess( authToken: String, service: Client)
+  case class LogoutRequest( authToken: String)
+
+  case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
+  case class ServiceClientFailure( message: String)
+
+}
+/**
+ *
+ * @author Flint O'Brien
+ */
+trait AuthenticationTestImpl extends Authentication {
+
   self: Controller =>
 
   import org.totalgrid.coral.AuthTokenLocation
   import org.totalgrid.coral.AuthTokenLocation._
-  import ServiceManagerActor._
   import org.totalgrid.coral.ValidationTiming._
+  import AuthenticationTestImpl._
 
-  type LoginData = ServiceManagerActor.LoginRequest
-  //type LoginSuccess = ServiceManagerActor.LoginSuccess
-  type AuthenticationFailure = ServiceManagerActor.AuthenticationFailure
-  type ServiceClient = ServiceManagerActor.Client
-  type ServiceClientFailure = ServiceManagerActor.ServiceClientFailure
+  val authToken1 = "authToken1"
+  val client1 = "client1"
+
+
+  type LoginData = AuthenticationTestImpl.LoginRequest
+  type AuthenticationFailure = AuthenticationTestImpl.AuthenticationFailure
+  type ServiceClient = Client
+  type ServiceClientFailure = AuthenticationTestImpl.ServiceClientFailure
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -60,24 +72,22 @@ trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
     )(LoginRequest.apply _)
 
   def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]] = {
-    Logger.debug( "loginFuture: " + l)
-    (connectionManager ? l).map {
-      case authToken: String => Right( authToken)
-      case AuthenticationFailure( message) => Left( AuthenticationFailure( message))
-    }
+    if( ! l.userName.toLowerCase.startsWith( "bad"))
+      return Future( Right( authToken1))
+    else
+      return Future( Left( AuthenticationFailure( "bad userName '" + l.userName + "'")))
   }
 
   def logout( authToken: String) : Boolean = {
-    connectionManager ! LogoutRequest( authToken)
     true
   }
 
-  def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] =
-  (connectionManager ? ServiceClientRequest( authToken, validationTiming)).map {
-    case Client( name, authToken) => Right( Client( name, authToken))
-    case ServiceClientFailure( message) => Left( ServiceClientFailure( message))
+  def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
+    if( ! authToken.toLowerCase.startsWith( "bad"))
+      return Future( Right( Client( client1, authToken)))
+    else
+      return Future( Left( ServiceClientFailure( "bad authToken '" + authToken + "'")))
   }
-
 
   def loginPageContent( request: RequestHeader): Result = Ok( "loginPageContent")
   def indexPageContent( request: RequestHeader): Result = Ok( "indexPageContent")
@@ -108,6 +118,16 @@ trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
   def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
   //Unauthorized( "unauthorized!")
 
+
+  /**
+   * Redirect the user to the index page (because they're already logged in).
+   */
+  def redirectToIndex(request: RequestHeader, authToken: String): Result = Redirect( routes.Application.index)
+
+  /**
+   * Redirect the user to the login page (because they're not logged in).
+   */
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationTestImpl#AuthenticationFailure): Result = Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
 
 
   def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {

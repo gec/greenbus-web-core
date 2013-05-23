@@ -16,27 +16,32 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
+package org.totalgrid.coral.test
 
-import play.api._
-import play.api.mvc._
-import org.totalgrid.coral.controllers._
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import akka.actor.ActorRef
+import play.api.libs.concurrent.Akka
+import akka.actor.{ActorRef, Props}
+import org.totalgrid.coral.mocks.ReefConnectionManagerMock
+import java.io.File
+import play.api.test.FakeApplication
+import org.totalgrid.coral.controllers.ConnectionManagerRef
+import play.api.Play.current
+import play.api.Logger
 
-object Application extends Controller with ReefAuthenticationImpl with RestServices {
-
-  implicit val timeout = Timeout(2 seconds)
-
-  var reefConnectionManager: ActorRef = null
-  def connectionManager: ActorRef = reefConnectionManager
-
-  def index = AuthenticatedPageAction { (request, client) =>
-    Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
-  }
-
-
+/**
+ *
+ * @author Flint O'Brien
+ */
+object CoralFakeApplication {
+  lazy val reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock])
 }
+
+class CoralFakeApplication( path: File) extends FakeApplication( path = path) with ConnectionManagerRef {
+  import CoralFakeApplication._
+
+  override def connectionManager: ActorRef = {
+    Logger.debug( "CoralFakeApplication.connectionManager")
+    reefConnectionManager
+  }
+}
+
+
