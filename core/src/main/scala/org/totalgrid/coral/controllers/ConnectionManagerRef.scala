@@ -19,7 +19,15 @@
 package org.totalgrid.coral.controllers
 
 import akka.actor.ActorRef
+import akka.util.Timeout
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
+object ConnectionManagerRef {
+
+  implicit val timeout = Timeout(2 seconds)
+
+}
 /**
  *
  * @author Flint O'Brien
@@ -31,4 +39,5 @@ trait ConnectionManagerRef {
    * that manages the Reef connection to AMQP.
    */
   def connectionManager : ActorRef
+
 }

@@ -20,7 +20,7 @@ package org.totalgrid.coral.models
 
 import play.api.Logger
 import play.api.libs.json._
-import akka.actor.Actor
+import akka.actor.{ActorRef, ActorContext, Actor}
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -36,12 +36,16 @@ import play.api.libs.iteratee.{Enumerator, Iteratee}
 
 object ReefConnectionManager {
   import AuthenticationMessages._
+  import ConnectionStatus._
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
   val REEF_CONFIG_FILENAME = "reef.cfg"
   implicit val timeout = Timeout(2 seconds)
 
   //private val authTokenToServiceMap = collection.mutable.Map[String, AllScadaService]()
+
+  case class ChildActorStop( childActor: ActorRef)
+  case class UpdateClient( status: ConnectionStatus, client: Option[Client])
 
   /*
    * Implicit JSON writers.
@@ -54,17 +58,26 @@ object ReefConnectionManager {
   }
 }
 
+/**
+ * Factory for creating actors that depend on the ReefClientActor (to manage the Reef client connection).
+ */
+trait WebSocketPushActorFactory {
+  import WebSocketMessages._
+  import ConnectionStatus._
+  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Client): WebSocketChannels
+}
 
 /**
  *
  * @author Flint O'Brien
  */
-class ReefConnectionManager extends Actor {
+class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) extends Actor {
   import ReefConnectionManager._
   import ConnectionStatus._
   import ValidationTiming._
   import AuthenticationMessages._
   import LoginLogoutMessages._
+  import WebSocketMessages._
 
   var connectionStatus: ConnectionStatus = INITIALIZING
   var connection: Option[Connection] = None
@@ -78,7 +91,8 @@ class ReefConnectionManager extends Actor {
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceClientRequest( authToken, validation) => serviceClientRequest( authToken, validation)
+    case ServiceClientRequest( authToken, validationTiming) => serviceClientRequest( authToken, validationTiming)
+    case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
 
     case unknownMessage: AnyRef => Logger.error( "ReefServiceManagerActor.receive: Unknown message " + unknownMessage)
   }
@@ -98,6 +112,10 @@ class ReefConnectionManager extends Actor {
     }
   }
 
+  /**
+   * Was caching (authToken -> service).
+   * @param authToken
+   */
   private def removeAuthTokenFromCache( authToken: String) = {
     /*
     val loggedIn = authTokenToServiceMap.contains( authToken)
@@ -119,54 +137,95 @@ class ReefConnectionManager extends Actor {
    * Since this is an extra round trip call to the service, it should only be used when it's
    * absolutely necessary to validate the authToken -- like when first showing the index page.
    */
-  private def serviceClientRequest( authToken: String, validation: ValidationTiming): Unit = {
+  private def serviceClientRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
 
-    if( connectionStatus != AMQP_UP) {
-      Logger.debug( "ReefServiceManagerActor.serviceClientRequest AMQP is not UP: " + connectionStatus)
+    if( connectionStatus != AMQP_UP || !connection.isDefined) {
+      Logger.debug( "ReefServiceManagerActor.serviceClientRequest AMQP is not UP or connection not defined: " + connectionStatus)
       sender ! ServiceClientFailure( connectionStatus)
       return
     }
 
-      /*
+      /* Was caching (authToken -> service).
     authTokenToServiceMap.get( authToken) match {
       case Some( service) =>
-        Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest with " + authToken)
+        Logger.debug( "ReefServiceManagerActor.serviceClientRequest with " + authToken)
         sender ! service
       case _ =>
-        Logger.debug( "ReefServiceManagerActor.authenticatedServiceRequest unrecognized authToken: " + authToken)
+        Logger.debug( "ReefServiceManagerActor.serviceClientRequest unrecognized authToken: " + authToken)
         sender ! ServiceFailure( AUTHTOKEN_UNRECOGNIZED)
     }
     */
 
-    val (status, client) = getReefClient( authToken)
-
-    if( status == UP & client.isDefined) {
-
-      try {
-        if( validation == PREVALIDATED) {
-          val service = client.get.getService(classOf[EntityService])
-          service.findEntityByName("Just checking if this service is authorized.").await()
-        }
-        //authTokenToServiceMap +=  (authToken -> service)
-        sender ! client.get
-      }  catch {
-        case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-          Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
-          sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
-        }
-        case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-          Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
-          sender ! ServiceClientFailure( REEF_FAILURE)
-        }
-        case ex: Throwable => {
-          Logger.error( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): Throwable " + ex)
-          sender ! ServiceClientFailure( REEF_FAILURE)
-        }
+    try {
+      val client = connection.get.createClient( authToken)
+      maybePrevalidateAuthToken( client, validationTiming)
+      //authTokenToServiceMap +=  (authToken -> service)
+      sender ! client
+    }  catch {
+      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
+        Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
+        sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
       }
+      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+        Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
+        sender ! ServiceClientFailure( REEF_FAILURE)
+      }
+      case ex: Throwable => {
+        Logger.error( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): Throwable " + ex)
+        sender ! ServiceClientFailure( REEF_FAILURE)
+      }
+    }
 
-    } else {
-      Logger.debug( "ReefServiceManagerActor.serviceClientRequest failure: " + status)
-      sender ! ServiceClientFailure( status)
+  }
+
+
+  /**
+   *
+   * Open a WebSocket and send the WebSocket channels to the sender.
+   *
+   * @param authToken The authToken to use when creating the Client
+   * @param validationTiming If PREVALIDATED, make an extra service call to prevalidate the authToken.
+   *
+   */
+  private def webSocketOpen( authToken: String, validationTiming: ValidationTiming): Unit = {
+    Logger.debug( "webSocketOpen: " + authToken)
+    if( connectionStatus != AMQP_UP || !connection.isDefined) {
+      Logger.debug( "ReefServiceManagerActor.webSocketOpen AMQP is not UP or connection not defined: " + connectionStatus)
+      sender ! WebSocketError( connectionStatus)
+      return
+    }
+
+    try {
+      val client = connection.get.createClient( authToken)
+      maybePrevalidateAuthToken( client, validationTiming)
+      sender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, client)
+      Logger.debug( "webSocketOpen. sender ! makeChildActor: " + authToken)
+    }  catch {
+      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
+        Logger.debug( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): UnauthorizedException " + ex)
+        sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
+      }
+      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+        Logger.debug( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): ReefServiceException " + ex)
+        sender ! ServiceClientFailure( REEF_FAILURE)
+      }
+      case ex: Throwable => {
+        Logger.error( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): Throwable " + ex)
+        sender ! ServiceClientFailure( REEF_FAILURE)
+      }
+    }
+  }
+
+  /**
+   * This will throw an exception if the authToken used to create the client is invalid.
+   * @param client
+   * @param validationTiming
+   * @return
+   */
+  private def maybePrevalidateAuthToken( client: Client, validationTiming: ValidationTiming) = {
+    if( validationTiming == PREVALIDATED) {
+      val service = client.getService(classOf[EntityService])
+      service.findEntityByName("Just checking if this service is authorized.").await()
     }
   }
 

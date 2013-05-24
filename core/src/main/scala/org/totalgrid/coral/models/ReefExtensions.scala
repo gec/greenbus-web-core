@@ -16,28 +16,30 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
+package org.totalgrid.coral.models
 
-import play.api._
-import play.api.mvc._
-import org.totalgrid.coral.controllers._
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import akka.actor.ActorRef
+import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
 
-object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
+/**
+ *
+ * This is for Reef types that are somehow incomplete for Coral's needs.
+ *
+ * @author Flint O'Brien
+ */
+object ReefExtensions {
 
-  //implicit val timeout = Timeout(2 seconds)
+  /**
+   * Point with Entity Types. The types are distinct form Point.type
+   *
+   * @param point
+   * @param types
+   */
+  case class PointWithTypes( point: Point, types: List[String])
 
-  // reefConnectionManager is assigned by Global.
-  var reefConnectionManager: ActorRef = null
-  def connectionManager: ActorRef = reefConnectionManager
-
-  def index = AuthenticatedPageAction { (request, client) =>
-    Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
-  }
-
-
+  /**
+   * An entity with a list of points that are PointsWithTypes
+   * @param equipment
+   * @param pointsWithTypes
+   */
+  case class EquipmentWithPointsWithTypes( equipment: Entity, pointsWithTypes: List[PointWithTypes])
 }

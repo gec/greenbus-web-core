@@ -18,14 +18,16 @@
  */
 package org.totalgrid.coral.models
 
+import org.totalgrid.coral.models._
+
 /**
  *
  * @author Flint O'Brien
  */
 
 object AuthenticationMessages {
-  import org.totalgrid.coral.models.ConnectionStatus._
-  import org.totalgrid.coral.models.ValidationTiming._
+  import ConnectionStatus._
+  import ValidationTiming._
 
   case class AuthenticationFailure( status: ConnectionStatus)
   case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
@@ -40,9 +42,10 @@ object LoginLogoutMessages {
 object WebSocketMessages {
   import play.api.libs.iteratee.{Enumerator, Iteratee}
   import play.api.libs.json.JsValue
-  import org.totalgrid.coral.models.ConnectionStatus._
+  import ConnectionStatus._
+  import ValidationTiming._
 
-  case class WebSocketOpen( authToken: String)
+  case class WebSocketOpen( authToken: String, validationTiming: ValidationTiming)
   case class WebSocketError( status: ConnectionStatus)
   case class WebSocketChannels( iteratee: Iteratee[JsValue, Unit], enumerator: Enumerator[JsValue])
 }

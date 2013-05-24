@@ -23,12 +23,7 @@ import play.api._
 import play.api.mvc._
 import play.api.libs.iteratee._
 import play.api.libs.json._
-import akka.actor._
 import akka.pattern.ask
-import play.api.libs.concurrent.Promise
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits._
 
 
@@ -40,21 +35,26 @@ trait WebSocketServices extends ConnectionManagerRef {
   self: Controller =>
   import WebSocketMessages._
   import ConnectionStatus._
+  import ValidationTiming._
+  import ConnectionManagerRef._
 
-  implicit val timeout = Timeout(2 seconds)
 
+  /**
+   * Setup a WebSocket. The connectionManager is responsible for authentication
+   * before replying with WebSocketChannels.
+   */
   def getWebSocket( authToken: String) = WebSocket.async[JsValue] { request  =>
-    (connectionManager ? WebSocketOpen( authToken)).map {
+    (connectionManager ? WebSocketOpen( authToken, PREVALIDATED)).map {
       case WebSocketChannels( iteratee, enumerator) =>
-        Logger.info( "getWebSocket WebSocketChannels returned from WebSocketOpen")
+        Logger.debug( "getWebSocket WebSocketChannels returned from WebSocketOpen")
         (iteratee, enumerator)
       case WebSocketError( status) =>
-        Logger.info( "getWebSocket WebSocketChannels returned WebSocketError " + status)
-        webSocketResultError( status)
+        Logger.debug( "getWebSocket WebSocketChannels returned WebSocketError " + status)
+        errorResult( status)
     }
   }
 
-  def webSocketResultError( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {
+  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {
     // Connection error
     Logger.error( "getWebSocket.webSocketResultError ERROR: " + status)
 

@@ -22,18 +22,10 @@ import play.api.Logger
 import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.libs.concurrent.Akka
-import play.api.Play.current
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
-import scala.Some
-
 import akka.actor._
 import akka.pattern.ask
-import akka.util.Timeout
-
-
-import scala.Some
 import org.totalgrid.coral.controllers.ConnectionManagerRef
 import org.totalgrid.coral.models._
 
@@ -44,6 +36,7 @@ trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
   import AuthTokenLocation._
   import ServiceManagerActor._
   import ValidationTiming._
+  import ConnectionManagerRef.timeout
 
   type LoginData = ServiceManagerActor.LoginRequest
   //type LoginSuccess = ServiceManagerActor.LoginSuccess

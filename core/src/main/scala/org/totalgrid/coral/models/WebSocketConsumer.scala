@@ -16,28 +16,21 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package controllers
+package org.totalgrid.coral.models
 
-import play.api._
-import play.api.mvc._
-import org.totalgrid.coral.controllers._
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.language.postfixOps
+import play.api.libs.json.JsValue
 import akka.actor.ActorRef
+import play.api.libs.iteratee.Iteratee
+import play.api.Logger
 
-object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
+/**
+ *
+ * Consume the feed from the browser
+ *
+ * @author Flint O'Brien
+ */
+trait WebSocketConsumer {
 
-  //implicit val timeout = Timeout(2 seconds)
-
-  // reefConnectionManager is assigned by Global.
-  var reefConnectionManager: ActorRef = null
-  def connectionManager: ActorRef = reefConnectionManager
-
-  def index = AuthenticatedPageAction { (request, client) =>
-    Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
-  }
-
+  def getConsumer( pushActor: ActorRef) : Iteratee[JsValue, Unit]
 
 }

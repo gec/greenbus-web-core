@@ -27,8 +27,6 @@ import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
 import akka.pattern.ask
 import org.totalgrid.reef.client.Client
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import org.totalgrid.coral.models._
 import akka.util.Timeout
 
@@ -36,6 +34,7 @@ import akka.util.Timeout
 trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   self: Controller =>
 
+  import ConnectionManagerRef.timeout
   import AuthTokenLocation._
   import ValidationTiming._
   import ConnectionStatus._
@@ -48,8 +47,6 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   type ServiceClient = Client
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
-
-  implicit val timeout = Timeout(2 seconds)
 
 
   def loginDataReads: Reads[LoginRequest] = (

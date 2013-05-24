@@ -265,7 +265,7 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
     }
 
 
-    reef.get( "/measurement", "measurements", $scope, $scope.getSuccessListener);
+    reef.get( "/measurements", "measurements", $scope, $scope.getSuccessListener);
 }
 
 /**

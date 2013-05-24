@@ -94,6 +94,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             })
         },
         onclose: function(event) {
+            console.log( "webSocket.onclose event: " + event)
             webSocketOpen = false
             var code = event.code;
             var reason = event.reason;
@@ -105,6 +106,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             // Let the get handle the redirect. Might need to coordinate something with get in the future.
         },
         onerror: function(event) {
+            console.error( "webSocket.onerror event: " + event)
             var data = event.data;
             var name = event.name;
             var message = event.message;
@@ -124,7 +126,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         var wsUri = location.protocol === "https:" ? "wss:" : "ws:"
         // location.host includes port, ex: "localhost:9000"
         wsUri += "//" + location.host
-        wsUri += "/services/websocket?authToken=" + authToken
+        wsUri += "/websocket?authToken=" + authToken
         var ws = new WS( wsUri)
         ws.onmessage = wsHanders.onmessage
         ws.onopen = wsHanders.onopen
@@ -161,6 +163,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     function handleError( data) {
         //webSocket.close()
         console.log( "webSocket.handleError data.error: " + data.error)
+        if( data.jsError)
+            console.log( "webSocket.handleError data.JsError: " + data.jsError)
 
         var listener = getListenerForMessage( data);
         if( listener && listener.error)
