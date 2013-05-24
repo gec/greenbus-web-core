@@ -31,20 +31,11 @@ import org.totalgrid.reef.client.settings.util.PropertyReader
 import org.totalgrid.reef.client.factory.ReefConnectionFactory
 import org.totalgrid.reef.client.settings.{UserSettings, AmqpSettings}
 import org.totalgrid.reef.client.service.list.ReefServices
+import play.api.libs.iteratee.{Enumerator, Iteratee}
 
 
 object ReefConnectionManager {
-  import ConnectionStatus._
-  import ValidationTiming._
-
-  case class LoginRequest( userName: String, password: String)
-  case class AuthenticationFailure( status: ConnectionStatus)
-  case class LogoutRequest( authToken: String)
-
-  case class ProvisionallyAuthenticatedServiceRequest( authToken: String)
-  case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
-  case class ServiceClientFailure( status: ConnectionStatus)
-
+  import AuthenticationMessages._
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
   val REEF_CONFIG_FILENAME = "reef.cfg"
@@ -72,6 +63,8 @@ class ReefConnectionManager extends Actor {
   import ReefConnectionManager._
   import ConnectionStatus._
   import ValidationTiming._
+  import AuthenticationMessages._
+  import LoginLogoutMessages._
 
   var connectionStatus: ConnectionStatus = INITIALIZING
   var connection: Option[Connection] = None

@@ -84,7 +84,7 @@ trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
   /**
    * Where to redirect the user after a successful login.
    */
-  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result = Unauthorized( views.html.login("Logout failed"))
+  def authenticationFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * Ajax reply for missing JSON or JSON parsing error.

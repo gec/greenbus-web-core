@@ -92,9 +92,9 @@ trait AuthenticationImplMock extends Authentication {
   def indexPageContent( request: RequestHeader): Result = Ok( "indexPageContent")
 
   /**
-   * Where to redirect the user after a successful login.
+   * Ajax reply for failed login or the user is not logged in and tries to access a protected resource.
    */
-  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result = Unauthorized( views.html.login("Logout failed"))
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result = Unauthorized(  Json.obj( "error" -> failure.message))
 
   /**
    * Ajax reply for missing JSON or JSON parsing error.
@@ -109,14 +109,7 @@ trait AuthenticationImplMock extends Authentication {
   /**
    * Where to redirect the user after logging out
    */
-  def logoutFailure(request: RequestHeader): PlainResult = Unauthorized( views.html.login("Logout failed"))
-
-  /**
-   * If the user is not logged in and tries to access a protected resource then redirect them as follows:
-   */
-  def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
-  //Unauthorized( "unauthorized!")
-
+  def logoutFailure(request: RequestHeader): PlainResult = Unauthorized( Json.obj( "error" -> "Logout failed"))
 
   /**
    * Redirect the user to the index page (because they're already logged in).
@@ -140,7 +133,7 @@ trait AuthenticationImplMock extends Authentication {
             // No authToken found or invalid authToken
             Logger.debug( "AuthenticatedAJaxAction authenticationFailed (because no authToken or invalid authToken)")
             // TODO: how about this: Unauthorized( ConnectionStatusFormat.writes( AUTHTOKEN_UNRECOGNIZED))
-            authenticationFailed( request)
+            authenticationFailure( request, AuthenticationFailure( "Authentication failed"))
         }
       }
     }

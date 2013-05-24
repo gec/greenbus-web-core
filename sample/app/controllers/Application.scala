@@ -28,7 +28,7 @@ import akka.actor.ActorRef
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices {
 
-  implicit val timeout = Timeout(2 seconds)
+  //implicit val timeout = Timeout(2 seconds)
 
   var reefConnectionManager: ActorRef = null
   def connectionManager: ActorRef = reefConnectionManager

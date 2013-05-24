@@ -27,8 +27,9 @@ import org.totalgrid.coral.models._
  * @author Flint O'Brien
  */
 class ReefConnectionManagerMock extends Actor {
-  import ReefConnectionManager._
   import ConnectionStatus._
+  import AuthenticationMessages._
+  import LoginLogoutMessages._
 
   val authToken1 = "authToken1"
 

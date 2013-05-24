@@ -37,7 +37,7 @@ import scala.language.postfixOps
  *
  * POST /login -- postLogin
  *    valid credentials - loginSuccess
- *    invalid credentials - loginFailure
+ *    invalid credentials - authenticationFailure
  *
  * GET / -- index
  *    valid authentication - indexPageContent
@@ -58,16 +58,11 @@ trait Authentication {
   def authTokenLocation : AuthTokenLocation
   def authTokenLocationForLogout : AuthTokenLocation
 
-  type LoginData
   type AuthenticationFailure
   type ServiceClient
   type ServiceClientFailure
   def authTokenName = "coralAuthToken" // Used for cookie and JSON reply
   def authTokenCookieMaxAge = Some( (5 minutes).toSeconds.toInt)
-
-  def loginDataReads: Reads[LoginData]
-  def loginFuture( l: LoginData) : Future[Either[AuthenticationFailure, String]]
-  def logout( authToken: String) : Boolean
 
   /**
    * Get a service. A service call is made to verify the authToken is valid.
@@ -85,101 +80,12 @@ trait Authentication {
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[ Either[ServiceClientFailure, ServiceClient]]
 
   /**
-   * Return the login page content
+   * Ajax reply for failed login or the user is not logged in and tries to access a protected resource.
    */
-  def loginPageContent( request: RequestHeader): Result
-
-  /**
-   * Return the index page content
-   */
-  def indexPageContent( request: RequestHeader): Result
-
-  /**
-   * Redirect the user to the index page (because they're already logged in).
-   */
-  def redirectToIndex(request: RequestHeader, authToken: String): Result
-
-  /**
-   * Redirect the user to the login page (because they're not logged in).
-   */
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result
-
-  /**
-   * Ajax reply for successful login. Store the cookie so the index page
-   * can pick it up.
-   */
-  def loginSuccess(request: RequestHeader, authToken: String): Result = {
-    Ok( Json.obj( authTokenName -> authToken))
-      .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
-  }
-
-  /**
-   * Ajax reply for login failure.
-   */
-  def loginFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result
-
-  /**
-   * Ajax reply for missing JSON or JSON parsing error.
-   */
-  def loginJsError(request: RequestHeader, error: JsError): Result
-
-  /**
-   * Ajax reply for successful logout
-   *
-   * @see deleteLogin
-   */
-  def logoutSuccess(request: RequestHeader): PlainResult
-
-  /**
-   * Ajax reply for failed logout
-   *
-   * @see deleteLogin
-   */
-  def logoutFailure(request: RequestHeader): PlainResult
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result
 
 
-  /**
-   * GET /login
-   *
-   * Check if the user is already logged in. If so, call redirectToIndex.
-   * If not logged in, call loginPageContent.
-   */
-  def getLoginOrAlreadyLoggedIn = Action { implicit request: RequestHeader =>
-
-    Async {
-      authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
-        case Some( ( token, service)) =>
-          redirectToIndex( request, token)
-        case None =>
-          // No authToken found or invalid authToken
-          loginPageContent( request)
-      }
-    }
-  }
-
-  /**
-   * POST /login
-   *
-   * Login credentials are in the post data.
-   *
-   * @see loginDataReads
-   */
-  def postLogin = Action( parse.json) { request =>
-    request.body.validate( loginDataReads).map { login =>
-      Async {
-        loginFuture( login).map {
-          case Right( authToken) =>
-            loginSuccess( request, authToken)
-          case Left( failure) =>
-            loginFailure( request, failure)
-        }
-      }
-    }.recoverTotal { error =>
-      loginJsError( request, error)
-    }
-  }
-
-  private def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {
+  def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {
     val authToken = authTokenLocation match {
       case AuthTokenLocation.NO_AUTHTOKEN => None
       case AuthTokenLocation.COOKIE => request.cookies.get( authTokenName).map[String]( c => c.value)
@@ -203,23 +109,6 @@ trait Authentication {
           case Left( failure) => None
         }
       case None => Future(None)
-    }
-  }
-
-  /**
-   * DELETE /login
-   *
-   * If there is an authToken, use it to logout. Return by calling success or error.
-   */
-  def deleteLogin = Action { implicit request: RequestHeader =>
-    getAuthToken( request, authTokenLocationForLogout) match {
-      case Some( authToken) =>
-        if( logout( authToken))
-          logoutSuccess( request).discardingCookies( DiscardingCookie( authTokenName))
-        else
-          logoutFailure( request).discardingCookies( DiscardingCookie( authTokenName))
-      case None =>
-        logoutFailure( request).discardingCookies( DiscardingCookie( authTokenName))
     }
   }
 
