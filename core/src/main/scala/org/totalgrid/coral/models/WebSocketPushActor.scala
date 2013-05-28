@@ -60,7 +60,7 @@ object WebSocketPushActor {
   case class SubscribeToMeasurementHistory( override val id: String, name: String, since: Long, limit: Int) extends Subscribe
   case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
   //case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
-  //case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
+  case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
   //case class SubscribeToEndpointConnections( override val id: String) extends Subscribe
   case class Unsubscribe( id: String)
   case class MessageError( message: String, error: JsError)
@@ -86,6 +86,12 @@ object WebSocketPushActor {
     (__ \ "subscriptionId").read[String] and
       (__ \ "limit").read[Int]
     )(SubscribeToActiveAlarms)
+
+  implicit val subscribeToRecentEventsReads = (
+    (__ \ "subscriptionId").read[String] and
+      (__ \ "eventTypes").read[Seq[String]] and
+      (__ \ "limit").read[Int]
+    )(SubscribeToRecentEvents)
 
 }
 

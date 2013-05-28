@@ -17,7 +17,7 @@
             </thead>
             <tbody>
                 <tr ng-repeat="command in commands">
-                    <td><a href="#/command/{{command.name}}">{{command.name}}</a></td>
+                    <td><a href="#/commands/{{command.name | encodeURI}}">{{command.name}}</a></td>
                     <td>{{command.displayName}}</td>
                     <td>{{command.commandType}}</td>
                     <td>{{command.endpoint}}</td>

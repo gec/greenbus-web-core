@@ -376,7 +376,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         httpConfig.headers = {'Authorization': authToken}
 
-        $http.get(url, httpConfig).
+        // encodeURI because objects like point names can have percents in them.
+        $http.get( encodeURI( url), httpConfig).
             success(function(json) {
                 $scope[name] = json;
                 $scope.loading = false;

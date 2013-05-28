@@ -21,10 +21,12 @@ package org.totalgrid.coral.models
 import play.api.libs.json._
 import org.totalgrid.reef.client.service.proto.Model.{Command, Point, Entity}
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.{Events, Measurements}
 import org.totalgrid.reef.client.service.proto.Events.Event
-import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
 import org.totalgrid.reef.client.service.proto.Alarms.Alarm
+import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
+import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
+import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
+import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 
 /**
  *
@@ -32,7 +34,15 @@ import org.totalgrid.reef.client.service.proto.Alarms.Alarm
  */
 object JsonFormatters {
   import ReefExtensions._
+  import ConnectionStatus._
 
+  /**
+   * For pushing Reef objects to the client browser over a WebSocket.
+   *
+   * @param typeName The type such as: alarm, measurement, etc.
+   * @param writes The singleton Writes (i.e. writer) for the object type.
+   * @tparam T The type being written.
+   */
   class PushWrites[T]( typeName: String, writes: Writes[T]) {
     def writes( subscriptionId: String, o: T): JsValue = {
       Json.obj (
@@ -43,7 +53,6 @@ object JsonFormatters {
     }
   }
 
-//  case class PushFormatter[T]( typeName: String, writes: Writes[T])
 
   def shortQuality( m: Measurement) = {
     val q = m.getQuality
@@ -96,23 +105,84 @@ object JsonFormatters {
   }
 
 
+  implicit val connectionStatusWrites = new Writes[ConnectionStatus] {
+    def writes( o: ConnectionStatus): JsValue =
+      Json.obj(
+        "status" -> o.toString,
+        "description" -> o.description,
+        "reinitializing" -> o.reinitializing
+      )
+  }
+
+  implicit val agentWrites = new Writes[Agent] {
+    def writes( o: Agent): JsValue =
+      Json.obj(
+        "name" -> o.getName,
+        "uuid" -> o.getUuid.getValue,
+        "permissions" -> o.getPermissionSetsList.map( _.getName).toList
+      )
+  }
+
+  implicit val permissionWrites = new Writes[Permission] {
+    private def selectorString(es: EntitySelector): String = {
+      val args = es.getArgumentsList.toList
+      val argString = if (args.isEmpty) ""
+      else args.mkString("(", ",", ")")
+      es.getStyle + argString
+    }
+    def writes( o: Permission): JsValue =
+      Json.obj(
+        "id" -> o.getId.getValue,
+        "allow" -> o.getAllow,
+        "actions" -> o.getVerbList.toList,
+        "resources" -> o.getResourceList.toList,
+        "selectors" -> o.getSelectorList.map( selectorString).toList
+      )
+  }
+
+  implicit val permissionSetWrites = new Writes[PermissionSet] {
+    def writes( o: PermissionSet): JsValue =
+      Json.obj(
+        "name" -> o.getName,
+        "uuid" -> o.getUuid.getValue,
+        "permissions" -> o.getPermissionsList.toList
+      )
+  }
+
+  val permissionSetSummaryWrites = new Writes[PermissionSet] {
+    def writes( o: PermissionSet): JsValue = {
+      val rules = o.getPermissionsList.toList
+      val allowsCount = rules.filter(_.getAllow == true).size
+      val deniesCount = rules.filter(_.getAllow == false).size
+
+      Json.obj(
+        "name" -> o.getName,
+        "allows" -> allowsCount,
+        "denies" -> deniesCount
+      )
+    }
+  }
+
+  // TODO: ApplicationConfig proto should be renamed to Application
+  implicit val applicationConfigWrites = new Writes[ApplicationConfig] {
+    def writes( o: ApplicationConfig): JsValue =
+      Json.obj(
+        "name" -> o.getInstanceName,
+        "uuid" -> o.getUuid.getValue,
+        "version" -> o.getVersion,
+        "timesOutAt" -> o.getTimesOutAt,
+        "online" -> o.getOnline,
+        "agent" -> o.getUserName,
+        "capabilities" -> o.getCapabilitesList.toList
+      )
+  }
+
   implicit val entityWrites = new Writes[Entity] {
     def writes( o: Entity): JsValue =
       Json.obj(
         "name" -> o.getName,
         "uuid" -> o.getUuid.getValue,
         "types" -> o.getTypesList.toList
-      )
-  }
-
-  implicit val pointWrites = new Writes[Point] {
-    def writes( o: Point): JsValue =
-      Json.obj(
-        "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "valueType" -> o.getType.name,
-        "unit" -> o.getUnit,
-        "endpoint" -> o.getEndpoint.getName
       )
   }
 
@@ -127,6 +197,41 @@ object JsonFormatters {
       )
   }
 
+  implicit val commChannelWrites = new Writes[CommChannel] {
+    def writes( o: CommChannel): JsValue =
+      Json.obj(
+        "name" -> o.getName,
+        "uuid" -> o.getUuid.getValue,
+        "state" -> o.getState.toString
+      )
+  }
+
+  implicit val endpointWrites = new Writes[Endpoint] {
+    def writes( o: Endpoint): JsValue =
+      Json.obj(
+        "name" -> o.getName,
+        "uuid" -> o.getUuid.getValue,
+        "protocol" -> o.getProtocol,
+        "autoAssigned" -> o.getAutoAssigned,
+        "channel" -> o.getChannel
+      )
+  }
+
+  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
+    def writes( o: EndpointConnection): JsValue = {
+      val ep = o.getEndpoint
+      Json.obj(
+        "name" -> ep.getName,
+        "id" -> o.getId.getValue,
+        "state" -> o.getState.toString,
+        "enabled" -> o.getEnabled,
+        "endpoint" -> o.getEndpoint,
+        "fep" -> o.getFrontEnd.getAppConfig.getInstanceName,
+        "routed" -> o.getRouting.hasServiceRoutingKey
+      )
+    }
+  }
+
 
   implicit val measurementWrites = new Writes[Measurement] {
     def writes( o: Measurement): JsValue = {
@@ -135,7 +240,7 @@ object JsonFormatters {
         case Measurement.Type.INT => o.getIntVal
         case Measurement.Type.STRING => o.getStringVal
         case Measurement.Type.BOOL => o.getBoolVal
-        case Measurement.Type.NONE => Json.toJson("") // or perhaps JsNull?
+        case Measurement.Type.NONE => "" // or perhaps JsNull?
       }
       Json.obj(
         "name" -> o.getName,
@@ -178,6 +283,17 @@ object JsonFormatters {
     }
   }
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
+
+  implicit val pointWrites = new Writes[Point] {
+    def writes( o: Point): JsValue =
+      Json.obj(
+        "name" -> o.getName,
+        "uuid" -> o.getUuid.getValue,
+        "valueType" -> o.getType.name,
+        "unit" -> o.getUnit,
+        "endpoint" -> o.getEndpoint.getName
+      )
+  }
 
   implicit val pointWithTypesWrites = new Writes[PointWithTypes] {
     def writes( o: PointWithTypes): JsValue =

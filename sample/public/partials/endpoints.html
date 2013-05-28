@@ -21,16 +21,16 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="endpoint in endpoints">
-                    <td><a href="#/endpoint/{{endpoint.name}}">{{endpoint.name}}</a></td>
-                    <td>{{endpoint.protocol}}</td>
-                    <td>{{endpoint.auto}}</td>
-                    <td>{{endpoint.state}}</td>
-                    <td>{{endpoint.enabled}}</td>
-                    <td>{{endpoint.fep}}</td>
-                    <td>{{endpoint.port}}</td>
-                    <td>{{endpoint.portState}}</td>
-                    <td>{{endpoint.routed}}</td>
+                <tr ng-repeat="ec in endpointConnections">
+                    <td><a href="#/endpointconnections/{{ec.endpoint.name | encodeURI}}">{{ec.endpoint.name}}</a></td>
+                    <td>{{ec.endpoint.protocol}}</td>
+                    <td>{{ec.endpoint.autoAssigned}}</td>
+                    <td>{{ec.state}}</td>
+                    <td>{{ec.enabled}}</td>
+                    <td>{{ec.fep}}</td>
+                    <td>{{ec.endpoint.channel.name}}</td>
+                    <td>{{ec.endpoint.channel.State}}</td>
+                    <td>{{ec.routed}}</td>
                 </tr>
             </tbody>
         </table>

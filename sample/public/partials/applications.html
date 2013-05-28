@@ -19,10 +19,10 @@
             </thead>
             <tbody>
                 <tr ng-repeat="application in applications">
-                    <td><a href="#/application/{{application.name}}">{{application.name}}</a></td>
+                    <td><a href="#/applications/{{application.name | encodeURI}}">{{application.name}}</a></td>
                     <td>{{application.version}}</td>
                     <td>{{application.online}}</td>
-                    <td>{{application.expiry | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>{{application.timesOutAt | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                     <td>{{application.agent}}</td>
                     <td>{{application.capabilities | csv}}</td>
                 </tr>

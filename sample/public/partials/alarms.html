@@ -26,7 +26,7 @@
                     <td>{{alarm.event.type}}</td>
                     <td>{{alarm.event.severity}}</td>
                     <td>{{alarm.event.agent}}</td>
-                    <td><a href="#/entity/{{alarm.event.entity}}">{{alarm.event.entity}}</a></td>
+                    <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td>
                     <td>{{alarm.event.message}}</td>
                     <td>{{alarm.event.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                 </tr>

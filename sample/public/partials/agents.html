@@ -15,10 +15,10 @@
             </thead>
             <tbody>
                 <tr ng-repeat="agent in agents">
-                    <td><a href="#/agent/{{agent.name}}">{{agent.name}}</a></td>
+                    <td><a href="#/agents/{{agent.name | encodeURI}}">{{agent.name}}</a></td>
                     <td>
                         <ul>
-                            <li ng-repeat="perm in agent.permissions"><a href="#/permissionset/{{perm}}">{{perm}}</a></li>
+                            <li ng-repeat="perm in agent.permissions"><a href="#/permissionsets/{{perm}}">{{perm}}</a></li>
                         </ul>
                     </td>
                 </tr>

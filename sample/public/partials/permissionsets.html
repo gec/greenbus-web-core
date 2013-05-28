@@ -15,8 +15,8 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="set in permissionsets">
-                    <td><a href="#/permissionset/{{set.name}}">{{set.name}}</a></td>
+                <tr ng-repeat="set in permissionSets">
+                    <td><a href="#/permissionsets/{{set.name | encodeURI}}">{{set.name}}</a></td>
                     <td>{{set.allows}}</td>
                     <td>{{set.denies}}</td>
                 </tr>

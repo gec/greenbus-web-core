@@ -134,7 +134,7 @@ function LogoutControl($rootScope, $scope, reef, $timeout) {
 }
 
 function EntityControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "entity";
+    $rootScope.currentMenuItem = "entities";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Entities" }
@@ -146,18 +146,18 @@ function EntityControl($rootScope, $scope, reef) {
 function EntityDetailControl($rootScope, $scope, $routeParams, reef) {
     var entName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "entity";
+    $rootScope.currentMenuItem = "entities";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Entities", url: "#/entity"},
+        { name: "Entities", url: "#/entities"},
         { name: entName }
     ];
 
-    reef.get( '/entity/' + entName, "entity", $scope);
+    reef.get( '/entities/' + entName, "entity", $scope);
 }
 
 function PointControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "point";
+    $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Points" }
@@ -169,18 +169,18 @@ function PointControl($rootScope, $scope, reef) {
 function PointDetailControl($rootScope, $scope, $routeParams, reef) {
     var pointName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "point";
+    $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Points", url: "#/point"},
+        { name: "Points", url: "#/points"},
         { name: pointName }
     ];
 
-    reef.get( '/point/' + pointName, "point", $scope);
+    reef.get( '/points/' + pointName, "point", $scope);
 }
 
 function CommandControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "command";
+    $rootScope.currentMenuItem = "commands";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Commands" }
@@ -192,10 +192,10 @@ function CommandControl($rootScope, $scope, reef) {
 function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
     var commandName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "command";
+    $rootScope.currentMenuItem = "commands";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Commands", url: "#/command"},
+        { name: "Commands", url: "#/commands"},
         { name: commandName }
     ];
 
@@ -205,7 +205,7 @@ function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
 function MeasurementControl($rootScope, $scope, $filter, reef) {
     $scope.measurements = []
 
-    $rootScope.currentMenuItem = "measurement";
+    $rootScope.currentMenuItem = "measurements";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Measurements" }
@@ -420,57 +420,57 @@ function EssesControl($rootScope, $scope, $filter, reef) {
 }
 
 function EndpointControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.currentMenuItem = "endpointconnections";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Endpoints" }
     ];
 
-    reef.get( "/endpoint", "endpoints", $scope);
+    reef.get( "/endpointconnections", "endpointConnections", $scope);
 }
 function EndpointDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.currentMenuItem = "endpointconnections";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Endpoints", url: "#/endpoint"},
+        { name: "Endpoints", url: "#/endpointconnections"},
         { name: routeName }
     ];
 
-    reef.get( '/endpoint/' + routeName, "endpoint", $scope);
+    reef.get( '/endpointconnections/' + routeName, "endpointConnection", $scope);
 }
 
 function ApplicationControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "application";
+    $rootScope.currentMenuItem = "applications";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Applications" }
     ];
 
-    reef.get( "/application", "applications", $scope);
+    reef.get( "/applications", "applications", $scope);
 }
 function ApplicationDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "endpoint";
+    $rootScope.currentMenuItem = "applications";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Applications", url: "#/application"},
+        { name: "Applications", url: "#/applications"},
         { name: routeName }
     ];
 
-    reef.get( '/application/' + routeName, "application", $scope);
+    reef.get( '/applications/' + routeName, "application", $scope);
 }
 
 function EventControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "event";
+    $rootScope.currentMenuItem = "events";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Events" }
     ];
 
-    reef.get( "/event", "events", $scope);
+    reef.get( "/events/40", "events", $scope);
 }
 
 //function AlarmControl($rootScope, $scope, $attrs, reef) {
@@ -479,7 +479,7 @@ function AlarmControl($rootScope, $scope, reef) {
 //    $scope.limit = Number( $attrs.limit || 20);
     $scope.limit = 20;
 
-    $rootScope.currentMenuItem = "alarm";
+    $rootScope.currentMenuItem = "alarms";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Alarms" }
@@ -499,51 +499,51 @@ function AlarmControl($rootScope, $scope, reef) {
     reef.subscribeToActiveAlarms( $scope, $scope.limit, $scope.onAlarm, $scope.onError)
 
 
-    //reef.get( "/alarm", "alarms", $scope);
+    //reef.get( "/alarms/40", "alarms", $scope);
 }
 
 function AgentControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "agent";
+    $rootScope.currentMenuItem = "agents";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Agents" }
     ];
 
-    reef.get( "/agent", "agents", $scope);
+    reef.get( "/agents", "agents", $scope);
 }
 function AgentDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "agent";
+    $rootScope.currentMenuItem = "agents";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Agents", url: "#/agent"},
+        { name: "Agents", url: "#/agents"},
         { name: routeName }
     ];
 
-    reef.get( '/agent/' + routeName, "agent", $scope);
+    reef.get( '/agents/' + routeName, "agent", $scope);
 }
 
 function PermissionSetControl($rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "permissionset";
+    $rootScope.currentMenuItem = "permissionsets";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Permission Sets" }
     ];
 
-    reef.get( "/permissionset", "permissionsets", $scope);
+    reef.get( "/permissionsets", "permissionSets", $scope);
 }
 function PermissionSetDetailControl($rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "permissionset";
+    $rootScope.currentMenuItem = "permissionsets";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Permission Sets", url: "#/permissionset"},
+        { name: "Permission Sets", url: "#/permissionsets"},
         { name: routeName }
     ];
 
-    reef.get( '/permissionset/' + routeName, "permissionset", $scope);
+    reef.get( '/permissionsets/' + routeName, "permissionSet", $scope);
 }
 
 

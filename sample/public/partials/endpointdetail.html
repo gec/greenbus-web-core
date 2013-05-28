@@ -3,42 +3,42 @@
 
 <div>
 
-    <h2>Endpoint: {{endpoint.name}}</h2>
+    <h2>Endpoint: {{endpointConnection.endpoint.name}}</h2>
 
     <div>
         <table class="table table-condensed">
             <tbody>
             <tr>
                 <td>Protocol</td>
-                <td>{{endpoint.protocol}}</td>
+                <td>{{endpointConnection.endpoint.protocol}}</td>
             </tr>
             <tr>
                 <td>Auto Assigned</td>
-                <td>{{endpoint.auto}}</td>
+                <td>{{endpointConnection.endpoint.autoAssigned}}</td>
             </tr>
             <tr>
                 <td>State</td>
-                <td>{{endpoint.state}}</td>
+                <td>{{endpointConnection.state}}</td>
             </tr>
             <tr>
                 <td>Enabled</td>
-                <td>{{endpoint.enabled}}</td>
+                <td>{{endpointConnection.enabled}}</td>
             </tr>
             <tr>
                 <td>Front End</td>
-                <td>{{endpoint.fep}}</td>
+                <td>{{endpointConnection.fep}}</td>
             </tr>
             <tr>
                 <td>Port</td>
-                <td>{{endpoint.port}}</td>
+                <td>{{endpointConnection.endpoint.channel.name}}</td>
             </tr>
             <tr>
                 <td>Port State</td>
-                <td>{{endpoint.portState}}</td>
+                <td>{{endpointConnection.endpoint.channel.state}}</td>
             </tr>
             <tr>
                 <td>Routed</td>
-                <td>{{endpoint.routed}}</td>
+                <td>{{endpointConnection.routed}}</td>
             </tr>
             </tbody>
         </table>

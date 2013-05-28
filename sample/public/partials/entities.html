@@ -13,7 +13,7 @@
             </thead>
             <tbody>
                 <tr ng-repeat="ent in entities">
-                    <td><a href="#/entity/{{ent.name}}">{{ent.name}}</a></td>
+                    <td><a href="#/entities/{{ent.name | encodeURI}}">{{ent.name}}</a></td>
                     <td>{{ent.types | csv}}</td>
                 </tr>
             </tbody>

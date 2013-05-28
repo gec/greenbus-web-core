@@ -125,4 +125,8 @@ angular.module('charlotte.filters', []).
             }
             return result
         };
+    }).
+    filter('encodeURI', function() {
+        // Search each element in the 'objects' array for key values containing searchText
+        return window.encodeURI
     });

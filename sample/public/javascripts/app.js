@@ -27,23 +27,23 @@ angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charl
       when('/loading', {templateUrl: 'partials/loading.html', controller: LoadingControl}).
       when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
       when('/logout', {templateUrl: 'partials/login.html', controller: LogoutControl}).
-      when('/measurement', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
+      when('/measurements', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
       when('/esses', {templateUrl: 'partials/esses.html', controller: EssesControl}).
-      when('/entity', {templateUrl: 'partials/entities.html', controller: EntityControl}).
-      when('/entity/:name', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl}).
-      when('/point', {templateUrl: 'partials/points.html', controller: PointControl}).
-      when('/point/:name', {templateUrl: 'partials/pointdetail.html', controller: PointDetailControl}).
-      when('/command', {templateUrl: 'partials/commands.html', controller: CommandControl}).
-      when('/command/:name', {templateUrl: 'partials/commanddetail.html', controller: CommandDetailControl}).
-      when('/endpoint', {templateUrl: 'partials/endpoints.html', controller: EndpointControl}).
-      when('/endpoint/:name', {templateUrl: 'partials/endpointdetail.html', controller: EndpointDetailControl}).
-      when('/application', {templateUrl: 'partials/applications.html', controller: ApplicationControl}).
-      when('/application/:name', {templateUrl: 'partials/applicationdetail.html', controller: ApplicationDetailControl}).
-      when('/event', {templateUrl: 'partials/events.html', controller: EventControl}).
-      when('/alarm', {templateUrl: 'partials/alarms.html', controller: AlarmControl}).
-      when('/agent', {templateUrl: 'partials/agents.html', controller: AgentControl}).
-      when('/agent/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl}).
-      when('/permissionset', {templateUrl: 'partials/permissionsets.html', controller: PermissionSetControl}).
-      when('/permissionset/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: PermissionSetDetailControl}).
-      otherwise({redirectTo: '/entity'});
+      when('/entities', {templateUrl: 'partials/entities.html', controller: EntityControl}).
+      when('/entities/:name', {templateUrl: 'partials/entitydetail.html', controller: EntityDetailControl}).
+      when('/points', {templateUrl: 'partials/points.html', controller: PointControl}).
+      when('/points/:name', {templateUrl: 'partials/pointdetail.html', controller: PointDetailControl}).
+      when('/commands', {templateUrl: 'partials/commands.html', controller: CommandControl}).
+      when('/commands/:name', {templateUrl: 'partials/commanddetail.html', controller: CommandDetailControl}).
+      when('/endpointconnections', {templateUrl: 'partials/endpoints.html', controller: EndpointControl}).
+      when('/endpointconnections/:name', {templateUrl: 'partials/endpointdetail.html', controller: EndpointDetailControl}).
+      when('/applications', {templateUrl: 'partials/applications.html', controller: ApplicationControl}).
+      when('/applications/:name', {templateUrl: 'partials/applicationdetail.html', controller: ApplicationDetailControl}).
+      when('/events', {templateUrl: 'partials/events.html', controller: EventControl}).
+      when('/alarms', {templateUrl: 'partials/alarms.html', controller: AlarmControl}).
+      when('/agents', {templateUrl: 'partials/agents.html', controller: AgentControl}).
+      when('/agents/:name', {templateUrl: 'partials/agentdetail.html', controller: AgentDetailControl}).
+      when('/permissionsets', {templateUrl: 'partials/permissionsets.html', controller: PermissionSetControl}).
+      when('/permissionsets/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: PermissionSetDetailControl}).
+      otherwise({redirectTo: '/entities'});
   }]);
