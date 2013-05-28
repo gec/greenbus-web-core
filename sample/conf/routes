@@ -30,7 +30,10 @@ GET     /endpointconnections/*name    controllers.Application.getEndpointConnect
 GET     /applications                 controllers.Application.getApplications
 GET     /applications/:name           controllers.Application.getApplication( name: String)
 
+GET     /events                       controllers.Application.getEvents( limit: Int = 20)
 GET     /events/:limit                controllers.Application.getEvents( limit: Int)
+
+GET     /alarms                       controllers.Application.getAlarms( limit: Int = 20)
 GET     /alarms/:limit                controllers.Application.getAlarms( limit: Int)
 
 GET     /agents                       controllers.Application.getAgents
