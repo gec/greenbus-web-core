@@ -296,11 +296,10 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         parameter = parameter + "="
         var query = ""
         for( var index in values) {
-            var value = encodeURIComponent( values[index])
             if( index == 0)
-                query = parameter + value
+                query = parameter + values[index]
             else
-                query = query + "&" + parameter + value
+                query = query + "&" + parameter + values[index]
         }
         return query
     }
