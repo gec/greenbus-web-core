@@ -62,7 +62,7 @@ trait Authentication {
   type ServiceClient
   type ServiceClientFailure
   def authTokenName = "coralAuthToken" // Used for cookie and JSON reply
-  def authTokenCookieMaxAge = Some( (5 minutes).toSeconds.toInt)
+  def authTokenCookieMaxAge = Some( (1 day).toSeconds.toInt)
 
   /**
    * Get a service. A service call is made to verify the authToken is valid.
