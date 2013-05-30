@@ -71,7 +71,7 @@ angular.module('charlotte.filters', []).
             return ( standby === "OffAvailable" || standby === "true")
         };
     }).
-    filter('essBatterySimpleStandbyClass', function() {
+    filter('essStandbyOrOnlineClass', function() {
         return function(simpleStandby) {
             return simpleStandby === "Standby" ? "label label-warning" : ""
         };
@@ -88,22 +88,45 @@ angular.module('charlotte.filters', []).
                 return false
         };
     }).
-    filter('essBatterySocChargedClass', function() {
-        return function(soc) {
-            if( soc > 10 )
-                return "battery-soc charged"
+    filter('essStateIcon', function() {
+        return function(state) {
+            if( state === "standby")
+                return "icon-ban-circle"
+            else if( state === "charging")
+                return "icon-arrow-right"
+            else if( state === "discharging")
+                return "icon-arrow-left"
             else
-                return "battery-soc charged alarmed"
+                return ""
+        };
+    }).
+    filter('essStateDescription', function() {
+        return function(state) {
+            return state + " state";
+        };
+    }).
+    filter('essBatterySocChargedClass', function() {
+        return function(soc, state) {
+            var classes = ( soc > 10 ) ? "battery-soc charged" : "battery-soc charged alarmed"
+            if( state === "standby" )
+                classes += " standby"
+            return classes
         };
     }).
     filter('essBatterySocUnchargedClass', function() {
-        return function(soc) {
+        return function(soc, state) {
+            var classes = null
             if( soc === null || soc === "" )
-                return "battery-soc unknown"
+                classes = "battery-soc unknown"
             else if( soc > 10 )
-                return "battery-soc uncharged"
+                classes = "battery-soc uncharged"
             else
-                return "battery-soc uncharged alarmed"
+                classes = "battery-soc uncharged alarmed"
+
+            if( state === "standby")
+                classes += " standby"
+
+            return classes
         };
     }).
     filter('searchContains', function() {

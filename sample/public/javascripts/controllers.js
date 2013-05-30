@@ -291,6 +291,19 @@ function EssesControl($rootScope, $scope, $filter, reef) {
             return number( value, 0)
         }
     }
+    function formatNumberNoDecimal( value) {
+        if ( typeof value == "boolean" || isNaN( value) || !isFinite(value) || value === "")
+            return value
+
+        if( typeof value.indexOf === 'function') {
+            var decimalIndex = value.indexOf(".")
+            value = value.substring( 0, decimalIndex)
+        } else {
+            value = Math.round( parseFloat( value))
+        }
+
+        return value
+    }
 
     function makeQueryStringFromArray( parameter, values) {
         parameter = parameter + "="
@@ -330,7 +343,7 @@ function EssesControl($rootScope, $scope, $filter, reef) {
 
         switch (info.type) {
             case "%SOC":
-                value = formatNumberValue( value);
+                value = formatNumberNoDecimal( value);
                 break;
             case "Capacity":
                 value = formatNumberValue( value) + " " + info.unit;
@@ -343,6 +356,19 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         return value
     }
 
+    // Return standby, charging, or discharging
+    function getState( ess) {
+        if( ess.Standby === "OffAvailable" || ess.Standby === "true")
+            return "standby"
+        else if( typeof ess.Charging == "boolean")
+            return ess.Charging ? "charging" : "discharging";
+        else if( typeof ess.Charging.indexOf === 'function' && ess.Charging.indexOf("-") >= 0) // has minus sign, so it's charging
+            return "charging"
+        else
+            return "discharging"
+
+    }
+
     $scope.onMeasurement = function( subscriptionId, type, measurement) {
         //console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
         // Map the point.name to the standard types (i.e. capacity, standby, charging)
@@ -350,11 +376,12 @@ function EssesControl($rootScope, $scope, $filter, reef) {
         var value = processValue( info, measurement)
         if( info.type == "Standby") {
             if( value === "OffAvailable" || value === "true")
-                $scope.esses[ info.essIndex].simpleStandby = "Standby"
+                $scope.esses[ info.essIndex].standbyOrOnline = "Standby"
             else
-                $scope.esses[ info.essIndex].simpleStandby = "Online"
+                $scope.esses[ info.essIndex].standbyOrOnline = "Online"
         }
         $scope.esses[ info.essIndex][info.type] = value
+        $scope.esses[ info.essIndex].state = getState( $scope.esses[ info.essIndex])
     }
 
     $scope.onError = function( subscriptionId, type, data) {
@@ -369,7 +396,8 @@ function EssesControl($rootScope, $scope, $filter, reef) {
             Standby: "",
             Charging: "",
             "%SOC": "",
-            simpleStandby: ""
+            standbyOrOnline: "", // "Standby", "Online"
+            state: "s"    // "standby", "charging", "discharging"
         }
     }
 

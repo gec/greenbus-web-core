@@ -1,13 +1,5 @@
 /* app css stylesheet */
 
-body {
-    padding-top: 60px;
-    padding-bottom: 40px;
-}
-.sidebar-nav {
-    padding: 9px 0;
-}
-
 
 .statusBanner {
     visibility: hidden;
@@ -74,7 +66,6 @@ body {
     display: block;
     width:50px;
     height: 30px;
-    margin-left: 36px;
     padding-left: 4px;
     padding-right: 20px;
     overflow: visible;
@@ -87,10 +78,16 @@ body {
     height: 26px;
 }
 .battery-soc.charged {
-    background-color: limegreen;
+    background-color: #32c832;
     -webkit-box-shadow: 0px 3px 3px rgba(66, 255, 66, .3);
     -moz-box-shadow: 0px 3px 3px rgba(66, 255, 66, .3);
     box-shadow: 0px 3px 3px rgba(66, 255, 66, .3);
+}
+.battery-soc.charged.standby {
+    background-color: darkgreen;
+    -webkit-box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+    -moz-box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+    box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
 }
 .battery-soc.uncharged {
     background-color: black;
@@ -98,16 +95,22 @@ body {
     -moz-box-shadow: 0px 3px 3px rgba(0, 0, 0, .3);
     box-shadow: 0px 3px 3px rgba(0, 0, 0, .3);
 }
+.battery-soc.uncharged.standby {
+    background-color: black;
+    -webkit-box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+    -moz-box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+    box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+}
 .battery-soc.alarmed{
     -webkit-box-shadow: 0px 0px 8px rgba(255, 0, 0, 1);
     -moz-box-shadow: 0px 0px 8px rgba(255, 0, 0, 1);
     box-shadow: 0px 0px 8px rgba(255, 0, 0, 1);
 }
 .battery-soc.charged.alarmed{
-    background-color: red;
+    background-color: #d00000;
 }
 .battery-soc.unknown{
-    background-color: lightgray;
+    background-color: darkgray;
 }
 .battery-overlay {
     position: relative;
@@ -116,13 +119,19 @@ body {
     height: 100%;
     background-image: url('../images/battery60x30.png');
 }
+.battery-discharging {
+    position: relative;
+    top: -27px;
+    left: -28px;
+    width: 14px;
+    height: 24px;
+}
 .battery-charging {
     position: relative;
     top: -27px;
-    left: -38px;
+    left: -28px;
     width: 14px;
     height: 24px;
-    background-image: url('../images/charging15x24.png');
 }
 .battery-standby {
     position: relative;
@@ -142,7 +151,7 @@ body {
     *margin-right: .3em;
     line-height: 14px;
     vertical-align: text-top;
-    background-image: url("../images/reef-icons.png");
+    background-image: url("../img/reef-icons.png");
     background-position: 14px 14px;
     background-repeat: no-repeat;
 }
