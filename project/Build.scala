@@ -49,6 +49,7 @@ object ApplicationBuild extends Build {
   lazy val sample = play.Project("sample", path = file("sample"))
     .settings(baseSettings: _*)
     .settings(
+      testOptions in Test += Tests.Argument(TestFrameworks.Specs2, "junitxml", "console"),
       publishLocal := {},
       publish := {}
     )
