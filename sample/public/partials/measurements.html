@@ -14,7 +14,6 @@
                     <th>Unit</th>
                     <th>Quality</th>
                     <th>Time</th>
-                    <th>% Charge</th>
                 </tr>
             </thead>
             <tbody>
@@ -24,11 +23,6 @@
                     <td>{{meas.unit}}</td>
                     <td>{{meas.shortQuality}}</td>
                     <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                    <td>
-                        <div class="progress" style="width:100px" ng-show="meas.percentCharge">
-                            <div class="bar" style="width: {{meas.percentCharge}}%;"></div>
-                        </div>
-                    </td>
                 </tr>
             </tbody>
         </table>
