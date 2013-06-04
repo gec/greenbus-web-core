@@ -71,6 +71,12 @@
     overflow: visible;
 }
 
+.ess-state-icon {
+    width: 14px;
+    height: 14px;
+    border: none;
+    outline: none;
+}
 .battery-soc {
     display: block;
     float: left;

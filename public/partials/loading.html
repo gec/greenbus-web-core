@@ -1,9 +1,0 @@
-<div class="row-fluid">
-    <div class="span4">
-        <div ng-class="status | serviceStatusProgressClass" style="margin-bottom: 4px">
-            <div class="bar" style="width: {{status.servicesStatus | serviceStatusProgressPercent}}%;"></div>
-        </div>
-        {{status | serviceStatusLoading}}
-    </div>
-</div>
-<h5>{{status.description}}</h5>

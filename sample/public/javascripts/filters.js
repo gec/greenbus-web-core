@@ -91,11 +91,11 @@ angular.module('charlotte.filters', []).
     filter('essStateIcon', function() {
         return function(state) {
             if( state === "standby")
-                return "icon-ban-circle"
+                return "images/standby14.png"
             else if( state === "charging")
-                return "icon-arrow-right"
+                return "images/charging14.png"
             else if( state === "discharging")
-                return "icon-arrow-left"
+                return "images/discharging14.png"
             else
                 return ""
         };

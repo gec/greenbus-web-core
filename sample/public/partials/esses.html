@@ -30,7 +30,7 @@
                     <td>{{ess.name}}</td>
                     <td>{{ess.Capacity}}</td>
                     <td>{{ess.Charging}}</td>
-                    <td><i class="{{ess.state | essStateIcon}}" title="{{ess.state | essStateDescription}}" style="margin-top:2px"></i></td>
+                    <td><img class="ess-state-icon" src="{{ess.state | essStateIcon}}" title="{{ess.state | essStateDescription}}" style="margin-top:2px"/></td>
                     <td style="width: 60px">
                         <div class="battery-wrapper" title="{{ess.state | essStateDescription}}" >
                             <div class="{{ess['%SOC'] | essBatterySocChargedClass: ess.state}}" style="width:{{ess['%SOC']}}%"></div>
