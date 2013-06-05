@@ -94,7 +94,7 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     case ServiceClientRequest( authToken, validationTiming) => serviceClientRequest( authToken, validationTiming)
     case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
 
-    case unknownMessage: AnyRef => Logger.error( "ReefServiceManagerActor.receive: Unknown message " + unknownMessage)
+    case unknownMessage: AnyRef => Logger.error( "ReefConnectionManager.receive: Unknown message " + unknownMessage)
   }
 
   def login( userName: String, password: String) = {
@@ -103,11 +103,11 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
 
     if( status == UP & client.isDefined) {
       val authToken = client.get.getHeaders.getAuthToken
-      Logger.debug( "ReefServiceManagerActor.login( " + userName + ") authToken: " + authToken)
+      Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
       //authTokenToServiceMap +=  (authToken -> service)
       sender ! client.get.getHeaders.getAuthToken
     } else {
-      Logger.debug( "ReefServiceManagerActor.login failure: " + status)
+      Logger.debug( "ReefConnectionManager.login failure: " + status)
       sender ! AuthenticationFailure( status)
     }
   }
@@ -140,7 +140,7 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
   private def serviceClientRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
 
     if( connectionStatus != AMQP_UP || !connection.isDefined) {
-      Logger.debug( "ReefServiceManagerActor.serviceClientRequest AMQP is not UP or connection not defined: " + connectionStatus)
+      Logger.debug( "ReefConnectionManager.serviceClientRequest AMQP is not UP or connection not defined: " + connectionStatus)
       sender ! ServiceClientFailure( connectionStatus)
       return
     }
@@ -148,10 +148,10 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
       /* Was caching (authToken -> service).
     authTokenToServiceMap.get( authToken) match {
       case Some( service) =>
-        Logger.debug( "ReefServiceManagerActor.serviceClientRequest with " + authToken)
+        Logger.debug( "ReefConnectionManager.serviceClientRequest with " + authToken)
         sender ! service
       case _ =>
-        Logger.debug( "ReefServiceManagerActor.serviceClientRequest unrecognized authToken: " + authToken)
+        Logger.debug( "ReefConnectionManager.serviceClientRequest unrecognized authToken: " + authToken)
         sender ! ServiceFailure( AUTHTOKEN_UNRECOGNIZED)
     }
     */
@@ -163,15 +163,15 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
       sender ! client
     }  catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
+        Logger.debug( "ReefConnectionManager.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
         sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
       }
       case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Logger.debug( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
+        Logger.error( "ReefConnectionManager.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
       }
       case ex: Throwable => {
-        Logger.error( "ReefServiceManagerActor.serviceClientRequest( " + authToken + "): Throwable " + ex)
+        Logger.error( "ReefConnectionManager.serviceClientRequest( " + authToken + "): Throwable " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
       }
     }
@@ -190,7 +190,7 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
   private def webSocketOpen( authToken: String, validationTiming: ValidationTiming): Unit = {
     Logger.debug( "webSocketOpen: " + authToken)
     if( connectionStatus != AMQP_UP || !connection.isDefined) {
-      Logger.debug( "ReefServiceManagerActor.webSocketOpen AMQP is not UP or connection not defined: " + connectionStatus)
+      Logger.debug( "ReefConnectionManager.webSocketOpen AMQP is not UP or connection not defined: " + connectionStatus)
       sender ! WebSocketError( connectionStatus)
       return
     }
@@ -202,15 +202,15 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
       Logger.debug( "webSocketOpen. sender ! makeChildActor: " + authToken)
     }  catch {
       case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        Logger.debug( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): UnauthorizedException " + ex)
+        Logger.debug( "ReefConnectionManager.webSocketOpen( " + authToken + "): UnauthorizedException " + ex)
         sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
       }
       case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Logger.debug( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): ReefServiceException " + ex)
+        Logger.error( "ReefConnectionManager.webSocketOpen( " + authToken + "): ReefServiceException " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
       }
       case ex: Throwable => {
-        Logger.error( "ReefServiceManagerActor.webSocketOpen( " + authToken + "): Throwable " + ex)
+        Logger.error( "ReefConnectionManager.webSocketOpen( " + authToken + "): Throwable " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
       }
     }
