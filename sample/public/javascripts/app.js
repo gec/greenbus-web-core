@@ -20,12 +20,11 @@
 
 
 // Declare app level module which depends on filters, and services
-angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charlotte.directives'*/]).
+angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters', 'authentication']).
   config(['$routeProvider', function($routeProvider) {
     "use strict";
     $routeProvider.
       when('/loading', {templateUrl: 'partials/loading.html', controller: LoadingControl}).
-      when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
       when('/logout', {templateUrl: 'partials/login.html', controller: LogoutControl}).
       when('/measurements', {templateUrl: 'partials/measurements.html', controller: MeasurementControl}).
       when('/esses', {templateUrl: 'partials/esses.html', controller: EssesControl}).

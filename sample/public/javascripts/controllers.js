@@ -63,74 +63,9 @@ function LoadingControl($rootScope, $scope, reef, $location) {
     });
 }
 
-function LoginControl($rootScope, $scope, reef, $timeout) {
+function LogoutControl($rootScope, $scope, authentication, $timeout) {
 
-    $scope.error = null
-    $scope.status = reef.getStatus()
-    $scope.userName = null
-    $scope.password = null
-
-    $scope.errorListener = function( description) {
-        $scope.error = description
-        $('#loginModal').modal( {keyboard: false} )
-    }
-
-    $scope.login = function() {
-        reef.login( $scope.userName, $scope.password, $scope.errorListener);
-        $('#loginModal').modal( "hide" )
-    }
-
-    /*
-    // if someone goes to the default path and reef is up, we go to the entity page by default.
-    //
-    if( $scope.status.status === "UP") {
-        $location.path( "/entities");
-        return;
-    }
-    */
-
-    $rootScope.currentMenuItem = "loading";  // so the menus & breadcrumbs will stay hidden
-    $rootScope.breadcrumbs = [
-        { name: "Reef", url: "#/"},
-        { name: "Login" }
-    ];
-
-    $scope.$on( 'reef.status', function( event, status) {
-        $scope.status = status;
-        $scope.visible = $scope.status.status !== "UP"
-    });
-
-    $('#loginModal').modal( {keyboard: false} )
-
-    // Hit return on password input will initiate login.
-    var handleReturnKey = function(e) {
-        if(e.charCode == 13 || e.keyCode == 13) {
-            e.preventDefault()
-            $scope.login()
-        }
-    }
-    $("#password").keypress(handleReturnKey)
-
-    // Set focus on userName, but wait for modal to render.
-    $timeout(
-        function() {
-            $("#userName").focus()
-        },
-        500
-    );
-
-}
-
-function LogoutControl($rootScope, $scope, reef, $timeout) {
-
-    $scope.status = reef.getStatus()
-    reef.logout();
-
-    $rootScope.currentMenuItem = "loading";  // so the menus & breadcrumbs will stay hidden
-    $rootScope.breadcrumbs = [
-        { name: "Reef", url: "#/"},
-        { name: "Logout" }
-    ];
+    authentication.logout();
 }
 
 function EntityControl($rootScope, $scope, reef) {

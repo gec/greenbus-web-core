@@ -1,9 +1,9 @@
-@(message: String)
+@(title: String)
 
-@main(message) {
+@main(title, routes.Assets.at("javascripts/appLogin.js")) {
 
 
-<div class="container-fluid" ng-controller="LoginControl">
+<div class="container-fluid" ng-controller="LoginController">
     <div class="row-fluid">
         <div class="span12">
             <!-- <div ng-view></div> -->

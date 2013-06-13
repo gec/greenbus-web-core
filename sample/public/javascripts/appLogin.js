@@ -20,10 +20,10 @@
 
 
 // Declare app level module which depends on filters, and services
-angular.module('charlotte', [ 'charlotte.services', 'charlotte.filters' /*'charlotte.directives'*/]).
+angular.module('charlotte', [ 'authentication']).
   config(['$routeProvider', function($routeProvider) {
     "use strict";
     $routeProvider.
-      when('/login', {templateUrl: 'partials/login.html', controller: LoginControl}).
+      when('/login', {templateUrl: 'partials/login.html', controller: 'LoginController'}).
       otherwise({redirectTo: '/login'});
   }]);

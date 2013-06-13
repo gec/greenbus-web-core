@@ -1,6 +1,6 @@
-@(message: String)
+@(title: String)
 
-@main(message) {
+@main(title, routes.Assets.at("javascripts/app.js")) {
 <div class="statusBanner">
     <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
         <div class="statusBlock">

@@ -21,7 +21,7 @@
 /* Services */
 
 
-var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
+var ReefService = function( $rootScope, $timeout, $http, $location, $cookies, authentication) {
     var self = this;
     var retries = {
         initialize: 0,
@@ -46,8 +46,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     }
     var redirectLocation = $location.path();
     console.log( "ReefService: redirectLocation 1 =" + redirectLocation)
-    if( redirectLocation.length == 0 || redirectLocation.indexOf( "/loading") == 0 || redirectLocation.indexOf( "/login") == 0 )
-        redirectLocation = "/" // /#/entity"
+    if( redirectLocation.length == 0 )
+        redirectLocation = "/"
     console.log( "ReefService: redirectLocation 2 =" + redirectLocation)
 
 
@@ -121,12 +121,12 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         }
     }
 
-    function makeWebSocket( authToken) {
+    function makeWebSocket() {
         var location = window.location
         var wsUri = location.protocol === "https:" ? "wss:" : "ws:"
         // location.host includes port, ex: "localhost:9000"
         wsUri += "//" + location.host
-        wsUri += "/websocket?authToken=" + authToken
+        wsUri += "/websocket?authToken=" + authentication.getAuthToken()
         var ws = new WS( wsUri)
         ws.onmessage = wsHanders.onmessage
         ws.onopen = wsHanders.onopen
@@ -136,10 +136,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
     }
 
 
-    var authTokenName = "coralAuthToken"
-    var authToken = $cookies[authTokenName];
-    if( authToken && authToken.length > 5) {
-        console.log( "found " + authTokenName + "=" + authToken)
+    if( authentication.isLoggedIn()) {
+        console.log( "reef: authentication.isLoggedIn()")
         // Let's assume, for now, that we already logged in and have a valid authToken.
         setStatus( {
             status: "UP",
@@ -147,9 +145,8 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             description: ""
         })
 
-        //webSocket = makeWebSocket( authToken)
     } else {
-        console.log( "no " + authTokenName)
+        console.log( "reef: ! authentication.isLoggedIn()")
     }
 
 
@@ -188,146 +185,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         return status;
     }
 
-    self.login = function( userName, password, errorListener) {
-        //console.log( "reef.login);
-        var data = {
-            "userName": userName,
-            "password": password
-        }
-        $http.post( "/login", data).
-            success(function(json) {
-                if( json.error) {
-                    // Shouldn't get here.
-                    errorListener( json.error)
-                } else {
-                    authToken = json[authTokenName];
-                    console.log( "login successful with " + authTokenName + "=" + authToken)
-                    setStatus( {
-                        status: "UP",
-                        reinitializing: false,
-                        description: ""
-                    })
-                    $cookies[authTokenName] = authToken
-                    console.log( "login success, setting cookie, redirectLocation: '/#' + '" + redirectLocation + "'")
-                    if( redirectLocation)
-                        //$location.path( redirectLocation)
-                        window.location.href = "/#" + redirectLocation
-                    else
-                        window.location.href = "/#/entity"
-                }
-            }).
-            error(function (json, statusCode, headers, config) {
-                // called asynchronously if an error occurs
-                // or server returns response with status
-                // code outside of the <200, 400) range
-                console.log( "reef.login error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                var message = json && json.error && json.error.description || "Unknown login failure";
-                if( statusCode == 0) {
-                    message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
-                    setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
-                        reinitializing: false,
-                        description: message
-                    });
-                } else {
-                    setStatus( {
-                        status: "APPLICATION_REQUEST_FAILURE",
-                        reinitializing: false,
-                        description: message
-                    });
-                }
-                errorListener( message)
-            });
-    }
-
-    self.logout = function( userName, password, errorListener) {
-        console.log( "reef.logout")
-        httpConfig.headers = {'Authorization': authToken}
-        $http.delete( "/login", httpConfig).
-            success(function(json) {
-                if( json.error) {
-                    // Shouldn't get here.
-                    console.error( "logout error: " + json)
-                    if( errorListener)
-                        errorListener( json.error)
-                } else {
-                    console.log( "logout successful")
-                    setStatus( {
-                        status: "UP",
-                        reinitializing: false,
-                        description: ""
-                    })
-                    authToken = null
-                    delete $cookies[authTokenName]
-                    window.location.href = "/login"
-                }
-            }).
-            error(function (json, statusCode, headers, config) {
-                // called asynchronously if an error occurs
-                // or server returns response with status
-                // code outside of the <200, 400) range
-                console.log( "reef.logout error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                var message = json && json.error && json.error.description || "Unknown login failure";
-                if( statusCode == 0) {
-                    message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
-                    setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
-                        reinitializing: false,
-                        description: message
-                    });
-                } else {
-                    setStatus( {
-                        status: "APPLICATION_REQUEST_FAILURE",
-                        reinitializing: false,
-                        description: message
-                    });
-                }
-                if( errorListener)
-                    errorListener( message)
-            });
-    }
-
-    self.initialize = function( redirectLocation) {
-        //console.log( "reef.initialize redirectLocation" + redirectLocation);
-        $http.get( "/services/status").
-            success(function(json) {
-                setStatus( json);
-
-                if( status.status === "UP") {
-                    retries.initialize = 0;
-                    if( redirectLocation)
-                        $location.path( redirectLocation)
-                } else {
-                    retries.initialize ++;
-                    var delay = retries.initialize < 20 ? 250 : 2000
-                    console.log( "reef.initialize retry " + retries.initialize);
-                    $timeout(function () {
-                        self.initialize( redirectLocation);
-                    }, delay);
-                }
-            }).
-            error(function (json, statusCode, headers, config) {
-                // called asynchronously if an error occurs
-                // or server returns response with status
-                // code outside of the <200, 400) range
-                console.log( "reef.initialize error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                if( statusCode == 0) {
-                    setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
-                        reinitializing: false,
-                        description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                    });
-                } else {
-                    setStatus( {
-                        status: "APPLICATION_REQUEST_FAILURE",
-                        reinitializing: false,
-                        description: "Application server responded with status " + statusCode
-                    });
-                }
-            });
-    }
-
-    //self.initialize(redirectLocation);
 
 
     function isString( obj) {
@@ -339,13 +196,11 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
         //console.log( "reef.get " + url + " retries:" + retries.get);
 
 
-        if( !authToken || status.status == "NOT_LOGGED_IN") {
-            console.log( "self.get if( !authToken || status.status == 'NOT_LOGGED_IN')")
+        if( !authentication.isLoggedIn()) {
+            console.log( "self.get if( !authentication.isLoggedIn())")
             redirectLocation = $location.url() // save the current url so we can redirect the user back
             console.log( "ReefService.get: saving redirectLocation: " + redirectLocation)
-            authToken = null
-            console.log( "window.location.href = '/login'")
-            window.location.href = "/login" //$location.path('/login')
+            authentication.redirectToLoginPage( redirectLocation)
             return
         }
 
@@ -374,7 +229,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 
         retries.get = 0;
 
-        httpConfig.headers = {'Authorization': authToken}
+        httpConfig.headers = authentication.getHttpHeaders()
 
         // encodeURI because objects like point names can have percents in them.
         $http.get( encodeURI( url), httpConfig).
@@ -411,9 +266,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                         description: "Not logged in."
                     });
                     redirectLocation = $location.url(); // save the current url so we can redirect the user back
-                    authToken = null
-                    //$location.path('/login');
-                    window.location.href = "/login"
+                    authentication.redirectToLoginPage( redirectLocation)
                 } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
                     setStatus( {
                         status: "APPLICATION_REQUEST_FAILURE",
@@ -427,8 +280,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
                 // 404 means it's an internal error and the page will never be found so no use retrying.
                 if( statusCode != 404) {
                     console.log( "self.get error if( statusCode != 404)")
-                    //self.initialize();
-                    //self.get( url, name, $scope);
                 }
             });
 
@@ -486,7 +337,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
             console.log( "subscribe: waiting for open to send( " + data + ")")
             webSocketPendingTasks.push( data)
             if( ! webSocket)
-                webSocket = makeWebSocket( authToken)
+                webSocket = makeWebSocket()
         }
         return subscriptionId
     }
@@ -542,9 +393,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies) {
 }
 
 
-angular.module('charlotte.services', ['ngCookies']).
-    factory('reef', function( $rootScope, $timeout, $http, $location, $cookies){
-        return new ReefService( $rootScope, $timeout, $http, $location, $cookies);
+angular.module('charlotte.services', ['ngCookies', "authentication.service"]).
+    factory('reef', function( $rootScope, $timeout, $http, $location, $cookies, authentication){
+        return new ReefService( $rootScope, $timeout, $http, $location, $cookies, authentication);
     })
     .directive('alarmBanner', function(){
         return {
@@ -592,12 +443,14 @@ angular.module('charlotte.services', ['ngCookies']).
 
                 function error(response) {
                     var httpStatus = response.status;
-                    if (httpStatus == 401) {
+                    /*if (httpStatus == 401) {
                         var reef = $injector.get('reef');
                         reef.redirectLocation = $location.url(); // save the current url so we can redirect the user back
                         reef.authToken = null
                         window.location.href = "/login" // $location.path('/login');
-                    } else if ((httpStatus === 404 || httpStatus === 0 ) && response.config.url.indexOf(".html")) {
+                    } else
+                    */
+                    if ((httpStatus === 404 || httpStatus === 0 ) && response.config.url.indexOf(".html")) {
 
                         var status = {
                             status: "APPLICATION_SERVER_DOWN",
