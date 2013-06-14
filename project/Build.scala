@@ -91,9 +91,10 @@ object ApplicationBuild extends Build {
       publishTo               <<=(version)(appPublishTo),
       pomExtra                := appPomExtra
     )
-    .settings(
-      requireJs += "appLogin.js"
-    )
+//    .settings(
+//      requireJs += "appLogin.js",
+//      requireJs += "app.js"
+//    )
     .dependsOn(core)
 
   lazy val sample = play.Project("sample", path = file("sample"))

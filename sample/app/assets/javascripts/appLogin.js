@@ -23,7 +23,7 @@ define([
 ], function( authentication) {
     'use strict';
 
-    var app = angular.module('charlotte', ['authentication'])
+    var app = angular.module('ReefAdmin', ['authentication'])
         .config(['$routeProvider', function($routeProvider) {
             "use strict";
             $routeProvider.
@@ -32,6 +32,6 @@ define([
         }]);
 
     // No ng-app in index page. Bootstrap manually after RequireJS has dependencies loaded.
-    angular.bootstrap(document, ['charlotte'])
+    angular.bootstrap(document, ['ReefAdmin'])
     return app
-});
+}); // end RequireJS define

@@ -16,6 +16,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+define([
+], function() {
+
 'use strict';
 
 /* Filters */
@@ -31,7 +34,7 @@ var SERVICES_STATUS_PROGRESS = {
     APPLICATION_REQUEST_FAILURE: "10"
 };
 
-angular.module('charlotte.filters', []).
+angular.module('ReefAdmin.filters', []).
     filter('csv', function() {
           return function(strArray) {
                 if (strArray ) {
@@ -153,3 +156,5 @@ angular.module('charlotte.filters', []).
         // Search each element in the 'objects' array for key values containing searchText
         return window.encodeURI
     });
+
+}); // end RequireJS define

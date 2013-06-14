@@ -16,9 +16,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+define([
+    'authentication/service',
+    'services'
+], function( authentication) {
 'use strict';
 
-/* Controllers */
 
 function MenuControl($rootScope, $scope, $timeout, reef, $http) {
     $scope.isActive = function(menuItem) {
@@ -527,3 +530,6 @@ function CharlotteControl($scope, $timeout, reef) {
 		loop();
 	}
 }
+
+
+});// end RequireJS define

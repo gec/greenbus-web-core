@@ -16,9 +16,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-'use strict';
-
-/* Services */
+define([
+    'authentication/service'
+], function( authentication) {
+    'use strict';
 
 
 var ReefService = function( $rootScope, $timeout, $http, $location, $cookies, authentication) {
@@ -393,7 +394,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies, au
 }
 
 
-angular.module('charlotte.services', ['ngCookies', "authentication.service"]).
+return angular.module('ReefAdmin.services', ['ngCookies', "authentication.service"]).
     factory('reef', function( $rootScope, $timeout, $http, $location, $cookies, authentication){
         return new ReefService( $rootScope, $timeout, $http, $location, $cookies, authentication);
     })
@@ -474,3 +475,5 @@ angular.module('charlotte.services', ['ngCookies', "authentication.service"]).
 
         $httpProvider.responseInterceptors.push(interceptor);
     }]);
+
+});// end RequireJS define

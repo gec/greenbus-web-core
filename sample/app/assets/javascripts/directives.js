@@ -16,7 +16,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-'use strict';
+define([
+], function() {
+
+    'use strict';
 
 /* Directives */
 
@@ -27,3 +30,5 @@
       elm.text(version);
     };
   }]);*/
+
+}); // end RequireJS define
