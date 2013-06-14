@@ -1,6 +1,7 @@
 import sbt._
 import sbt.Keys._
 import play.Project._
+import com.google.javascript.jscomp.{CompilerOptions, CompilationLevel}
 
 object ApplicationBuild extends Build {
 
@@ -51,6 +52,18 @@ object ApplicationBuild extends Build {
       </scm>
   }
 
+//  val defaultOptions = new CompilerOptions()
+//  CompilationLevel.SIMPLE_OPTIMIZATIONS.setOptionsForCompilationLevel(defaultOptions)
+//  defaultOptions.setProcessCommonJSModules(false)
+//  defaultOptions.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT5)
+
+//  val sampleJavascriptOptions = new CompilerOptions()
+//  sampleJavascriptOptions.closurePass = true
+//  sampleJavascriptOptions.setProcessCommonJSModules( true)
+//  sampleJavascriptOptions.setCommonJSModulePathPrefix( baseDirectory + "/sample/app/assets/javascripts/")
+//  sampleJavascriptOptions.setLanguageIn( CompilerOptions.LanguageMode.ECMASCRIPT5)
+//  CompilationLevel.WHITESPACE_ONLY.setOptionsForCompilationLevel( sampleJavascriptOptions)
+
   lazy val core = Project("core", base = file("core"))
     .settings(baseSettings: _*)
     .settings(
@@ -78,6 +91,9 @@ object ApplicationBuild extends Build {
       publishTo               <<=(version)(appPublishTo),
       pomExtra                := appPomExtra
     )
+    .settings(
+      requireJs += "appLogin.js"
+    )
     .dependsOn(core)
 
   lazy val sample = play.Project("sample", path = file("sample"))
@@ -87,6 +103,11 @@ object ApplicationBuild extends Build {
       publishLocal := {},
       publish := {}
     )
+//  .settings(
+//    (Seq(requireJs += "appLogin.js", requireJsShim += "appLogin.js") ++ closureCompilerSettings(sampleJavascriptOptions)): _*
+    //closureCompilerSettings(sampleJavascriptOptions) ++
+    //Seq(javascriptEntryPoints <<= baseDirectory(_ / "sample" / "app" / "assets" / "js" ** "app.js")) : _*
+//  )
     .dependsOn(core, test % "test")
 
   lazy val root = Project("root", base = file("."))

@@ -16,9 +16,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+define([
+], function() {
 'use strict';
-
-/* Services */
 
 
 var AuthenticationService = function( $rootScope, $timeout, $http, $location, $cookies) {
@@ -122,7 +122,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
     self.logout = function( userName, password, errorListener) {
         console.log( "reef.logout")
         httpConfig.headers = {'Authorization': authToken}
-        $http.delete( "/login", httpConfig).
+        $http['delete']( "/login", httpConfig).  // delete is ECMASCRIPT5
             success(function(json) {
                 if( json.error) {
                     // Shouldn't get here.
@@ -196,52 +196,12 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
 }
 
 
-var authentication = angular.module( 'authentication.service', [
+return angular.module( 'authentication.service', [
     'ngCookies'
 ])
 
 .factory('authentication', function( $rootScope, $timeout, $http, $location, $cookies){
     return new AuthenticationService( $rootScope, $timeout, $http, $location, $cookies)
-})
+});
 
-// The LoginFormController provides the behaviour behind a reusable form to allow users to authenticate.
-// This controller and its template (partials/login.html) are used in a modal dialog box by the security service.
-//.controller('LoginController', ['$scope', 'authentication.service', function($scope, authentication, $timeout) {
-/*
-.controller('LoginController', function($scope, authentication, $timeout) {
-
-    $scope.error = null
-    $scope.status = authentication.getStatus()
-    $scope.userName = null
-    $scope.password = null
-
-    $scope.errorListener = function( description) {
-        $scope.error = description
-        $('#loginModal').modal( {keyboard: false} )
-    }
-
-    $scope.login = function() {
-        authentication.login( $scope.userName, $scope.password, $scope.errorListener);
-        $('#loginModal').modal( "hide" )
-    }
-
-    $('#loginModal').modal( {keyboard: false} )
-
-    // Hit return on password input will initiate login.
-    var handleReturnKey = function(e) {
-        if(e.charCode == 13 || e.keyCode == 13) {
-            e.preventDefault()
-            $scope.login()
-        }
-    }
-    $("#password").keypress(handleReturnKey)
-
-    // Set focus on userName, but wait for modal to render.
-    $timeout(
-        function() {
-            $("#userName").focus()
-        },
-        500
-    );
-
-})*/;
+}); // end RequireJS define

@@ -18,8 +18,20 @@
  */
 'use strict';
 
-angular.module('authentication', [
-    'authentication.service',
-    'authentication.controller',
-    'authentication.interceptor'
-]);
+define([
+    'authentication/authentication'
+], function( authentication) {
+    'use strict';
+
+    var app = angular.module('charlotte', ['authentication'])
+        .config(['$routeProvider', function($routeProvider) {
+            "use strict";
+            $routeProvider.
+                when('/login', {templateUrl: 'partials/login.html', controller: 'LoginController'}).
+                otherwise({redirectTo: '/login'});
+        }]);
+
+    // No ng-app in index page. Bootstrap manually after RequireJS has dependencies loaded.
+    angular.bootstrap(document, ['charlotte'])
+    return app
+});

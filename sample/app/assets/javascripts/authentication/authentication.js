@@ -16,14 +16,19 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+define([
+    'authentication/service',
+    'authentication/controller',
+    'authentication/interceptor'
+], function() {
 'use strict';
 
 
-// Declare app level module which depends on filters, and services
-angular.module('charlotte', [ 'authentication']).
-  config(['$routeProvider', function($routeProvider) {
-    "use strict";
-    $routeProvider.
-      when('/login', {templateUrl: 'partials/login.html', controller: 'LoginController'}).
-      otherwise({redirectTo: '/login'});
-  }]);
+return angular.module('authentication', [
+    'authentication.service',
+    'authentication.controller',
+    'authentication.interceptor'
+]);
+
+
+}); // end RequireJS define
