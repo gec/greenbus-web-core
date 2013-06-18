@@ -22,16 +22,17 @@ define([
 ], function( authentication) {
 'use strict';
 
+return angular.module( 'controllers', ['authentication.service'] )
 
-function MenuControl($rootScope, $scope, $timeout, reef, $http) {
+.controller( 'MenuControl', function( $rootScope, $scope, $timeout, reef, $http) {
     $scope.isActive = function(menuItem) {
         return {
             active: menuItem && menuItem == $scope.currentMenuItem
         };
     };
-}
+})
 
-function ReefStatusControl($rootScope, $scope, $timeout, reef) {
+.controller( 'ReefStatusControl', function( $rootScope, $scope, $timeout, reef) {
 
     $scope.status = reef.getStatus()
     $scope.visible = $scope.status.status !== "UP"
@@ -41,9 +42,9 @@ function ReefStatusControl($rootScope, $scope, $timeout, reef) {
         $scope.status = status;
         $scope.visible = $scope.status.status !== "UP"
     });
-}
+})
 
-function LoadingControl($rootScope, $scope, reef, $location) {
+.controller( 'LoadingControl', function( $rootScope, $scope, reef, $location) {
 
     $scope.status = reef.getStatus();
 
@@ -64,14 +65,14 @@ function LoadingControl($rootScope, $scope, reef, $location) {
         $scope.status = status;
         $scope.visible = $scope.status.status !== "UP"
     });
-}
+})
 
-function LogoutControl($rootScope, $scope, authentication, $timeout) {
+.controller( 'LogoutControl', function( $rootScope, $scope, authentication, $timeout) {
 
     authentication.logout();
-}
+})
 
-function EntityControl($rootScope, $scope, reef) {
+.controller( 'EntityControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "entities";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -79,9 +80,9 @@ function EntityControl($rootScope, $scope, reef) {
     ];
     console.log( "EntityControl")
     reef.get( "/entities", "entities", $scope);
-}
+})
 
-function EntityDetailControl($rootScope, $scope, $routeParams, reef) {
+.controller( 'EntityDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var entName = $routeParams.name;
 
     $rootScope.currentMenuItem = "entities";
@@ -92,9 +93,9 @@ function EntityDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/entities/' + entName, "entity", $scope);
-}
+})
 
-function PointControl($rootScope, $scope, reef) {
+.controller( 'PointControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -102,9 +103,9 @@ function PointControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/points", "points", $scope);
-}
+})
 
-function PointDetailControl($rootScope, $scope, $routeParams, reef) {
+.controller( 'PointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var pointName = $routeParams.name;
 
     $rootScope.currentMenuItem = "points";
@@ -115,9 +116,9 @@ function PointDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/points/' + pointName, "point", $scope);
-}
+})
 
-function CommandControl($rootScope, $scope, reef) {
+.controller( 'CommandControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "commands";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -125,9 +126,9 @@ function CommandControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/commands", "commands", $scope);
-}
+})
 
-function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
+.controller( 'CommandDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var commandName = $routeParams.name;
 
     $rootScope.currentMenuItem = "commands";
@@ -138,9 +139,9 @@ function CommandDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/commands/' + commandName, "command", $scope);
-}
+})
 
-function MeasurementControl($rootScope, $scope, $filter, reef) {
+.controller( 'MeasurementControl', function( $rootScope, $scope, $filter, reef) {
     $scope.measurements = []
 
     $rootScope.currentMenuItem = "measurements";
@@ -204,12 +205,12 @@ function MeasurementControl($rootScope, $scope, $filter, reef) {
 
 
     reef.get( "/measurements", "measurements", $scope, $scope.getSuccessListener);
-}
+})
 
 /**
  * Energy Storage Systems Control
  */
-function EssesControl($rootScope, $scope, $filter, reef) {
+.controller( 'EssesControl', function( $rootScope, $scope, $filter, reef) {
     $scope.esses = []     // our mappings of data from the server
     $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
     $scope.searchText = ""
@@ -382,9 +383,9 @@ function EssesControl($rootScope, $scope, $filter, reef) {
     var pointTypes = makeQueryStringFromArray( "pointTypes", ["%SOC", "Charging", "Standby", "Capacity"])
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
     reef.get( url, "equipment", $scope, $scope.getSuccessListener);
-}
+})
 
-function EndpointControl($rootScope, $scope, reef) {
+.controller( 'EndpointControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "endpointconnections";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -392,8 +393,9 @@ function EndpointControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/endpointconnections", "endpointConnections", $scope);
-}
-function EndpointDetailControl($rootScope, $scope, $routeParams, reef) {
+})
+        
+.controller( 'EndpointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "endpointconnections";
@@ -404,9 +406,9 @@ function EndpointDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/endpointconnections/' + routeName, "endpointConnection", $scope);
-}
+})
 
-function ApplicationControl($rootScope, $scope, reef) {
+.controller( 'ApplicationControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "applications";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -414,8 +416,8 @@ function ApplicationControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/applications", "applications", $scope);
-}
-function ApplicationDetailControl($rootScope, $scope, $routeParams, reef) {
+})
+.controller( 'ApplicationDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "applications";
@@ -426,9 +428,9 @@ function ApplicationDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/applications/' + routeName, "application", $scope);
-}
+})
 
-function EventControl($rootScope, $scope, reef) {
+.controller( 'EventControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "events";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -436,10 +438,10 @@ function EventControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/events/40", "events", $scope);
-}
+})
 
-//function AlarmControl($rootScope, $scope, $attrs, reef) {
-function AlarmControl($rootScope, $scope, reef) {
+//.controller( 'AlarmControl', function( $rootScope, $scope, $attrs, reef) {
+.controller( 'AlarmControl', function( $rootScope, $scope, reef) {
     $scope.alarms = []
 //    $scope.limit = Number( $attrs.limit || 20);
     $scope.limit = 20;
@@ -465,9 +467,9 @@ function AlarmControl($rootScope, $scope, reef) {
 
 
     //reef.get( "/alarms/40", "alarms", $scope);
-}
+})
 
-function AgentControl($rootScope, $scope, reef) {
+.controller( 'AgentControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "agents";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -475,8 +477,9 @@ function AgentControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/agents", "agents", $scope);
-}
-function AgentDetailControl($rootScope, $scope, $routeParams, reef) {
+})
+    
+.controller( 'AgentDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "agents";
@@ -487,9 +490,9 @@ function AgentDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/agents/' + routeName, "agent", $scope);
-}
+})
 
-function PermissionSetControl($rootScope, $scope, reef) {
+.controller( 'PermissionSetControl', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "permissionsets";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -497,8 +500,9 @@ function PermissionSetControl($rootScope, $scope, reef) {
     ];
 
     reef.get( "/permissionsets", "permissionSets", $scope);
-}
-function PermissionSetDetailControl($rootScope, $scope, $routeParams, reef) {
+})
+    
+.controller( 'PermissionSetDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "permissionsets";
@@ -509,10 +513,10 @@ function PermissionSetDetailControl($rootScope, $scope, $routeParams, reef) {
     ];
 
     reef.get( '/permissionsets/' + routeName, "permissionSet", $scope);
-}
+})
 
 
-function CharlotteControl($scope, $timeout, reef) {
+.controller( 'CharlotteControl', function( $scope, $timeout, reef) {
 
 	console.log("Called controller");
 	if ($scope.centerMeasurements == null) {
@@ -529,7 +533,7 @@ function CharlotteControl($scope, $timeout, reef) {
 
 		loop();
 	}
-}
+})
 
 
 });// end RequireJS define

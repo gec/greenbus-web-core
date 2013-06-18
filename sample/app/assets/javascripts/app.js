@@ -17,11 +17,11 @@
  * the License.
  */
 define([
+    'filters',
     'authentication/service',
     'authentication/interceptor',
     'controllers',
     'directives',
-    'filters',
     'services'
 
 ], function( authentication) {
@@ -29,7 +29,7 @@ define([
 
 
     // Declare app level module which depends on filters, and services
-    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'authentication.service']).
+    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'authentication.service', 'controllers']).
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.
@@ -55,7 +55,15 @@ define([
           otherwise({redirectTo: '/entities'});
       }]);
 
-    // No ng-app in index page. Bootstrap manually after RequireJS has dependencies loaded.
-    angular.bootstrap(document, ['ReefAdmin'])
+    $(document).ready(function () {
+        // No ng-app in index page. Bootstrap manually after RequireJS has dependencies loaded.
+        angular.bootstrap(document, ['ReefAdmin'])
+        // Because of RequireJS we need to bootstrap the app app manually
+        // and Angular Scenario runner won't be able to communicate with our app
+        // unless we explicitely mark the container as app holder
+        // More info: https://groups.google.com/forum/#!msg/angular/yslVnZh9Yjk/MLi3VGXZLeMJ
+        document.addClass('ng-app');
+    });
+
     return app
 });  // end RequireJS define

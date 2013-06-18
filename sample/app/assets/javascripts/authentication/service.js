@@ -17,7 +17,9 @@
  * the License.
  */
 define([
-], function() {
+    'angular',
+    'ngCookies'
+], function( angular, $cookies) {
 'use strict';
 
 
