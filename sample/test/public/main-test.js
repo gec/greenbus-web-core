@@ -12,6 +12,7 @@ require.config({
 	baseUrl: '/base/public',
 	shim: {
 		'angular' : {'exports' : 'angular'},
+		'ngCookies': {deps:['angular'], 'exports':'ngCookies'},
 		'angularMocks': {deps:['angular'], 'exports':'angular.mock'}
 	},
 	priority: [

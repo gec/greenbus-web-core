@@ -71,13 +71,14 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
     }
 
     self.login = function( userName, password, redirectLocation, errorListener) {
-        //console.log( "reef.login);
+        //console.log( "reef.login " + userName)
         var data = {
             "userName": userName,
             "password": password
         }
         $http.post( "/login", data).
             success(function(json) {
+                //console.log( "/login response: " + json)
                 if( json.error) {
                     // Shouldn't get here.
                     errorListener( json.error)
@@ -177,7 +178,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
     }
 
     self.isLoggedIn = function() {
-        return ( authToken && status.status !== STATE.NOT_LOGGED_IN)
+        return !!( authToken && status.status !== STATE.NOT_LOGGED_IN)
     }
 
     self.redirectToLoginPage = function( redirectAfterLogin) {
