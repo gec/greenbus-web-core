@@ -16,11 +16,29 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-'use strict';
+require.config({
+    paths: {
+        angular: '../lib/angular/angular',
+        'angular-cookies': '../lib/angular/angular-cookies',
+        'angular-bootstrap': '../lib/angular/bootstrap.min',
+        text: '../lib/require/text'
+    },
+    baseUrl: '/javascripts',
+    shim: {
+        'angular' : {'exports' : 'angular'},
+        "angular-cookies" : { deps: ["angular"] },
+        "angular-bootstrap" : { deps: ["angular"] }
+    },
+    priority: [
+        "angular"
+    ]
+});
 
 define([
+    'angular',
+    'angular-cookies',
     'authentication/authentication'
-], function( authentication) {
+], function( angular, $cookies, authentication) {
     'use strict';
 
     var app = angular.module('ReefAdmin', ['authentication'])

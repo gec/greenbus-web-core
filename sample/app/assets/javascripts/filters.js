@@ -17,7 +17,8 @@
  * the License.
  */
 define([
-], function() {
+    'angular'
+], function( angular) {
 
 'use strict';
 

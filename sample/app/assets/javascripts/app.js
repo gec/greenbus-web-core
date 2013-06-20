@@ -16,7 +16,26 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+require.config({
+    paths: {
+        angular: '../lib/angular/angular',
+        'angular-cookies': '../lib/angular/angular-cookies',
+        'angular-bootstrap': '../lib/angular/bootstrap.min',
+        text: '../lib/require/text'
+    },
+    baseUrl: '/javascripts',
+    shim: {
+        'angular' : {'exports' : 'angular'},
+        "angular-cookies" : { deps: ["angular"] },
+        "angular-bootstrap" : { deps: ["angular"] }
+    },
+    priority: [
+        "angular"
+    ]
+});
+
 define([
+    'angular',
     'filters',
     'authentication/service',
     'authentication/interceptor',
@@ -24,7 +43,7 @@ define([
     'directives',
     'services'
 
-], function( authentication) {
+], function( angular, authentication) {
 'use strict';
 
 
@@ -62,7 +81,7 @@ define([
         // and Angular Scenario runner won't be able to communicate with our app
         // unless we explicitely mark the container as app holder
         // More info: https://groups.google.com/forum/#!msg/angular/yslVnZh9Yjk/MLi3VGXZLeMJ
-        document.addClass('ng-app');
+        //document.addClass('ng-app');
     });
 
     return app

@@ -18,8 +18,10 @@
  */
 
 define([
+    'angular',
+    'angular-bootstrap',
     'authentication/service'
-], function() {
+], function( angular) {
     'use strict';
 
     return angular.module('authentication.controller', ['authentication.service'])

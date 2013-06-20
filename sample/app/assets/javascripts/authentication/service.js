@@ -18,7 +18,7 @@
  */
 define([
     'angular',
-    'ngCookies'
+    'angular-cookies'
 ], function( angular, $cookies) {
 'use strict';
 
@@ -32,6 +32,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
         LOGGING_IN: "Logging in...",
         LOGGED_IN: "Logged in"
     }
+    self.STATE = STATE // publish STATE
     var status = {
         status: STATE.NOT_LOGGED_IN,
         reinitializing: true,
@@ -80,8 +81,9 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
             success(function(json) {
                 //console.log( "/login response: " + json)
                 if( json.error) {
-                    // Shouldn't get here.
-                    errorListener( json.error)
+                    // Shouldn't get here because should have an HTTP error code for error() or 401 interceptor.
+                    if( errorListener)
+                        errorListener( json.error)
                 } else {
                     authToken = json[authTokenName];
                     console.log( "login successful with " + authTokenName + "=" + authToken)
@@ -107,22 +109,23 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
                 if( statusCode == 0) {
                     message =  "Application server is not responding. Your network connection is down or the application server appears to be down.";
                     setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
+                        status: STATE.NOT_LOGGED_IN,
                         reinitializing: false,
                         message: message
                     });
                 } else {
                     setStatus( {
-                        status: "APPLICATION_REQUEST_FAILURE",
+                        status: STATE.NOT_LOGGED_IN,
                         reinitializing: false,
                         message: message
                     });
                 }
-                errorListener( message)
+                if( errorListener)
+                    errorListener( message)
             });
     }
 
-    self.logout = function( userName, password, errorListener) {
+    self.logout = function( errorListener) {
         console.log( "reef.logout")
         httpConfig.headers = {'Authorization': authToken}
         $http['delete']( "/login", httpConfig).  // delete is ECMASCRIPT5
@@ -189,7 +192,10 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
     }
 
     self.getHttpHeaders = function() {
-        return {'Authorization': authToken}
+        if( authToken)
+            return {'Authorization': authToken}
+        else
+            return {}
     }
 
     self.getAuthToken = function() {

@@ -22,7 +22,7 @@ define([
     'use strict';
 
 
-var ReefService = function( $rootScope, $timeout, $http, $location, $cookies, authentication) {
+var ReefService = function( $rootScope, $timeout, $http, $location, authentication) {
     var self = this;
     var retries = {
         initialize: 0,
@@ -394,9 +394,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, $cookies, au
 }
 
 
-return angular.module('ReefAdmin.services', ['ngCookies', "authentication.service"]).
-    factory('reef', function( $rootScope, $timeout, $http, $location, $cookies, authentication){
-        return new ReefService( $rootScope, $timeout, $http, $location, $cookies, authentication);
+return angular.module('ReefAdmin.services', ["authentication.service"]).
+    factory('reef', function( $rootScope, $timeout, $http, $location, authentication){
+        return new ReefService( $rootScope, $timeout, $http, $location, authentication);
     })
     .directive('alarmBanner', function(){
         return {
