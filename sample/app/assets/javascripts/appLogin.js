@@ -20,14 +20,16 @@ require.config({
     paths: {
         angular: '../lib/angular/angular',
         'angular-cookies': '../lib/angular/angular-cookies',
-        'angular-bootstrap': '../lib/angular/bootstrap.min',
+        'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
+        'ui-utils': '../lib/angular-ui/ui-utils.min',
         text: '../lib/require/text'
     },
     baseUrl: '/javascripts',
     shim: {
         'angular' : {'exports' : 'angular'},
         "angular-cookies" : { deps: ["angular"] },
-        "angular-bootstrap" : { deps: ["angular"] }
+        "ui-bootstrap" : { deps: ["angular"] },
+        "ui-utils" : { deps: ["angular"] }
     },
     priority: [
         "angular"
@@ -37,11 +39,12 @@ require.config({
 define([
     'angular',
     'angular-cookies',
-    'authentication/authentication'
+    'authentication/service',
+    'authentication/controller'
 ], function( angular, $cookies, authentication) {
     'use strict';
 
-    var app = angular.module('ReefAdmin', ['authentication'])
+    var app = angular.module('ReefAdmin', ['authentication.service', 'authentication.controller'])
         .config(['$routeProvider', function($routeProvider) {
             "use strict";
             $routeProvider.

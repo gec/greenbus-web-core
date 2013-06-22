@@ -19,50 +19,87 @@
 
 define([
     'angular',
-    'angular-bootstrap',
+    'ui-bootstrap',
+    'ui-utils',
     'authentication/service'
 ], function( angular) {
     'use strict';
 
-    return angular.module('authentication.controller', ['authentication.service'])
+    return angular.module('authentication.controller', ['authentication.service', 'ui.bootstrap', 'ui.keypress'])
 
     // The LoginFormController provides the behaviour behind a reusable form to allow users to authenticate.
     // This controller and its template (partials/login.html) are used in a modal dialog box by the authentication service.
-    .controller('LoginController', function($scope, authentication, $timeout) {
+    // $dialog is from ui-bootstrap
+    .controller('LoginController', function($scope, authentication, $dialog, $timeout) {
 
         $scope.error = null
         $scope.status = authentication.getStatus()
         $scope.userName = null
         $scope.password = null
+        var mainScope = $scope
 
-        $scope.errorListener = function( description) {
+        function errorListener( description) {
             $scope.error = description
-            $('#loginModal').modal( {keyboard: false} )
+            openDialog()
         }
 
-        $scope.login = function() {
-            authentication.login( $scope.userName, $scope.password, $scope.errorListener);
-            $('#loginModal').modal( "hide" )
+
+        // the dialog is injected in the specified controller
+        function ModalController($scope, dialog, error){
+            // private scope just for this controller.
+            $scope.error = error
+            $scope.userName = mainScope.userName
+            $scope.password = mainScope.password
+            $scope.login = function(){
+                // Can only pass one argument.
+                dialog.close( {userName: $scope.userName, password: $scope.password});   // calls then()
+            };
         }
 
-        $('#loginModal').modal( {keyboard: false} )
+
+        function openDialog(){
+            var modalOptions = {
+                backdrop: true,
+                keyboard: false,
+                backdropClick: false,
+                templateUrl:  'partials/loginmodal.html',
+                controller: ModalController,
+                resolve: {
+                    // Pass these to ModalController
+                    error: function(){ return angular.copy($scope.error); }
+                }
+            };
+            var d = $dialog.dialog( modalOptions);
+            d.open().then(function( result) {
+                // Save the result to the main scope
+                mainScope.userName = result.userName
+                mainScope.password = result.password
+                authentication.login( result.userName, result.password, null, errorListener);
+                //$('#loginModal').modal( "hide" )
+            });
+        };
+
+        $scope.openDialog = openDialog
+        openDialog()
+
+//        $('#loginModal').modal( MODAL_OPTIONS )
 
         // Hit return on password input will initiate login.
-        var handleReturnKey = function(e) {
-            if(e.charCode == 13 || e.keyCode == 13) {
-                e.preventDefault()
-                $scope.login()
-            }
-        }
-        $("#password").keypress(handleReturnKey)
+//        var handleReturnKey = function(e) {
+//            if(e.charCode == 13 || e.keyCode == 13) {
+//                e.preventDefault()
+//                $scope.login()
+//            }
+//        }
+//        $("#password").keypress(handleReturnKey)
 
         // Set focus on userName, but wait for modal to render.
-        $timeout(
-            function() {
-                $("#userName").focus()
-            },
-            500
-        );
+//        $timeout(
+//            function() {
+//                $("#userName").focus()
+//            },
+//            500
+//        );
 
     });
 

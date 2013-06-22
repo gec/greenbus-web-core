@@ -1,0 +1,18 @@
+
+<div class="modal-header">
+    <h3>Login</h3>
+</div>
+<div class="modal-body" style="padding-left: 80px">
+    <!--<form><fieldset>-->
+        <label></label>
+        <input id="userName" type="text" class="span5" ng-model="userName" placeholder="user name" autofocus="autofocus">
+        <label></label>
+        <input id="password" type="password" class="span5" ng-model="password" placeholder="password" ui-keypress="{enter: 'login()'}">
+    <!--</fieldset></form>-->
+</div>
+<div class="modal-footer">
+    <div class="alert alert-error" ng-show="!!error" style="text-align: center">
+        <strong>Oh my! </strong> {{error}}
+    </div>
+    <a ng-click="login()" class="btn btn-primary">Sign in</a>
+</div>

@@ -24,7 +24,7 @@ define([
     return angular.module('authentication.interceptor', ['authentication.service'])
 
     // This http interceptor listens for authentication failures
-    .factory('authenticationInterceptor', ['$location', function($location, authentication) {
+    .factory('authenticationInterceptor', /*['$location',*/ function($location, $injector) {
         return function(promise) {
             // Intercept failed requests
             return promise.then(null, function(originalResponse) {
@@ -37,7 +37,7 @@ define([
                     // If we're already on the login page, we don't redirect on failed login.
                     if( redirectLocation.indexOf( "/login") != 0){
 
-                        // var authentication = $injector.get('authentication')
+                        var authentication = $injector.get('authentication')
                         authentication.redirectToLoginPage( redirectLocation)
                     }
 
@@ -52,7 +52,7 @@ define([
                 return promise;
             });
         };
-    }])
+    }/*]*/)
 
     // We have to add the interceptor to the queue as a string because the interceptor depends upon service instances that are not available in the config block.
     .config(['$httpProvider', function($httpProvider) {

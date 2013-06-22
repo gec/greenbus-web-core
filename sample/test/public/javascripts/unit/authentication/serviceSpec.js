@@ -144,4 +144,4 @@ define([
         });
     });
 
-});
+}); // end RequireJS define
