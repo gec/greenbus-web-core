@@ -30,7 +30,7 @@ define([
     // The LoginFormController provides the behaviour behind a reusable form to allow users to authenticate.
     // This controller and its template (partials/login.html) are used in a modal dialog box by the authentication service.
     // $dialog is from ui-bootstrap
-    .controller('LoginController', function($scope, authentication, $dialog, $timeout) {
+    .controller('LoginController', function($scope, authentication, $dialog) {
 
         $scope.error = null
         $scope.status = authentication.getStatus()
