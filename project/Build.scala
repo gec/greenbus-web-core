@@ -31,11 +31,11 @@ object ApplicationBuild extends Build {
   lazy val appPublishArtifactInTest = false
   lazy val appPomIncludeRepository = { _: MavenRepository => false }
   lazy val appPublishTo = { (v: String) =>
-    val nexus = "https://repo.totalgrid.org/artifactory/"
+    val artifactory = "https://repo.totalgrid.org/artifactory/"
     if (v.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at nexus + "totalgrid-private-snapshot")
+      Some("snapshots" at artifactory + "totalgrid-private-snapshot")
     else
-      Some("releases"  at nexus + "totalgrid-private-release")
+      Some("releases"  at artifactory + "totalgrid-private-release")
   }
   lazy val appPomExtra = {
     <url>https://github.com/gec/coral.git</url>
@@ -103,6 +103,11 @@ object ApplicationBuild extends Build {
       testOptions in Test += Tests.Argument(TestFrameworks.Specs2, "junitxml", "console"),
       publishLocal := {},
       publish := {}
+    )
+    .settings(
+      requireJs += "appLogin.js",
+      requireJs += "app.js",
+      requireJsShim += "app.js"
     )
 //  .settings(
 //    (Seq(requireJs += "appLogin.js", requireJsShim += "appLogin.js") ++ closureCompilerSettings(sampleJavascriptOptions)): _*

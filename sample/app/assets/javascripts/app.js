@@ -20,14 +20,16 @@ require.config({
     paths: {
         angular: '../lib/angular/angular',
         'angular-cookies': '../lib/angular/angular-cookies',
-        'angular-bootstrap': '../lib/angular/bootstrap.min',
+        'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
+        'ui-utils': '../lib/angular-ui/ui-utils.min',
         text: '../lib/require/text'
     },
     baseUrl: '/javascripts',
     shim: {
         'angular' : {'exports' : 'angular'},
         "angular-cookies" : { deps: ["angular"] },
-        "angular-bootstrap" : { deps: ["angular"] }
+        "ui-bootstrap" : { deps: ["angular"] },
+        "ui-utils" : { deps: ["angular"] }
     },
     priority: [
         "angular"
