@@ -75,31 +75,11 @@ define([
                 mainScope.userName = result.userName
                 mainScope.password = result.password
                 authentication.login( result.userName, result.password, null, errorListener);
-                //$('#loginModal').modal( "hide" )
             });
         };
 
         $scope.openDialog = openDialog
         openDialog()
-
-//        $('#loginModal').modal( MODAL_OPTIONS )
-
-        // Hit return on password input will initiate login.
-//        var handleReturnKey = function(e) {
-//            if(e.charCode == 13 || e.keyCode == 13) {
-//                e.preventDefault()
-//                $scope.login()
-//            }
-//        }
-//        $("#password").keypress(handleReturnKey)
-
-        // Set focus on userName, but wait for modal to render.
-//        $timeout(
-//            function() {
-//                $("#userName").focus()
-//            },
-//            500
-//        );
 
     });
 
