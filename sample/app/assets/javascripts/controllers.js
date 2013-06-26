@@ -159,13 +159,6 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    function getPercentCharge( value) {
-        var v = Math.abs( value)
-        if( v > 100)
-            v = v % 100
-        return v
-    }
-
     $scope.findPoint = function( name) {
         for( var index in $scope.measurements) {
             var point = $scope.measurements[ index]
@@ -182,8 +175,6 @@ return angular.module( 'controllers', ['authentication.service'] )
         if( point) {
 
             point.value = formatMeasurementValue( measurement.value)
-            if( point.unit.indexOf( "k") == 0 || point.unit.indexOf( "%") == 0)
-                point.percentCharge = getPercentCharge( point.value)
         }
     }
 

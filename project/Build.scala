@@ -91,10 +91,6 @@ object ApplicationBuild extends Build {
       publishTo               <<=(version)(appPublishTo),
       pomExtra                := appPomExtra
     )
-//    .settings(
-//      requireJs += "appLogin.js",
-//      requireJs += "app.js"
-//    )
     .dependsOn(core)
 
   lazy val sample = play.Project("sample", path = file("sample"))
@@ -105,12 +101,12 @@ object ApplicationBuild extends Build {
       publish := {}
     )
     .settings(
-      requireJs += "appLogin.js",
+      requireJs += "login.js",
       requireJs += "app.js",
       requireJsShim += "app.js"
     )
 //  .settings(
-//    (Seq(requireJs += "appLogin.js", requireJsShim += "appLogin.js") ++ closureCompilerSettings(sampleJavascriptOptions)): _*
+//    (Seq(requireJs += "login.js", requireJsShim += "login.js") ++ closureCompilerSettings(sampleJavascriptOptions)): _*
     //closureCompilerSettings(sampleJavascriptOptions) ++
     //Seq(javascriptEntryPoints <<= baseDirectory(_ / "sample" / "app" / "assets" / "js" ** "app.js")) : _*
 //  )

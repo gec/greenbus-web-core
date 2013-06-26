@@ -7,7 +7,8 @@ require.config({
 		angularMocks: '/base/test/public/lib/angular/angular-mocks',
 		text: 'lib/require/text',
 		fixtures: '/base/test/unit/fixtures',
-        authentication : '/base/app/assets/javascripts/authentication'
+        authentication : '/base/app/assets/javascripts/authentication',
+        coral : '/base/app/assets/javascripts/coral'
     },
 	baseUrl: '/base/public',
 	shim: {

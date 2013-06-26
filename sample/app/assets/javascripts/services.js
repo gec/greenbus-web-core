@@ -17,17 +17,17 @@
  * the License.
  */
 define([
-    'authentication/service'
+    'authentication/service',
+    'coral/subscription'
 ], function( authentication) {
     'use strict';
 
 
-var ReefService = function( $rootScope, $timeout, $http, $location, authentication) {
+var ReefService = function( $rootScope, $timeout, $http, $location, authentication, subscription) {
     var self = this;
     var retries = {
         initialize: 0,
-        get: 0,
-        subscribe: 0
+        get: 0
     }
     var status = {
         status: "NOT_LOGGED_IN",
@@ -35,11 +35,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
         description: "loading Reef client..."
     }
     console.log( "status = " + status.status)
-
-    var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
-    var webSocket = null
-    var webSocketOpen = false
-    var webSocketPendingTasks = []
 
     var httpConfig = {
         cache: false,
@@ -50,91 +45,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
     if( redirectLocation.length == 0 )
         redirectLocation = "/"
     console.log( "ReefService: redirectLocation 2 =" + redirectLocation)
-
-
-    var subscription = {
-        idCounter: 0,
-        listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
-    };
-
-    /* Assign these WebSocket handlers to a newly created WebSocket */
-    var wsHanders = {
-
-        onmessage: function (event) {
-            var data = JSON.parse(event.data)
-
-            $rootScope.$apply(function () {
-
-                if( data.type === "ConnectionStatus") {
-                    handleConnectionStatus( data.data)
-                    return
-                }
-
-                // Handle errors
-                if(data.error) {
-                    handleError( data)
-                    return
-                }
-
-
-                var listener = getListenerForMessage( data);
-                if( listener && listener.success)
-                    listener.success( data.subscriptionId, data.type, data.data)
-            })
-        },
-        onopen: function(event) {
-            console.log( "webSocket.onopen event: " + event)
-            $rootScope.$apply(function () {
-                webSocketOpen = true;
-
-                while( webSocketPendingTasks.length) {
-                    var data = webSocketPendingTasks.shift()
-                    console.log( "onopen: send( " + data + ")")
-                    webSocket.send( data)
-                }
-            })
-        },
-        onclose: function(event) {
-            console.log( "webSocket.onclose event: " + event)
-            webSocketOpen = false
-            var code = event.code;
-            var reason = event.reason;
-            var wasClean = event.wasClean;
-            console.log( "webSocket.onclose code: " + code + ", wasClean: " + wasClean + ", reason: " + reason)
-            webSocket = null
-
-            // Cannot redirect here because this webSocket thread fights with the get reply 401 thread.
-            // Let the get handle the redirect. Might need to coordinate something with get in the future.
-        },
-        onerror: function(event) {
-            console.error( "webSocket.onerror event: " + event)
-            var data = event.data;
-            var name = event.name;
-            var message = event.message;
-            console.log( "webSocket.onerror name: " + name + ", message: " + message + ", data: " + data)
-            $rootScope.$apply(function () {
-                setStatus( {
-                    status: "APPLICATION_SERVER_DOWN",
-                    reinitializing: false,
-                    description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                });
-            })
-        }
-    }
-
-    function makeWebSocket() {
-        var location = window.location
-        var wsUri = location.protocol === "https:" ? "wss:" : "ws:"
-        // location.host includes port, ex: "localhost:9000"
-        wsUri += "//" + location.host
-        wsUri += "/websocket?authToken=" + authentication.getAuthToken()
-        var ws = new WS( wsUri)
-        ws.onmessage = wsHanders.onmessage
-        ws.onopen = wsHanders.onopen
-        ws.onclose = wsHanders.onclose
-        ws.onerror = wsHanders.onerror
-        return ws
-    }
 
 
     if( authentication.isLoggedIn()) {
@@ -150,24 +60,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
         console.log( "reef: ! authentication.isLoggedIn()")
     }
 
-
-    function getListenerForMessage( data) {
-        if( data.subscriptionId)
-            return subscription.listeners[ data.subscriptionId]
-        else
-            return null
-    }
-
-    function handleError( data) {
-        //webSocket.close()
-        console.log( "webSocket.handleError data.error: " + data.error)
-        if( data.jsError)
-            console.log( "webSocket.handleError data.JsError: " + data.jsError)
-
-        var listener = getListenerForMessage( data);
-        if( listener && listener.error)
-            listener.error( data.subscriptionId, data.type, data.data)
-    }
 
     function handleConnectionStatus( json) {
         setStatus( json);
@@ -286,74 +178,15 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
     }
 
-    function makeSubscriptionId( objectType) {
-        subscription.idCounter ++;
-        return "subscription." + objectType +"."+ subscription.idCounter;
-    }
-
-    function saveSubscriptionOnScope( $scope, subscriptionId) {
-        if( ! $scope.subscriptionIds)
-            $scope.subscriptionIds = []
-        $scope.subscriptionIds.push( subscriptionId)
-    }
-    function registerSubscriptionOnScope( $scope, subscriptionId) {
-
-        saveSubscriptionOnScope( $scope, subscriptionId);
-
-        // Register for controller.$destroy event and kill any retry tasks.
-        $scope.$on( '$destroy', function( event) {
-            if( $scope.subscriptionIds) {
-                console.log( "reef.subscribe $destroy " + $scope.subscriptionIds.length);
-                for( var index in $scope.subscriptionIds) {
-                    var subscriptionId = $scope.subscriptionIds[ index]
-                    self.unsubscribe( subscriptionId)
-                }
-                $scope.subscriptionIds = []
-            }
-        });
-
-    }
-
-    function getSubscriptionIdFromMessage( json) {
-        var messageKey = Object.keys( json)[0]
-        var messageValue = json[messageKey]
-        console.log( "getSubscriptionIdFromMessage messageKey: " + messageKey + " value.subscriptionId: " + messageValue.subscriptionId)
-        var subscriptionId = messageValue.subscriptionId
-        return subscriptionId
-    }
-
-    function subscribe( json, $scope, successListener, errorListener) {
-
-        var subscriptionId = getSubscriptionIdFromMessage( json)
-
-        registerSubscriptionOnScope( $scope, subscriptionId);
-        subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
-
-        var data = JSON.stringify( json)
-        if( webSocketOpen) {
-            console.log( "subscribe: send( " + data + ")")
-            webSocket.send( data)
-        } else {
-            // Lazy init of webSocket
-            console.log( "subscribe: waiting for open to send( " + data + ")")
-            webSocketPendingTasks.push( data)
-            if( ! webSocket)
-                webSocket = makeWebSocket()
-        }
-        return subscriptionId
-    }
-
-
     self.subscribeToMeasurementsByNames = function ( $scope, names, successListener, errorListener) {
         console.log( "reef.subscribeToMeasurementsByNames " );
 
         var json = {
             subscribeToMeasurementsByNames: {
-                "subscriptionId": makeSubscriptionId( "Measurement"),
                 "names": names
             }
         }
-        return subscribe( json, $scope, successListener, errorListener)
+        return subscription.subscribe( json, $scope, successListener, errorListener)
     }
 
 
@@ -362,11 +195,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
         var json = {
             subscribeToActiveAlarms: {
-                "subscriptionId": makeSubscriptionId( "Alarm"),
                 "limit": limit
             }
         }
-        return subscribe( json, $scope, successListener, errorListener)
+        return subscription.subscribe( json, $scope, successListener, errorListener)
     }
 
 
@@ -375,32 +207,28 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
         var json = {
             subscribeToMeasurementsByNames: {
-                "subscriptionId": makeSubscriptionId( "Event"),
                 "limit": limit
             }
         }
-        return subscribe( json, $scope, successListener, errorListener)
+        return subscription.subscribe( json, $scope, successListener, errorListener)
     }
 
 
     self.unsubscribe = function( subscriptionId) {
-        webSocket.send(JSON.stringify(
-            { unsubscribe: subscriptionId}
-        ))
-        delete subscription[ subscriptionId]
+        subscription.unsubscribe( subscriptionId)
     }
 
 
 }
 
 
-return angular.module('ReefAdmin.services', ["authentication.service"]).
-    factory('reef', function( $rootScope, $timeout, $http, $location, authentication){
-        return new ReefService( $rootScope, $timeout, $http, $location, authentication);
+return angular.module('ReefAdmin.services', ["authentication.service", "coral.subscription"]).
+    factory('reef', function( $rootScope, $timeout, $http, $location, authentication, subscription){
+        return new ReefService( $rootScope, $timeout, $http, $location, authentication, subscription);
     })
     .directive('alarmBanner', function(){
         return {
-            restrict: 'E',
+            restrict: 'E', // Element name
             // This HTML will replace the alarmBanner directive.
             replace: true,
             transclude: true,
@@ -444,14 +272,10 @@ return angular.module('ReefAdmin.services', ["authentication.service"]).
 
                 function error(response) {
                     var httpStatus = response.status;
-                    /*if (httpStatus == 401) {
-                        var reef = $injector.get('reef');
-                        reef.redirectLocation = $location.url(); // save the current url so we can redirect the user back
-                        reef.authToken = null
-                        window.location.href = "/login" // $location.path('/login');
-                    } else
-                    */
-                    if ((httpStatus === 404 || httpStatus === 0 ) && response.config.url.indexOf(".html")) {
+                    if (httpStatus == 401) {
+                        // Ignore httpStatus == 401. Let authentication.interceptor pick it up.
+                        return response
+                    } else if ((httpStatus === 404 || httpStatus === 0 ) && response.config.url.indexOf(".html")) {
 
                         var status = {
                             status: "APPLICATION_SERVER_DOWN",
