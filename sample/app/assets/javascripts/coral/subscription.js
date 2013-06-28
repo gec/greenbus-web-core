@@ -24,16 +24,29 @@ define([
 
     var SubscriptionService = function( $rootScope, $location, authentication, websocketFactory) {
         var self = this;
-        var status = {
-            status: "NOT_LOGGED_IN",
-            reinitializing: true,
-            description: "loading Reef client..."
+        var STATE = {
+            NOT_CONNECTED: "No connection to server",
+            CONNECTION_FAILED: "Connection to server failed. Your network connection is down or the application server appears to be down.",
+            CONNECTING: "Connecting to server...",
+            CONNECTED: "Connected to server"
         }
-        console.log( "status = " + status.status)
+        self.STATE = STATE // publish STATE enum
+
+        var status = {
+            state: STATE.NOT_CONNECTED,
+            reinitializing: false
+        }
+        function setStatus( state, reinitializing) {
+            status.state = state
+            if( reinitializing)
+                status.reinitializing = reinitializing
+            console.log( "setStatus: " + status.state)
+            $rootScope.$broadcast( 'subscription.status', status);
+        }
+
 
         //var WS = window['MozWebSocket'] ? MozWebSocket : WebSocket
         var webSocket = null
-        var webSocketOpen = false
         var webSocketPendingTasks = []
 
         var subscription = {
@@ -50,7 +63,7 @@ define([
                 $rootScope.$apply(function () {
 
                     if( data.type === "ConnectionStatus") {
-                        handleConnectionStatus( data.data)
+                        handleReefConnectionStatus( data.data)
                         return
                     }
 
@@ -69,9 +82,12 @@ define([
             onopen: function(event) {
                 console.log( "webSocket.onopen event: " + event)
                 $rootScope.$apply(function () {
-                    webSocketOpen = true;
+                    setStatus( {
+                        status: STATE.CONNECTED,
+                        reinitializing: false
+                    })
 
-                    while( webSocketPendingTasks.length) {
+                    while( webSocketPendingTasks.length > 0) {
                         var data = webSocketPendingTasks.shift()
                         console.log( "onopen: send( " + data + ")")
                         webSocket.send( data)
@@ -80,12 +96,16 @@ define([
             },
             onclose: function(event) {
                 console.log( "webSocket.onclose event: " + event)
-                webSocketOpen = false
                 var code = event.code;
                 var reason = event.reason;
                 var wasClean = event.wasClean;
                 console.log( "webSocket.onclose code: " + code + ", wasClean: " + wasClean + ", reason: " + reason)
                 webSocket = null
+
+                $rootScope.$apply(function () {
+                    setStatus( STATE.CONNECTION_FAILED)
+                    removeAllSubscriptions( "WebSocket onclose()")
+                })
 
                 // Cannot redirect here because this webSocket thread fights with the get reply 401 thread.
                 // Let the get handle the redirect. Might need to coordinate something with get in the future.
@@ -97,30 +117,11 @@ define([
                 var message = event.message;
                 console.log( "webSocket.onerror name: " + name + ", message: " + message + ", data: " + data)
                 $rootScope.$apply(function () {
-                    setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
-                        reinitializing: false,
-                        description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                    });
+                    setStatus( STATE.CONNECTION_FAILED);
+                    removeAllSubscriptions( "WebSocket onerror()")
                 })
             }
         }
-
-        function makeWebSocket() {
-            if( ! authentication.isLoggedIn())
-                return null
-
-            var wsUri = $location.protocol() === "https" ? "wss" : "ws"
-            wsUri += "://" + $location.host() + ":" + $location.port()
-            wsUri += "/websocket?authToken=" + authentication.getAuthToken()
-            var ws = websocketFactory( wsUri)
-            ws.onmessage = wsHanders.onmessage
-            ws.onopen = wsHanders.onopen
-            ws.onclose = wsHanders.onclose
-            ws.onerror = wsHanders.onerror
-            return ws
-        }
-
 
         function getListenerForMessage( data) {
             if( data.subscriptionId)
@@ -140,17 +141,9 @@ define([
                 listener.error( data.subscriptionId, data.type, data.data)
         }
 
-        function handleConnectionStatus( json) {
-            setStatus( json);
-
-            if( status.status === "UP" && redirectLocation)
-                $location.path( redirectLocation)
-        }
-
-        function setStatus( s) {
-            status = s
-            console.log( "setStatus: " + status.status)
-            $rootScope.$broadcast( 'reef.status', status);
+        function handleReefConnectionStatus( json) {
+            // TODO! this is a reef status, not connection
+            $rootScope.$broadcast( 'reef.status', json)
         }
 
         self.getStatus = function() {
@@ -169,17 +162,28 @@ define([
             saveSubscriptionOnScope( $scope, subscriptionId);
 
             // Register for controller.$destroy event and kill any retry tasks.
+            // TODO save return value as unregister function. Could have multiples on one $scope.
             $scope.$on( '$destroy', function( event) {
                 if( $scope.subscriptionIds) {
                     console.log( "reef.subscribe $destroy " + $scope.subscriptionIds.length);
-                    for( var index in $scope.subscriptionIds) {
-                        var subscriptionId = $scope.subscriptionIds[ index]
+                    for( var id in $scope.subscriptionIds) {
+                        var subscriptionId = $scope.subscriptionIds[ id]
                         self.unsubscribe( subscriptionId)
                     }
                     $scope.subscriptionIds = []
                 }
             });
 
+        }
+
+        function removeAllSubscriptions( error) {
+            // save in temp in case a listener.error() tries to resubscribe
+            var temp = subscription.listeners
+            subscription.listeners = []
+            webSocketPendingTasks = []
+            for( var index in temp)
+                if( temp[ index].error)
+                    temp[ index].error( error)
         }
 
         function makeSubscriptionId( json) {
@@ -196,22 +200,69 @@ define([
             return subscriptionId
         }
 
+        function makeWebSocket() {
+            var wsUri = $location.protocol() === "https" ? "wss" : "ws"
+            wsUri += "://" + $location.host() + ":" + $location.port()
+            wsUri += "/websocket?authToken=" + authentication.getAuthToken()
+            var ws = websocketFactory( wsUri)
+            if( ws) {
+                ws.onmessage = wsHanders.onmessage
+                ws.onopen = wsHanders.onopen
+                ws.onclose = wsHanders.onclose
+                ws.onerror = wsHanders.onerror
+            }
+            return ws
+        }
+
         self.subscribe = function( json, $scope, successListener, errorListener) {
 
             var subscriptionId = addSubscriptionIdToMessage( json)
-            registerSubscriptionOnScope( $scope, subscriptionId);
-            subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
-
             var data = JSON.stringify( json)
-            if( webSocketOpen) {
-                console.log( "subscribe: send( " + data + ")")
-                webSocket.send( data)
-            } else {
-                // Lazy init of webSocket
-                console.log( "subscribe: waiting for open to send( " + data + ")")
-                webSocketPendingTasks.push( data)
-                if( ! webSocket)
-                    webSocket = makeWebSocket()
+
+            // Lazy init of webSocket
+            if( status.state == STATE.CONNECTED) {
+
+                try {
+                    webSocket.send( data)
+
+                    // We're good, so save data for WebSocket.onmessage()
+                    console.log( "subscribe: send( " + data + ")")
+                    registerSubscriptionOnScope( $scope, subscriptionId);
+                    subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
+                } catch( ex) {
+                    if( errorListener)
+                        errorListener( "Could not send subscribe request to server. Exception: " + ex)
+                    subscriptionId = null
+                }
+
+            } else{
+
+                if( status.state != STATE.CONNECTING) {
+                    setStatus( STATE.CONNECTING)
+
+                    try {
+                        if( ! authentication.isLoggedIn())  // TODO: Should we redirect to login?
+                            throw "Not logged in."
+                        webSocket = makeWebSocket()
+                        if( ! webSocket)
+                            throw "WebSocket create failed."
+
+                        // We're good, so save date to wait for WebSocket.onopen().
+                        console.log( "subscribe: send pending ( " + data + ")")
+                        webSocketPendingTasks.push( data)
+                        registerSubscriptionOnScope( $scope, subscriptionId);
+                        subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
+
+                    } catch( ex) {
+                        setStatus( STATE.CONNECTION_FAILED)
+                        webSocket = null
+                        if( errorListener)
+                            errorListener( "Could not create connection to server. Exception: " + ex)
+                        subscriptionId = null
+                    }
+
+                }
+
             }
 
             return subscriptionId

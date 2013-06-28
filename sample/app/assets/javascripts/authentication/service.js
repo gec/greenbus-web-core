@@ -32,7 +32,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
         LOGGING_IN: "Logging in...",
         LOGGED_IN: "Logged in"
     }
-    self.STATE = STATE // publish STATE
+    self.STATE = STATE // publish STATE enum
     var status = {
         status: STATE.NOT_LOGGED_IN,
         reinitializing: true,
