@@ -51,41 +51,38 @@ define([
 
         var subscription = {
             idCounter: 0,
-            listeners: {}   // { subscriptionId: { success: listener, error: listener}, ...}
+            listeners: {}   // { subscriptionId: { message: listener, error: listener}, ...}
         };
 
         /* Assign these WebSocket handlers to a newly created WebSocket */
         var wsHanders = {
 
             onmessage: function (event) {
-                var data = JSON.parse(event.data)
+                var message = JSON.parse(event.data)
 
                 $rootScope.$apply(function () {
 
-                    if( data.type === "ConnectionStatus") {
-                        handleReefConnectionStatus( data.data)
+                    if( message.type === "ConnectionStatus") {
+                        handleReefConnectionStatus( message.data)
                         return
                     }
 
                     // Handle errors
-                    if(data.error) {
-                        handleError( data)
+                    if(message.error) {
+                        handleError( message)
                         return
                     }
 
 
-                    var listener = getListenerForMessage( data);
-                    if( listener && listener.success)
-                        listener.success( data.subscriptionId, data.type, data.data)
+                    var listener = getListenerForMessage( message)
+                    if( listener && listener.message)
+                        listener.message( message.subscriptionId, message.type, message.data)
                 })
             },
             onopen: function(event) {
                 console.log( "webSocket.onopen event: " + event)
                 $rootScope.$apply(function () {
-                    setStatus( {
-                        status: STATE.CONNECTED,
-                        reinitializing: false
-                    })
+                    setStatus( STATE.CONNECTED)
 
                     while( webSocketPendingTasks.length > 0) {
                         var data = webSocketPendingTasks.shift()
@@ -95,7 +92,6 @@ define([
                 })
             },
             onclose: function(event) {
-                console.log( "webSocket.onclose event: " + event)
                 var code = event.code;
                 var reason = event.reason;
                 var wasClean = event.wasClean;
@@ -111,7 +107,6 @@ define([
                 // Let the get handle the redirect. Might need to coordinate something with get in the future.
             },
             onerror: function(event) {
-                console.error( "webSocket.onerror event: " + event)
                 var data = event.data;
                 var name = event.name;
                 var message = event.message;
@@ -123,22 +118,22 @@ define([
             }
         }
 
-        function getListenerForMessage( data) {
-            if( data.subscriptionId)
-                return subscription.listeners[ data.subscriptionId]
+        function getListenerForMessage( message) {
+            if( message.subscriptionId)
+                return subscription.listeners[ message.subscriptionId]
             else
                 return null
         }
 
-        function handleError( data) {
+        function handleError( message) {
             //webSocket.close()
-            console.log( "webSocket.handleError data.error: " + data.error)
-            if( data.jsError)
-                console.log( "webSocket.handleError data.JsError: " + data.jsError)
+            console.log( "webSocket.handleError message.error: " + message.error)
+            if( message.jsError)
+                console.log( "webSocket.handleError message.jsError: " + message.jsError)
 
-            var listener = getListenerForMessage( data);
+            var listener = getListenerForMessage( message);
             if( listener && listener.error)
-                listener.error( data.subscriptionId, data.type, data.data)
+                listener.error( message.error, message)
         }
 
         function handleReefConnectionStatus( json) {
@@ -169,6 +164,7 @@ define([
                     for( var id in $scope.subscriptionIds) {
                         var subscriptionId = $scope.subscriptionIds[ id]
                         self.unsubscribe( subscriptionId)
+                        delete subscription.listeners[ subscriptionId]
                     }
                     $scope.subscriptionIds = []
                 }
@@ -214,7 +210,7 @@ define([
             return ws
         }
 
-        self.subscribe = function( json, $scope, successListener, errorListener) {
+        self.subscribe = function( json, $scope, messageListener, errorListener) {
 
             var subscriptionId = addSubscriptionIdToMessage( json)
             var data = JSON.stringify( json)
@@ -228,7 +224,7 @@ define([
                     // We're good, so save data for WebSocket.onmessage()
                     console.log( "subscribe: send( " + data + ")")
                     registerSubscriptionOnScope( $scope, subscriptionId);
-                    subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
+                    subscription.listeners[ subscriptionId] = { "message": messageListener, "error": errorListener}
                 } catch( ex) {
                     if( errorListener)
                         errorListener( "Could not send subscribe request to server. Exception: " + ex)
@@ -251,7 +247,7 @@ define([
                         console.log( "subscribe: send pending ( " + data + ")")
                         webSocketPendingTasks.push( data)
                         registerSubscriptionOnScope( $scope, subscriptionId);
-                        subscription.listeners[ subscriptionId] = { "success": successListener, "error": errorListener}
+                        subscription.listeners[ subscriptionId] = { "message": messageListener, "error": errorListener}
 
                     } catch( ex) {
                         setStatus( STATE.CONNECTION_FAILED)

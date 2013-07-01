@@ -178,7 +178,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    $scope.onError = function( subscriptionId, type, data) {
+    $scope.onError = function( error, message) {
 
     }
 
@@ -314,7 +314,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         $scope.esses[ info.essIndex].state = getState( $scope.esses[ info.essIndex])
     }
 
-    $scope.onError = function( subscriptionId, type, data) {
+    $scope.onError = function( error, message) {
 
     }
 
@@ -450,7 +450,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             $scope.alarms.pop()
     }
 
-    $scope.onError = function( subscriptionId, type, data) {
+    $scope.onError = function( error, message) {
 
     }
 
