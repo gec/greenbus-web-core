@@ -17,8 +17,7 @@
  * the License.
  */
 define([
-    'rest',
-    'subscription'
+    'coral/subscription'
 ], function( ) {
     'use strict';
 
@@ -50,13 +49,14 @@ var template =
     </tbody> \
     </table>'
 
-function controller( $scope, $attrs, subscribe) {
+function controller( $scope, $attrs, subscription) {
     $scope.loading = true
     $scope.alarms = []
     $scope.limit = Number( $attrs.limit || 20);
 
     function onAlarm( subscriptionId, type, alarm) {
-        console.log( "onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
+        console.log( "alarmService onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
+        $scope.loading = false
         $scope.alarms.unshift( alarm)
         while( $scope.alarms.length > $scope.limit)
             $scope.alarms.pop()
@@ -68,7 +68,7 @@ function controller( $scope, $attrs, subscribe) {
 
     var request = {
         subscribeToActiveAlarms: {
-            "limit": limit
+            "limit": $scope.limit
         }
     }
     return subscription.subscribe( request, $scope, onAlarm, onError)
@@ -95,7 +95,7 @@ function link(scope, element, attrs) {
     //toggle();
 }
 
-return angular.module('coral.alarm', ["coral.rest", "coral.subscription"]).
+return angular.module('coral.alarm', ["coral.subscription"]).
 
     directive('alarms', function(){
         return {

@@ -437,24 +437,24 @@ return angular.module( 'controllers', ['authentication.service'] )
 //    $scope.limit = Number( $attrs.limit || 20);
     $scope.limit = 20;
 
-    $rootScope.currentMenuItem = "alarms";
-    $rootScope.breadcrumbs = [
-        { name: "Reef", url: "#/"},
-        { name: "Alarms" }
-    ];
-
-    $scope.onAlarm = function( subscriptionId, type, alarm) {
-        console.log( "onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
-        $scope.alarms.unshift( alarm)
-        while( $scope.alarms.length > $scope.limit)
-            $scope.alarms.pop()
-    }
-
-    $scope.onError = function( error, message) {
-
-    }
-
-    reef.subscribeToActiveAlarms( $scope, $scope.limit, $scope.onAlarm, $scope.onError)
+//    $rootScope.currentMenuItem = "alarms";
+//    $rootScope.breadcrumbs = [
+//        { name: "Reef", url: "#/"},
+//        { name: "Alarms" }
+//    ];
+//
+//    $scope.onAlarm = function( subscriptionId, type, alarm) {
+//        console.log( "onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
+//        $scope.alarms.unshift( alarm)
+//        while( $scope.alarms.length > $scope.limit)
+//            $scope.alarms.pop()
+//    }
+//
+//    $scope.onError = function( error, message) {
+//
+//    }
+//
+//    reef.subscribeToActiveAlarms( $scope, $scope.limit, $scope.onAlarm, $scope.onError)
 
 
     //reef.get( "/alarms/40", "alarms", $scope);

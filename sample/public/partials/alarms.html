@@ -6,32 +6,7 @@
     <h2>Alarms</h2>
 
     <div>
-        <table class="table table-condensed">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>State</th>
-                    <th>Type</th>
-                    <th>Sev</th>
-                    <th>User</th>
-                    <th>Entity</th>
-                    <th>Message</th>
-                    <th>Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr ng-repeat="alarm in alarms">
-                    <td>{{alarm.id}}</a></td>
-                    <td>{{alarm.state}}</td>
-                    <td>{{alarm.event.type}}</td>
-                    <td>{{alarm.event.severity}}</td>
-                    <td>{{alarm.event.agent}}</td>
-                    <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td>
-                    <td>{{alarm.event.message}}</td>
-                    <td>{{alarm.event.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                </tr>
-            </tbody>
-        </table>
+        <alarms limit="20"/>
     </div>
 
     <div ng-include src="'partials/loadingprogress.html'"></div>
