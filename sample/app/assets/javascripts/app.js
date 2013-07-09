@@ -44,14 +44,14 @@ define([
     'controllers',
     'directives',
     'services',
-    'coral/alarmService'
+    'coral/eventService'
 
 ], function( angular, authentication) {
 'use strict';
 
 
     // Declare app level module which depends on filters, and services
-    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'authentication.service', 'controllers', 'coral.alarm']).
+    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'authentication.service', 'controllers', 'coral.event']).
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.

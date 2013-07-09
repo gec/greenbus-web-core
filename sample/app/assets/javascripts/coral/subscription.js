@@ -210,19 +210,27 @@ define([
             return ws
         }
 
+        function pushPendingSubscription( subscriptionId, $scope, request, messageListener, errorListener) {
+            // We're good, so save request to wait for WebSocket.onopen().
+            console.log( "subscribe: send pending ( " + request + ")")
+            webSocketPendingTasks.push( request)
+            registerSubscriptionOnScope( $scope, subscriptionId);
+            subscription.listeners[ subscriptionId] = { "message": messageListener, "error": errorListener}
+        }
+
         self.subscribe = function( json, $scope, messageListener, errorListener) {
 
             var subscriptionId = addSubscriptionIdToMessage( json)
-            var data = JSON.stringify( json)
+            var request = JSON.stringify( json)
 
             // Lazy init of webSocket
             if( status.state == STATE.CONNECTED) {
 
                 try {
-                    webSocket.send( data)
+                    webSocket.send( request)
 
-                    // We're good, so save data for WebSocket.onmessage()
-                    console.log( "subscribe: send( " + data + ")")
+                    // We're good, so save request for WebSocket.onmessage()
+                    console.log( "subscribe: send( " + request + ")")
                     registerSubscriptionOnScope( $scope, subscriptionId);
                     subscription.listeners[ subscriptionId] = { "message": messageListener, "error": errorListener}
                 } catch( ex) {
@@ -243,11 +251,7 @@ define([
                         if( ! webSocket)
                             throw "WebSocket create failed."
 
-                        // We're good, so save date to wait for WebSocket.onopen().
-                        console.log( "subscribe: send pending ( " + data + ")")
-                        webSocketPendingTasks.push( data)
-                        registerSubscriptionOnScope( $scope, subscriptionId);
-                        subscription.listeners[ subscriptionId] = { "message": messageListener, "error": errorListener}
+                        pushPendingSubscription( subscriptionId, $scope, request, messageListener, errorListener)
 
                     } catch( ex) {
                         setStatus( STATE.CONNECTION_FAILED)
@@ -257,6 +261,9 @@ define([
                         subscriptionId = null
                     }
 
+                } else {
+                    // Already opening WebSocket, STATE.CONNECTING. Just push pending.
+                    pushPendingSubscription( subscriptionId, $scope, request, messageListener, errorListener)
                 }
 
             }

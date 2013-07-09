@@ -27,12 +27,12 @@ import akka.util.Timeout
 import org.totalgrid.reef.client._
 import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
-import org.totalgrid.reef.client.service.proto.Events.EventSelect
+import org.totalgrid.reef.client.service.proto.Events.Event
 import com.google.protobuf.GeneratedMessage
 ///import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.language.postfixOps // for postfix 'seconds'
-import org.totalgrid.reef.client.service.proto.{Alarms, Measurements}
+import org.totalgrid.reef.client.service.proto.Alarms.Alarm
 
 
 /*
@@ -134,6 +134,10 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
       Logger.debug( "WebSocketPushActor.receive SubscribeToActiveAlarms")
       subscribeToActiveAlarms( subscribe)
 
+    case subscribe: SubscribeToRecentEvents =>
+      Logger.debug( "WebSocketPushActor.receive SubscribeToRecentEvents")
+      subscribeToRecentEvents( subscribe)
+
     case Unsubscribe( id) => cancelSubscription( id)
 
     case MessageError( message, jsError) => pushJsError( message, jsError)
@@ -213,10 +217,27 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
     if( service.isDefined) {
       Logger.info( "WebSocketPushActor.subscribeToActiveAlarms " + subscribe.id)
       val result = service.get.subscribeToActiveAlarms( subscribe.limit).await
-      val subscription = subscriptionHandler[Alarms.Alarm]( result, subscribe.id, alarmPushWrites)
+      val subscription = subscriptionHandler[Alarm]( result, subscribe.id, alarmPushWrites)
       subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
     } else {
       Logger.error( "WebSocketPushActor.subscribeToActiveAlarms " + subscribe.id + ", No Reef service available.")
+      pushError( subscribe, "No Reef service available.")
+    }
+
+  }
+
+  def subscribeToRecentEvents( subscribe: SubscribeToRecentEvents) = {
+    if( service.isDefined) {
+      Logger.info( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
+      val result =
+        if( subscribe.eventTypes.length > 0)
+          service.get.subscribeToRecentEvents( subscribe.eventTypes.toList, subscribe.limit).await
+        else
+          service.get.subscribeToRecentEvents( subscribe.limit).await
+      val subscription = subscriptionHandler[Event]( result, subscribe.id, eventPushWrites)
+      subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    } else {
+      Logger.error( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id + ", No Reef service available.")
       pushError( subscribe, "No Reef service available.")
     }
 

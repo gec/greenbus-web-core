@@ -121,6 +121,60 @@ define([
 
             }));
 
+            it('should process multiple pending subscribes after WebSocket is open', mocks.inject(function(subscription) {
+                var subscriptionId = subscription.subscribe( json, scope, mock.messageListener, mock.errorListener)
+                var subscriptionId2 = subscription.subscribe( json, scope, mock.messageListener, mock.errorListener)
+                expect( subscriptionId).toBe( "subscription.subscribeToSomething.1")
+                expect( subscriptionId2).toBe( "subscription.subscribeToSomething.2")
+                expect( mock.websocketFactory.callCount).toBe( 1);
+                expect( mock.on.callCount).toBe( 2);
+                expect( scope.subscriptionIds.length).toBe( 2)
+
+                // Don't call send until socket is open
+                expect( mock.websocket.send).not.toHaveBeenCalled();
+                mock.websocket.onopen( "open event")
+                expect( mock.websocket.send).toHaveBeenCalledWith( JSON.stringify(json));
+                expect( mock.websocket.send.callCount).toBe( 2);
+
+                // Receive a message for subscriptionId
+                var message = {
+                    type: "some type",
+                    subscriptionId: subscriptionId,
+                    data: "some data"
+                }
+                var event = {
+                    data: JSON.stringify(message)
+                }
+                expect( mock.messageListener).not.toHaveBeenCalled()
+                mock.websocket.onmessage( event)
+                expect( mock.messageListener).toHaveBeenCalledWith( subscriptionId, message.type, message.data)
+
+
+                // Receive a message for subscriptionId2
+                var message2 = {
+                    type: "some type",
+                    subscriptionId: subscriptionId2,
+                    data: "some data"
+                }
+                var event2 = {
+                    data: JSON.stringify(message2)
+                }
+                mock.websocket.onmessage( event2)
+                expect( mock.messageListener).toHaveBeenCalledWith( subscriptionId2, message2.type, message2.data)
+
+
+
+                // on $destroy, unsubscribe and remove subscriptionId
+                mock.onEvents['$destroy']( "some event")
+                expect( scope.subscriptionIds.length).toBe( 0)
+                expect( mock.websocket.send).toHaveBeenCalledWith( JSON.stringify( {unsubscribe: subscriptionId}));
+
+                // next message should be for unknown subscriptionId, so it doesn't know the messageListener any more
+                mock.websocket.onmessage( event)
+                expect( mock.messageListener.callCount).toBe( 2)
+
+            }));
+
             it('should broadcast ConnectionStatus from sever as reef.status', mocks.inject(function(subscription) {
                 var subscriptionId = subscription.subscribe( json, scope, mock.messageListener, mock.errorListener)
                 mock.websocket.onopen( "open event")

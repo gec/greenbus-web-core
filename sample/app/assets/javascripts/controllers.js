@@ -428,7 +428,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         { name: "Events" }
     ];
 
-    reef.get( "/events/40", "events", $scope);
+    //reef.get( "/events/40", "events", $scope);
 })
 
 //.controller( 'AlarmControl', function( $rootScope, $scope, $attrs, reef) {

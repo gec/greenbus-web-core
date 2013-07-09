@@ -54,6 +54,10 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
           subscribeToActiveAlarmsReads.reads( data).map( pushActor ! _)
             .recoverTotal( MessageError( "subscribeToActiveAlarms", _))
 
+        case "subscribeToRecentEvents" =>
+          subscribeToRecentEventsReads.reads( data).map( pushActor ! _)
+            .recoverTotal( MessageError( "subscribeToRecentEvents", _))
+
         case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
         case "close" => pushActor ! Quit
         case _ => pushActor ! UnknownMessage( messageName)
