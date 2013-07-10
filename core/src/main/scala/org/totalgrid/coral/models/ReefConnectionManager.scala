@@ -93,6 +93,9 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     case LogoutRequest( authToken) => logout( authToken)
     case ServiceClientRequest( authToken, validationTiming) => serviceClientRequest( authToken, validationTiming)
     case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
+    case ChildActorStop( childActor) =>
+      context.unwatch( childActor)
+      context.stop( childActor)
 
     case unknownMessage: AnyRef => Logger.error( "ReefConnectionManager.receive: Unknown message " + unknownMessage)
   }
@@ -244,10 +247,11 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     }
 
     val connection : Option[Connection] = try {
-      Logger.info( "Getting Reef ConnectionFactory")
+      Logger.info( "Getting Reef ConnectionFactory...")
       val factory = ReefConnectionFactory.buildFactory(new AmqpSettings(centerConfig), new ReefServices)
-      Logger.info( "Connecting to Reef")
+      Logger.info( "Connecting to Reef...")
       val connection = factory.connect()
+      Logger.info( "Reef connection successful")
       status = AMQP_UP
       Some( connection)
     } catch {

@@ -262,7 +262,7 @@ object JsonFormatters {
         "id" -> o.getId.getValue,
         "deviceTime" -> o.getDeviceTime,
         "eventType" -> o.getEventType,
-        "isAlarm" -> o.getAlarm,
+        "alarm" -> o.getAlarm,
         "severity" -> o.getSeverity,
         "agent" -> o.getUserId,
         "entity" -> o.getEntity.getName,

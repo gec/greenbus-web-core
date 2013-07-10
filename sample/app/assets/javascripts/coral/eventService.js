@@ -39,7 +39,7 @@ define([
             <tr ng-repeat="alarm in alarms"> \
                 <td>{{alarm.id}}</a></td> \
                 <td>{{alarm.state}}</td> \
-                <td>{{alarm.event.type}}</td> \
+                <td>{{alarm.event.eventType}}</td> \
                 <td>{{alarm.event.severity}}</td> \
                 <td>{{alarm.event.agent}}</td> \
                 <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td> \
@@ -66,7 +66,7 @@ define([
             <tbody> \
                 <tr ng-repeat="event in events"> \
                     <td>{{event.id}}</a></td> \
-                <td>{{event.type}}</td> \
+                <td>{{event.eventType}}</td> \
                 <td>{{event.alarm}}</td> \
                 <td>{{event.severity}}</td> \
                 <td>{{event.agent}}</td> \
@@ -143,7 +143,7 @@ define([
 
         var request = {
             subscribeToRecentEvents: {
-                "types": [],
+                "eventTypes": [],
                 "limit": $scope.limit
             }
         }

@@ -47,16 +47,19 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
         // NOTE: messages sent to pushActor are actually JsResult[T]
 
         case "subscribeToMeasurementsByNames" =>
-          subscribeToMeasurementsByNamesReads.reads( data).map( pushActor ! _)
-            .recoverTotal( MessageError( "subscribeToMeasurementsByNames", _))
+          subscribeToMeasurementsByNamesReads.reads( data)
+            .map( request => pushActor ! request)
+            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementsByNames", jsError))
 
         case "subscribeToActiveAlarms" =>
-          subscribeToActiveAlarmsReads.reads( data).map( pushActor ! _)
-            .recoverTotal( MessageError( "subscribeToActiveAlarms", _))
+          subscribeToActiveAlarmsReads.reads( data)
+            .map( request => pushActor ! request)
+            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToActiveAlarms", jsError))
 
         case "subscribeToRecentEvents" =>
-          subscribeToRecentEventsReads.reads( data).map( pushActor ! _)
-            .recoverTotal( MessageError( "subscribeToRecentEvents", _))
+          subscribeToRecentEventsReads.reads( data)
+            .map( request => pushActor ! request)
+            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToRecentEvents", jsError))
 
         case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
         case "close" => pushActor ! Quit

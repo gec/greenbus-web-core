@@ -127,15 +127,12 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
     }
 
     case subscribe: SubscribeToMeasurementsByNames =>
-      Logger.debug( "WebSocketPushActor.receive SubscribeToMeasurementsByNames")
       subscribeToMeasurementsByPointNames( subscribe)
 
     case subscribe: SubscribeToActiveAlarms =>
-      Logger.debug( "WebSocketPushActor.receive SubscribeToActiveAlarms")
       subscribeToActiveAlarms( subscribe)
 
     case subscribe: SubscribeToRecentEvents =>
-      Logger.debug( "WebSocketPushActor.receive SubscribeToRecentEvents")
       subscribeToRecentEvents( subscribe)
 
     case Unsubscribe( id) => cancelSubscription( id)
@@ -164,6 +161,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
   def pushJsError( message: String, error: JsError) {
     val errorMessage = "Message of type: '" + message + "' was invalid."
     val jsError = JsError.toFlatJson( error)
+    Logger.warn( "WebSocketPushActor JsError: " + errorMessage + ", " + jsError)
     pushChannel.push(
       Json.obj(
         "error" -> errorMessage,
@@ -202,7 +200,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
 
   def subscribeToMeasurementsByPointNames( subscribe: SubscribeToMeasurementsByNames) = {
     if( service.isDefined) {
-      Logger.info( "WebSocketPushActor.subscribeToMeasurementsByNames " + subscribe.id)
+      Logger.debug( "WebSocketPushActor.subscribeToMeasurementsByNames " + subscribe.id)
       val result = service.get.subscribeToMeasurementsByNames( subscribe.names.toList).await
       val subscription = subscriptionHandler[Measurement]( result, subscribe.id, measurementPushWrites)
       subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
@@ -215,7 +213,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
 
   def subscribeToActiveAlarms( subscribe: SubscribeToActiveAlarms) = {
     if( service.isDefined) {
-      Logger.info( "WebSocketPushActor.subscribeToActiveAlarms " + subscribe.id)
+      Logger.debug( "WebSocketPushActor.subscribeToActiveAlarms " + subscribe.id)
       val result = service.get.subscribeToActiveAlarms( subscribe.limit).await
       val subscription = subscriptionHandler[Alarm]( result, subscribe.id, alarmPushWrites)
       subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
@@ -228,7 +226,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
 
   def subscribeToRecentEvents( subscribe: SubscribeToRecentEvents) = {
     if( service.isDefined) {
-      Logger.info( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
+      Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
       val result =
         if( subscribe.eventTypes.length > 0)
           service.get.subscribeToRecentEvents( subscribe.eventTypes.toList, subscribe.limit).await

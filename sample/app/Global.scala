@@ -54,9 +54,10 @@ object Global extends GlobalSettings {
   override def onStart(app: Application) {
     super.onStart(app)
 
-    Logger.info( "Application started")
+    Logger.info( "Application starting...")
     Logger.info( "Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
+    Logger.info( "Application started")
 
     /*
     play.api.Play.mode(app) match {
