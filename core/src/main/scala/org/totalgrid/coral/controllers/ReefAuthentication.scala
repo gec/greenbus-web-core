@@ -67,8 +67,11 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
+    Logger.debug( "ReefAuthentication.getService begin")
     (connectionManager ? ServiceClientRequest( authToken, validationTiming)).map {
-      case service: Client => Right( service)
+      case service: Client =>
+        Logger.debug( "ReefAuthentication.getService Right( service)")
+        Right( service)
       case failure: AuthenticationMessages.ServiceClientFailure => Left( failure)
       case unknownMessage: AnyRef => {
         Logger.error( "ReefAuthentication.getService AnyRef unknown message " + unknownMessage)
