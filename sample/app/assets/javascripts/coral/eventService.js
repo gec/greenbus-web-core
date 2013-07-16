@@ -66,15 +66,15 @@ define([
             <tbody> \
                 <tr ng-repeat="event in events"> \
                     <td>{{event.id}}</a></td> \
-                <td>{{event.eventType}}</td> \
-                <td>{{event.alarm}}</td> \
-                <td>{{event.severity}}</td> \
-                <td>{{event.agent}}</td> \
-                <td><a href="#/entities/{{event.entity | encodeURI}}">{{event.entity}}</a></td> \
-                <td>{{event.message}}</td> \
-                <td>{{event.time | date:\'h:mm:ss a, MM-dd-yyyy\'}}</td> \
-            </tr> \
-        </tbody> \
+                    <td>{{event.eventType}}</td> \
+                    <td>{{event.alarm}}</td> \
+                    <td>{{event.severity}}</td> \
+                    <td>{{event.agent}}</td> \
+                    <td><a href="#/entities/{{event.entity | encodeURI}}">{{event.entity}}</a></td> \
+                    <td>{{event.message}}</td> \
+                    <td>{{event.time | date:\'h:mm:ss a, MM-dd-yyyy\'}}</td> \
+                </tr> \
+            </tbody> \
             </table>'
 
     function alarmsController( $scope, $attrs, subscription) {

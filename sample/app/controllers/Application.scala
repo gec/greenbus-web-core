@@ -25,8 +25,15 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import akka.actor.ActorRef
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+import models.content._
+import play.api.libs.json.JsArray
+import scala.Some
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
+
+  import models.content.JsonFormatters._
 
   //implicit val timeout = Timeout(2 seconds)
 
@@ -38,6 +45,63 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Logger.debug( "Application.index")
     Ok(views.html.index("Coral Sample"))
   }
+
+
+  def getMenus( name: String) = ReefClientAction { (request, client) =>
+
+    val navMenu = if( name.equals( "root")) {
+
+      val applicationsMenu = List[NavigationElement](
+        NavigationItem( "Home", "home", "#/")
+      )
+      val sessionMenu = List[NavigationElement](
+        NavigationItem( "Logout", "logout", "#/logout")
+      )
+
+      List[NavigationElement](
+        NavigationItem( "Coral", "applications", "#/", children = applicationsMenu),
+        NavigationItem( "", "session", "", children = sessionMenu)
+      )
+    } else {
+
+      List[NavigationElement](
+        NavigationHeader( "Model"),
+        NavigationItem( "Entities", "entities", "#/entities", selected=true),
+        NavigationItem( "Points", "points", "#/points"),
+        NavigationItem( "Points", "commands", "#/commands"),
+        NavigationHeader( "Data"),
+        NavigationItem( "CES", "esses", "#/esses"),
+        NavigationItem( "Measurements", "measurements", "#/measurements"),
+        NavigationItem( "Events", "events", "#/events"),
+        NavigationItem( "Alarms", "alarms", "#/alarms"),
+        NavigationHeader( "Components"),
+        NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
+        NavigationItem( "Applications", "applications", "#/applications"),
+        NavigationHeader( "Auth"),
+        NavigationItem( "Agents", "agents", "#/agents"),
+        NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+      )
+    }
+
+    Ok( Json.toJson( navMenu))
+  }
+
+  def getLayout = ReefClientAction { (request, client) =>
+
+    val columns = List(
+      TableColumn( "Name", "name"),
+      TableColumn( "Value", "value"),
+      TableColumn( "Unit", "unit")
+    )
+    val measurements = RestDataSource( "/measurements", Json.obj())
+    val tableView = TableView( measurements, columns, "")
+
+    val menus = RestDataSource( "/navigationmenu", Json.obj())
+    val navList = NavList( menus, "", "")
+
+    Ok( Json.toJson( tableView))
+  }
+
 
 
 }

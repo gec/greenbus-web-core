@@ -132,7 +132,7 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
                 console.log( "reef.get success json.length: " + json.length + ", url: " + url);
 
                 if( successListener)
-                    successListener()
+                    successListener( json)
 
                 // If the get worked, the service must be up.
                 if( status.status != "UP") {

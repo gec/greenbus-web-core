@@ -17,13 +17,12 @@
  * the License.
  */
 define([
-    '../authentication/service',
-    'subscription'
+    '../authentication/service'
 ], function( authentication) {
     'use strict';
 
 
-var CoralRest = function( $rootScope, $timeout, $http, $location, authentication, subscription) {
+var CoralRest = function( $rootScope, $timeout, $http, $location, authentication) {
     var self = this;
     var retries = {
         initialize: 0,
@@ -132,7 +131,7 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
                 console.log( "reef.get success json.length: " + json.length + ", url: " + url);
 
                 if( successListener)
-                    successListener()
+                    successListener( json)
 
                 // If the get worked, the service must be up.
                 if( status.status != "UP") {
@@ -181,9 +180,9 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
 }
 
 
-return angular.module('coral.rest', ["authentication.service", "coral.subscription"]).
-    factory('rest', function( $rootScope, $timeout, $http, $location, authentication, subscription){
-        return new CoralRest( $rootScope, $timeout, $http, $location, authentication, subscription);
+return angular.module('coral.rest', ["authentication.service"]).
+    factory('coralRest', function( $rootScope, $timeout, $http, $location, authentication){
+        return new CoralRest( $rootScope, $timeout, $http, $location, authentication);
     }).
     config(['$httpProvider', function ($httpProvider) {
 

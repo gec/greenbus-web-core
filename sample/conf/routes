@@ -3,45 +3,47 @@
 # ~~~~
 
 # Home page
-GET     /                             controllers.Application.index
+GET        /                                   controllers.Application.index
 
-GET     /login                        controllers.Application.getLoginOrAlreadyLoggedIn
-DELETE  /login                        controllers.Application.deleteLogin
-POST    /login                        controllers.Application.postLogin
+GET        /login                              controllers.Application.getLoginOrAlreadyLoggedIn
+DELETE     /login                              controllers.Application.deleteLogin
+POST       /login                              controllers.Application.postLogin
 
-GET     /websocket                    controllers.Application.getWebSocket( authToken)
+GET        /websocket                          controllers.Application.getWebSocket( authToken)
 
-GET     /entities                     controllers.Application.getEntities( types: List[String])
-GET     /entities/:name                     controllers.Application.getEntity( name: String)
+GET        /menus/:name                        controllers.Application.getMenus( name: String)
 
-GET     /points/:name                 controllers.Application.getPoint( name: String)
-GET     /points                       controllers.Application.getPoints
+GET        /entities                           controllers.Application.getEntities( types: List[String])
+GET        /entities/:name                     controllers.Application.getEntity( name: String)
 
-GET     /measurements                 controllers.Application.getMeasurements
+GET        /points/:name                       controllers.Application.getPoint( name: String)
+GET        /points                             controllers.Application.getPoints
 
-GET     /commands                     controllers.Application.getCommands
-GET     /commands/:name               controllers.Application.getCommand(name: String)
+GET        /measurements                       controllers.Application.getMeasurements
 
-GET     /equipmentwithpointsbytype    controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
+GET        /commands                           controllers.Application.getCommands
+GET        /commands/:name                     controllers.Application.getCommand(name: String)
 
-GET     /endpointconnections          controllers.Application.getEndpointConnections
-GET     /endpointconnections/*name    controllers.Application.getEndpointConnection( name: String)
+GET        /equipmentwithpointsbytype          controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
 
-GET     /applications                 controllers.Application.getApplications
-GET     /applications/:name           controllers.Application.getApplication( name: String)
+GET        /endpointconnections                controllers.Application.getEndpointConnections
+GET        /endpointconnections/*name          controllers.Application.getEndpointConnection( name: String)
 
-GET     /events                       controllers.Application.getEvents( limit: Int = 20)
-GET     /events/:limit                controllers.Application.getEvents( limit: Int)
+GET        /applications                       controllers.Application.getApplications
+GET        /applications/:name                 controllers.Application.getApplication( name: String)
 
-GET     /alarms                       controllers.Application.getAlarms( limit: Int = 20)
-GET     /alarms/:limit                controllers.Application.getAlarms( limit: Int)
+GET        /events                             controllers.Application.getEvents( limit: Int = 20)
+GET        /events/:limit                      controllers.Application.getEvents( limit: Int)
 
-GET     /agents                       controllers.Application.getAgents
-GET     /agents/:name                 controllers.Application.getAgent( name: String)
+GET        /alarms                             controllers.Application.getAlarms( limit: Int = 20)
+GET        /alarms/:limit                      controllers.Application.getAlarms( limit: Int)
 
-GET     /permissionsets               controllers.Application.getPermissionSets
-GET     /permissionsets/:name         controllers.Application.getPermissionSet( name: String)
+GET        /agents                             controllers.Application.getAgents
+GET        /agents/:name                       controllers.Application.getAgent( name: String)
+
+GET        /permissionsets                     controllers.Application.getPermissionSets
+GET        /permissionsets/:name               controllers.Application.getPermissionSet( name: String)
 
 # Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file                 controllers.Assets.at(path="/public", file)
-GET     /*file                        controllers.Assets.at(path="/public", file)
+GET        /assets/*file                       controllers.Assets.at(path="/public", file)
+GET        /*file                              controllers.Assets.at(path="/public", file)
