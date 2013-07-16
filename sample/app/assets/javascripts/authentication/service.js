@@ -93,6 +93,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
                         message: ""
                     })
                     $cookies[authTokenName] = authToken
+                    $cookies.userName = userName
                     console.log( "login success, setting cookie, redirectLocation: '/#' + '" + redirectLocation + "'")
                     if( redirectLocation)
                         window.location.href = "/#" + redirectLocation
