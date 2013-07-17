@@ -8,6 +8,7 @@ import play.api.libs.functional.syntax._
  * @author Flint O'Brien
  */
 object JsonFormatters {
+  import Content._
 
   private def stringOrNull( s: Option[String]): JsValue = s match {
     case Some( s) => JsString( s)
@@ -102,12 +103,20 @@ object JsonFormatters {
   implicit val navigationHeaderWrites = new Writes[NavigationHeader] {
     def writes( o: NavigationHeader): JsValue =
       Json.obj(
+        "type" -> "header",
         "label" -> o.label
+      )
+  }
+  implicit val navigationDividerWrites = new Writes[NavigationDivider] {
+    def writes( o: NavigationDivider): JsValue =
+      Json.obj(
+        "type" -> "divider"
       )
   }
   implicit val navigationItemWrites = new Writes[NavigationItem] {
     def writes( o: NavigationItem): JsValue =
       Json.obj(
+        "type" -> "item",
         "label" -> o.label,
         "id" -> o.id,
         "url" -> o.url,
@@ -118,7 +127,8 @@ object JsonFormatters {
   implicit val navigationElementWrites = new Writes[NavigationElement] {
     def writes( o: NavigationElement): JsValue =
       o match {
-        case header: NavigationHeader => navigationHeaderWrites.writes( header)
+        case item: NavigationDivider => navigationDividerWrites.writes( item)
+        case item: NavigationHeader => navigationHeaderWrites.writes( item)
         case item: NavigationItem => navigationItemWrites.writes( item)
       }
   }

@@ -22,7 +22,7 @@ define([
 ], function( ) {
     'use strict';
 
-    var navbarTopTemplate =
+    var navBarTopTemplate =
         '<div class="navbar navbar-inverse navbar-fixed-top"> <div class="navbar-inner"> <div class="container-fluid"> \
             <a class="brand" href="{{ application.url }}">{{ application.label }}</a> \
             <div class="nav-collapse collapse"> \
@@ -45,7 +45,15 @@ define([
             </div><!--/.nav-collapse --> \
     </div> </div> </div>'
 
-    function navbarTopController( $scope, $attrs, $location, $cookies, coralRest) {
+    var navListTemplate =
+        '<ul class="nav nav-list">\
+            <li ng-repeat="item in navItems" ng-class="getClass(item)" ng-switch="item.type">\
+                <a ng-switch-when="item" href="{{ item.url }}">{{ item.label }}</a>\
+                <span ng-switch-when="header">{{ item.label }}</span>\
+            </li>\
+        </ul>'
+
+    function navBarTopController( $scope, $attrs, $location, $cookies, coralRest) {
         $scope.loading = true
         $scope.applicationMenuItems = []
         $scope.sessionMenuItems = []
@@ -63,29 +71,58 @@ define([
             $scope.application = json[0]
             $scope.applicationMenuItems = json[0].children
             $scope.sessionMenuItems = json[1].children
-            console.log( "navbarTopController onSuccess " + $scope.application.label)
+            console.log( "navBarTopController onSuccess " + $scope.application.label)
             $scope.loading = false
         }
 
         return coralRest.get( $attrs.href, "data", $scope, onSuccess)
     }
     // The linking function will add behavior to the template
-    function navbarTopLink(scope, element, $attrs) {
+    function navBarTopLink(scope, element, $attrs) {
     }
 
+    function navListController( $scope, $attrs, $location, $cookies, coralRest) {
+        $scope.navItems = [ {type: "header", label: "loading..."}]
+
+        $scope.getClass = function( item) {
+            switch( item.type) {
+                case 'divider': return "divider"
+                case 'header': return "nav-header"
+                case 'item': return ""
+            }
+        }
+
+        return coralRest.get( $attrs.href, "navItems", $scope)
+    }
+    // The linking function will add behavior to the template
+    function navListLink(scope, element, $attrs) {
+    }
 
     return angular.module('coral.navigation', ["ui.bootstrap", "coral.rest"]).
-        // <navbarTop url="/navmain"
-        directive('navbarTop', function(){
+        // <nav-bar-top url="/menus/root"
+        directive('navBarTop', function(){
             return {
                 restrict: 'E', // Element name
                 // This HTML will replace the alarmBanner directive.
                 replace: true,
                 transclude: true,
                 scope: true,
-                template: navbarTopTemplate,
-                controller: navbarTopController,
-                link: navbarTopLink
+                template: navBarTopTemplate,
+                controller: navBarTopController,
+                link: navBarTopLink
+            }
+        }).
+        // <nav-list href="/coral/menus/root">
+        directive('navList', function(){
+            return {
+                restrict: 'E', // Element name
+                // This HTML will replace the alarmBanner directive.
+                replace: true,
+                transclude: true,
+                scope: true,
+                template: navListTemplate,
+                controller: navListController,
+                list: navListLink
             }
         });
 

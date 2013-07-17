@@ -34,6 +34,7 @@ import scala.Some
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 
   import models.content.JsonFormatters._
+  import models.content.Content._
 
   //implicit val timeout = Timeout(2 seconds)
 
@@ -65,10 +66,22 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     } else {
 
       List[NavigationElement](
+        NavigationHeader( "Unknown menu  '" + name + "'")
+      )
+    }
+
+    Ok( Json.toJson( navMenu))
+  }
+
+  def getCoralMenus( name: String) = ReefClientAction { (request, client) =>
+
+    val navMenu = if( name.equals( "root")) {
+
+      List[NavigationElement](
         NavigationHeader( "Model"),
         NavigationItem( "Entities", "entities", "#/entities", selected=true),
         NavigationItem( "Points", "points", "#/points"),
-        NavigationItem( "Points", "commands", "#/commands"),
+        NavigationItem( "Commands", "commands", "#/commands"),
         NavigationHeader( "Data"),
         NavigationItem( "CES", "esses", "#/esses"),
         NavigationItem( "Measurements", "measurements", "#/measurements"),
@@ -80,6 +93,11 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
         NavigationHeader( "Auth"),
         NavigationItem( "Agents", "agents", "#/agents"),
         NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+      )
+    } else {
+
+      List[NavigationElement](
+        NavigationHeader( "Unknown menu '" + name + "'")
       )
     }
 

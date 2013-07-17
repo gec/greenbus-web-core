@@ -1,6 +1,6 @@
 package models.content
 
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, Writes, JsValue}
 
 //  object ListStyle extends Enumeration {
 //    type ListStyle = Value
@@ -18,6 +18,9 @@ import play.api.libs.json.JsValue
 //  val CENTER = Value
 //}
 //import TextAlign._
+
+object Content {
+
 
 sealed trait DataSource {
 }
@@ -57,9 +60,10 @@ case class TableView( dataSource: DataSource, columns: List[TableColumn], overri
 
 
 
-sealed trait NavigationElement {
-  val label: String
-}
-case class NavigationHeader( override val label: String) extends NavigationElement
-case class NavigationItem( override val label: String, id: String, url: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+sealed trait NavigationElement
+sealed trait NavigationDivider extends NavigationElement
+case object NavigationDivider extends NavigationDivider
+case class NavigationHeader( label: String) extends NavigationElement
+case class NavigationItem( label: String, id: String, url: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
 
+}

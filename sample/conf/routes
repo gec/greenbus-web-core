@@ -12,6 +12,8 @@ POST       /login                              controllers.Application.postLogin
 GET        /websocket                          controllers.Application.getWebSocket( authToken)
 
 GET        /menus/:name                        controllers.Application.getMenus( name: String)
+#          /:applicationName/menus/:name
+GET        /coral/menus/:name                  controllers.Application.getCoralMenus( name: String)
 
 GET        /entities                           controllers.Application.getEntities( types: List[String])
 GET        /entities/:name                     controllers.Application.getEntity( name: String)
