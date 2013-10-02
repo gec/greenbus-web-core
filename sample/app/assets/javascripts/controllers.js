@@ -159,6 +159,13 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
+    function getPercentCharge( value) {
+        var v = Math.abs( value)
+        if( v > 100)
+            v = v % 100
+        return v
+    }
+
     $scope.findPoint = function( name) {
         for( var index in $scope.measurements) {
             var point = $scope.measurements[ index]
@@ -175,6 +182,8 @@ return angular.module( 'controllers', ['authentication.service'] )
         if( point) {
 
             point.value = formatMeasurementValue( measurement.value)
+            if( point.unit.indexOf( "k") == 0 || point.unit.indexOf( "%") == 0)
+                point.percentCharge = getPercentCharge( point.value)
         }
     }
 
@@ -205,6 +214,8 @@ return angular.module( 'controllers', ['authentication.service'] )
     $scope.esses = []     // our mappings of data from the server
     $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
     $scope.searchText = ""
+    $scope.sortColumn = "name"
+    $scope.reverse = false
     var pointNameMap = {}
 
     $rootScope.currentMenuItem = "esses";
@@ -309,6 +320,8 @@ return angular.module( 'controllers', ['authentication.service'] )
                 $scope.esses[ info.essIndex].standbyOrOnline = "Standby"
             else
                 $scope.esses[ info.essIndex].standbyOrOnline = "Online"
+        } else if( info.type == "%SOC") {
+            $scope.esses[ info.essIndex].percentSocMax100 = Math.min( value, 100)
         }
         $scope.esses[ info.essIndex][info.type] = value
         $scope.esses[ info.essIndex].state = getState( $scope.esses[ info.essIndex])
@@ -326,6 +339,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             Standby: "",
             Charging: "",
             "%SOC": "",
+            percentSocMax100: 0, // Used by batter symbol
             standbyOrOnline: "", // "Standby", "Online"
             state: "s"    // "standby", "charging", "discharging"
         }
