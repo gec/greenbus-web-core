@@ -22,6 +22,7 @@ require.config({
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
         'ui-utils': '../lib/angular-ui/ui-utils.min',
+        'd3-traits': '../lib/d3-traits/d3-traits',
         text: '../lib/require/text'
     },
     baseUrl: '/javascripts',
