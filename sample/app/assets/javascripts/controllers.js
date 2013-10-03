@@ -25,6 +25,7 @@ define([
 var CHECKMARK_UNCHECKED = 0,
     CHECKMARK_CHECKED = 1,
     CHECKMARK_PARTIAL = 2
+var CHECKMARK_NEXT_STATE = [1, 0, 0]
 
 return angular.module( 'controllers', ['authentication.service'] )
 
@@ -176,7 +177,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     $scope.checkUncheck = function( measurement) {
-        measurement.checked = 1 - measurement.checked
+        measurement.checked = CHECKMARK_NEXT_STATE[ measurement.checked]
         if( measurement.checked === CHECKMARK_CHECKED)
             $scope.checkCount ++
         else
@@ -191,7 +192,7 @@ return angular.module( 'controllers', ['authentication.service'] )
 
     }
     $scope.checkUncheckAll = function() {
-        $scope.checkAllState = 1 - $scope.checkAllState
+        $scope.checkAllState = CHECKMARK_NEXT_STATE[ $scope.checkAllState]
         var i = $scope.measurements.length - 1
         $scope.checkCount = $scope.checkAllState === CHECKMARK_CHECKED ? i : 0
         for( ; i >= 0; i--) {
@@ -199,18 +200,24 @@ return angular.module( 'controllers', ['authentication.service'] )
             measurement.checked = $scope.checkAllState
         }
     }
-    $scope.chartAdd = function() {
-        var i = $scope.measurements.length - 1,
-            chartMeasurements = []
+    $scope.chartAdd = function( index) {
+        var chartMeasurements = []
 
-        for( ; i >= 0; i--) {
-            var measurement = $scope.measurements[ i]
-            if( measurement.checked === CHECKMARK_CHECKED)
-                chartMeasurements.push( measurement)
+        if( index < 0) {
+            var i = $scope.measurements.length - 1
+
+            for( ; i >= 0; i--) {
+                var measurement = $scope.measurements[ i]
+                if( measurement.checked === CHECKMARK_CHECKED)
+                    chartMeasurements.push( measurement)
+            }
+
+            $scope.charts.push( chartMeasurements)
+        } else {
+            $scope.charts.push( [$scope.measurements[ index]])
         }
-
-        $scope.charts.push( chartMeasurements)
     }
+
     $scope.chartRemove = function( index) {
         $scope.charts.splice( index, 1)
     }

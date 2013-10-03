@@ -33,7 +33,7 @@
                                 <div ng-class="checkAllState | checkboxClass"></div>
                             </div>
                         </button>
-                        <button class="btn text-muted" ng-click="chartAdd()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
+                        <button class="btn text-muted" ng-click="chartAdd(-1)" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
 
                     </th>
                     <!--<th>Name</th>-->
@@ -55,7 +55,7 @@
                         <!--</div>-->
                     </td>
                     <td>{{meas.name}}</td>
-                    <td style="text-align: right"><a href="" ng-click=""><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{meas.value}}</td>
                     <td>{{meas.unit}}</td>
                     <td>{{meas.shortQuality}}</td>
@@ -69,17 +69,18 @@
 
     <div class="navbar-fixed-bottom">
         <div class="coral-chart" ng-repeat="chart in charts">
-            <div class="coral-win-titlebar clearfix">
-                <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart[0].name }}, ...</span></p>
-                <div class="coral-win-actions">
-                    <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
-                    <a href="" ng-click=""><i class="icon-share-alt icon-white"></i></a>
-                    <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
+            <div class="coral-win">
+                <div class="coral-win-titlebar clearfix">
+                    <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart[0].name }}</span></p>
+                    <div class="coral-win-actions">
+                        <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
+                        <a href="" ng-click=""><i class="icon-share-alt icon-white"></i></a>
+                        <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
+                    </div>
                 </div>
+                <p ng-repeat="meas in chart">{{ meas.name }}</p>
+                <a href="" ng-click=""><i class="icon-plus"></i></a>
             </div>
-            <p ng-repeat="meas in chart">{{ meas.name }}</p>
-            <a href="" ng-click=""><i class="icon-plus"></i></a>
-
         </div>
     </div>
 </div>
