@@ -1,5 +1,91 @@
 /* app css stylesheet */
 
+/* Bootstrap 3 */
+.text-muted {
+    color: #999999;
+}
+
+
+/*.T-Jo {*/
+.coral-checkbox-container {
+    position: relative;
+    display: inline-block;
+
+    -webkit-border-radius: 0;
+    border-radius: 0;
+    background-color: rgba(255,255,255,.05);
+    border: 1px solid #c6c6c6;
+    border: 1px solid rgba(155,155,155,.57);
+    font-size: 1px;
+    height: 11px;
+    margin: 0 4px 0 1px;
+    outline: 0;
+    vertical-align: text-bottom;
+    width: 11px;
+}
+/*.T-Jo-auh {*/
+.coral-checkbox {
+    height: 15px;
+    outline: 0;
+    width: 15px;
+    left: 0;
+    position: relative;
+    top: -3px;
+}
+
+.coral-chart {
+    float: right;
+    height: 200px;
+    width: 400px;
+    margin-left: 12px;
+    background-color: #eeeeef;
+}
+.coral-win {
+
+}
+.coral-win-titlebar {
+    color: white;
+    background-color: #2e3436;
+    background-color: #404040;
+    padding: 6px 8px 4px 8px;
+}
+.coral-win-title {
+    float: left;
+    margin-bottom: 0;
+}
+.coral-win-actions {
+    float: right;
+    opacity: .5;
+}
+.coral-win-actions a {
+    padding: 0 4px;
+}
+
+/*.T-Jo-Jp .T-Jo-auh {*/
+.coral-checkbox-checked {
+    background: url(../images/checkmark.png) no-repeat -5px -3px;
+}
+.coral-checkbox-partial {
+    background: url(../images/checkmark-partial.png) no-repeat -5px -3px;
+}
+
+/*.navbar-fixed-bottom .dropdown .dropdown-menu {*/
+    /*top: auto;*/
+    /*bottom: 100%;*/
+    /*margin-bottom: 1px;*/
+/*}*/
+
+/*.navbar-fixed-bottom {*/
+    /*position: fixed;*/
+    /*right: 0;*/
+    /*left: 0;*/
+    /*border-width: 0 0 1px;*/
+/*}*/
+/*.navbar-fixed-bottom {*/
+    /*bottom: 0;*/
+    /*margin-bottom: 0;*/
+/*}*/
+
 
 .statusBanner {
     visibility: hidden;

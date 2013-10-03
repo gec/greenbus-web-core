@@ -70,6 +70,16 @@ angular.module('ReefAdmin.filters', []).
             return SERVICES_STATUS_PROGRESS[ status];
           };
         }).
+    filter('checkboxClass', function() {
+        return function(checked) {
+            switch( checked) {
+                case 0: return "coral-checkbox"
+                case 1: return "coral-checkbox coral-checkbox-checked"
+                case 2: return "coral-checkbox coral-checkbox-partial"
+                default: return "coral-checkbox"
+            }
+        };
+    }).
     filter('essBatteryStandby', function() {
         return function(standby) {
             return ( standby === "OffAvailable" || standby === "true")

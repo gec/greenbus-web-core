@@ -2,15 +2,43 @@
 
 
 <div>
-
-    <h2>Measurements</h2>
+    <div class="row-fluid">
+        <div class="span3">
+            <h2>Measurements</h2>
+        </div>
+        <div class="span7" style="margin-top: 12px;">
+            <input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;margin-top: 5px;margin-left:20px;">
+            <!--<button class="btn btn-info" ng-click="search()" style="height: 100%; width: 60px; margin-bottom: 10px;"><i class="icon-search icon-white"></i></button>-->
+        </div>
+    </div>
+    <!--<div class="row-fluid">-->
+        <!--<div class="span12">-->
+            <!--<button class="btn" ng-click="checkUncheckAll()">-->
+                <!--<div class="coral-checkbox-container" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">-->
+                    <!--<div ng-class="checkAllState | checkboxClass"></div>-->
+                <!--</div>-->
+            <!--</button>-->
+            <!--<button class="btn text-muted" ng-click="showChart()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>-->
+            <!--&lt;!&ndash;<input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;margin-top: 5px;margin-bottom:0px;">&ndash;&gt;-->
+        <!--</div>-->
+    <!--</div>-->
 
     <div>
         <table class="table table-condensed">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Value</th>
+                    <th colspan="2" style="padding-bottom: 12px;">
+                        <button class="btn" ng-click="checkUncheckAll()">
+                            <div class="coral-checkbox-container" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
+                                <div ng-class="checkAllState | checkboxClass"></div>
+                            </div>
+                        </button>
+                        <button class="btn text-muted" ng-click="chartAdd()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
+
+                    </th>
+                    <!--<th>Name</th>-->
+                    <th></th>
+                    <th style="text-align: right">Value</th>
                     <th>Unit</th>
                     <th>Quality</th>
                     <th>Time</th>
@@ -18,8 +46,17 @@
             </thead>
             <tbody>
                 <tr ng-repeat="meas in measurements">
+                    <td>
+                        <div class="coral-checkbox-container" ng-click="checkUncheck(meas)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
+                            <div ng-class="meas.checked | checkboxClass"></div>
+                        </div>
+                        <!--<div id=":2e" class="oZ-jc T-Jo J-J5-Ji T-Jo-Jp" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">-->
+                            <!--<div class="T-Jo-auh"></div>-->
+                        <!--</div>-->
+                    </td>
                     <td>{{meas.name}}</td>
-                    <td>{{meas.value}}</td>
+                    <td style="text-align: right"><a href="" ng-click=""><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td style="text-align: right">{{meas.value}}</td>
                     <td>{{meas.unit}}</td>
                     <td>{{meas.shortQuality}}</td>
                     <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
@@ -29,5 +66,21 @@
     </div>
 
     <div ng-include src="'partials/loadingprogress.html'"></div>
+
+    <div class="navbar-fixed-bottom">
+        <div class="coral-chart" ng-repeat="chart in charts">
+            <div class="coral-win-titlebar clearfix">
+                <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart[0].name }}, ...</span></p>
+                <div class="coral-win-actions">
+                    <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
+                    <a href="" ng-click=""><i class="icon-share-alt icon-white"></i></a>
+                    <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
+                </div>
+            </div>
+            <p ng-repeat="meas in chart">{{ meas.name }}</p>
+            <a href="" ng-click=""><i class="icon-plus"></i></a>
+
+        </div>
+    </div>
 </div>
 

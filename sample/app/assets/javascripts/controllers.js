@@ -22,6 +22,10 @@ define([
 ], function( authentication) {
 'use strict';
 
+var CHECKMARK_UNCHECKED = 0,
+    CHECKMARK_CHECKED = 1,
+    CHECKMARK_PARTIAL = 2
+
 return angular.module( 'controllers', ['authentication.service'] )
 
 .controller( 'MenuControl', function( $rootScope, $scope, $timeout, reef, $http) {
@@ -143,6 +147,9 @@ return angular.module( 'controllers', ['authentication.service'] )
 
 .controller( 'MeasurementControl', function( $rootScope, $scope, $filter, reef) {
     $scope.measurements = []
+    $scope.checkAllState = CHECKMARK_UNCHECKED
+    $scope.checkCount = 0
+    $scope.charts = []
 
     $rootScope.currentMenuItem = "measurements";
     $rootScope.breadcrumbs = [
@@ -159,13 +166,6 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    function getPercentCharge( value) {
-        var v = Math.abs( value)
-        if( v > 100)
-            v = v % 100
-        return v
-    }
-
     $scope.findPoint = function( name) {
         for( var index in $scope.measurements) {
             var point = $scope.measurements[ index]
@@ -175,16 +175,52 @@ return angular.module( 'controllers', ['authentication.service'] )
         return null
     }
 
+    $scope.checkUncheck = function( measurement) {
+        measurement.checked = 1 - measurement.checked
+        if( measurement.checked === CHECKMARK_CHECKED)
+            $scope.checkCount ++
+        else
+            $scope.checkCount --
+
+        if( $scope.checkCount === 0)
+            $scope.checkAllState = CHECKMARK_UNCHECKED
+        else if( $scope.checkCount >= $scope.measurements.length - 1)
+            $scope.checkAllState = CHECKMARK_CHECKED
+        else
+            $scope.checkAllState = CHECKMARK_PARTIAL
+
+    }
+    $scope.checkUncheckAll = function() {
+        $scope.checkAllState = 1 - $scope.checkAllState
+        var i = $scope.measurements.length - 1
+        $scope.checkCount = $scope.checkAllState === CHECKMARK_CHECKED ? i : 0
+        for( ; i >= 0; i--) {
+            var measurement = $scope.measurements[ i]
+            measurement.checked = $scope.checkAllState
+        }
+    }
+    $scope.chartAdd = function() {
+        var i = $scope.measurements.length - 1,
+            chartMeasurements = []
+
+        for( ; i >= 0; i--) {
+            var measurement = $scope.measurements[ i]
+            if( measurement.checked === CHECKMARK_CHECKED)
+                chartMeasurements.push( measurement)
+        }
+
+        $scope.charts.push( chartMeasurements)
+    }
+    $scope.chartRemove = function( index) {
+        $scope.charts.splice( index, 1)
+    }
+
     $scope.onMeasurement = function( subscriptionId, type, measurement) {
         if( measurement.unit == "status")
             console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
         var point = $scope.findPoint( measurement.name)
-        if( point) {
-
+        if( point)
             point.value = formatMeasurementValue( measurement.value)
-            if( point.unit.indexOf( "k") == 0 || point.unit.indexOf( "%") == 0)
-                point.percentCharge = getPercentCharge( point.value)
-        }
     }
 
     $scope.onError = function( error, message) {
@@ -196,6 +232,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         var pointNames = []
         for( var index in $scope.measurements) {
             var measurement = $scope.measurements[ index]
+            measurement.checked = CHECKMARK_UNCHECKED
             pointNames.push( measurement.name)
 
             measurement.value = formatMeasurementValue( measurement.value)
