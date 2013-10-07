@@ -173,12 +173,12 @@ define([
 
         function removeAllSubscriptions( error) {
             // save in temp in case a listener.error() tries to resubscribe
-            var listenerId, listener,
+            var subscriptionId, listener,
                 temp = subscription.listeners
             subscription.listeners = {}
             webSocketPendingTasks = []
-            for( listenerId in temp) {
-                listener = temp[listenerId]
+            for( subscriptionId in temp) {
+                listener = temp[subscriptionId]
                 if( listener.error)
                     listener.error( error)
             }
