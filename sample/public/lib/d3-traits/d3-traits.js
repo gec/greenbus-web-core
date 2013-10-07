@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2013-10-01
+/*! d3-traits - v0.0.1 - 2013-10-07
 * https://github.com/gec/d3-traits
 * Copyright (c) 2013 d3-traits; Licensed ,  */
 (function (d3) {
@@ -23,9 +23,6 @@
 
 Array.isArray = Array.isArray || function (vArg) {
     return Object.prototype.toString.call(vArg) === "[object Array]";
-};
-Array.prototype.clone = function() {
-    return this.slice(0);
 };
 
 /**
@@ -66,6 +63,10 @@ function isX( scaleName) { return scaleName.charAt(0) === 'x'}
 function isY( scaleName) { return scaleName.charAt(0) === 'y'}
 
 function extentMax( extent) { return extent[ extent.length - 1] }
+
+function isData( _data, accessSeries) {
+    return d3.max( _data, function(s) { return accessSeries(s ).length}) > 0
+}
 
 function getChartRange( _super, name) {
     // SVG origin is top-left
@@ -222,7 +223,7 @@ function Trait( _trait, _config, _super) {
         if( this._super)
             this._super.call( _selection)
         _selection.call( imp)
-        return self
+        return imp
     }
 
     function makeVirtual( name, fn, _superFn) {
@@ -476,6 +477,7 @@ d3.trait.utils = {
     extend: extendObject,
     isX: isX,
     isY: isY,
+    isData: isData,
     extentMax: extentMax,
     getChartRange: getChartRange,
     getTraitCache: getTraitCache,
@@ -929,13 +931,13 @@ d3.trait.utils = {
         }
     }
 
-    function axisTransform( _super, c) {
+    function axisTransform( self, c) {
 
         switch( c.orient) {
             case 'left': return null;
-            case 'bottom': return 'translate(0,' + _super.chartHeight() + ')';
+            case 'bottom': return 'translate(0,' + self.chartHeight() + ')';
             case 'top': return null;
-            case 'right': return 'translate(' + _super.chartWidth() + ')';
+            case 'right': return 'translate(' + self.chartWidth() + ')';
             default:
                 return null;
         }
@@ -991,12 +993,27 @@ d3.trait.utils = {
                 applyTickConfig( axis, scale, c)
 
                 group
-                    .transition()
-                    .duration( 500)
-                    .ease( self.ease())
                     .attr({transform: axisTransform( self, c)})
                     .call(axis);
             })
+        }
+        axisLinear.update = function( type, duration) {
+            this._super( type, duration)
+
+            // Need this for extentTicks, maybe others
+            //
+            applyTickConfig( axis, scale, c)
+
+            if( duration === 0) {
+                group.call( axis);
+            } else {
+                group.transition()
+                    .duration( duration || _super.duration())
+                    .ease( "linear")
+                    .call( axis);
+            }
+
+            return this;
         }
 
         _super.onChartResized( 'axisLinear-' + c.name, axisLinear)
@@ -1057,9 +1074,7 @@ d3.trait.utils = {
                     //.tickSubdivide(4)
 
 
-                group.transition()
-                    .duration( 500)
-                    .ease( self.ease())
+                group
                     .attr({transform: axisTransform( self, c)})
                     .call(axis);
 
@@ -1628,6 +1643,13 @@ function _chartBase( _super, _config) {
         return []
     };
 
+    /**
+     *
+     * @param type  trend - New date for trend. Slide the new data from the right.
+     *              domain - The domain has been updated and all traits need to udpate based on the
+     *                      new domain extent (ex: brush event).
+     * @param duration
+     */
     chartBase.update = function(  type, duration) {
     };
 
@@ -2423,6 +2445,7 @@ trait.control.brush = _controlBrush
 
                     markTooltipsForRemoval( cache.tooltips)
 
+                    // TODO: Can this huge function be broken up a bit?
                     foci.forEach( function( item, index, array) {
                         //console.log( "foci: " + item.point.x + " distance: " + item.distance)
 
@@ -2870,13 +2893,14 @@ function _scaleOrdinalBars( _super, _config) {
         var self = scaleOrdinalBars
 
         _selection.each(function(_data) {
-            var element = this
+            var ordinals,
+                element = this
 
             var rangeMax = axisChar === 'x' ? self.chartWidth() : self.chartHeight()
             scale.rangeRoundBands([0, rangeMax], 0.1)
 
             // Use the first series for the ordinals. TODO: should we merge the series ordinals?
-            var ordinals = _data[0].map( accessData)
+            ordinals = _data[0].map( accessData)
             scale.domain( ordinals);
         })
     }
@@ -2921,7 +2945,7 @@ function _scaleTime( _super,  _config) {
     scaleTime[scaleName + 'Domain'] = function( newDomain) {
         domainConfig.domain = newDomain
         scale.domain( newDomain)
-        // TODO: domain update event?
+        // TODO: domain updated event?
     }
     scaleTime.update = function( type, duration) {
 
@@ -2953,6 +2977,7 @@ function _scaleLinear( _super,  _config) {
 
     var theData,
         scaleName = _config.axis,
+        axisChar = scaleName.charAt(0 ),
         access = makeAccessorsFromConfig( _config, scaleName ),
         domainConfig = makeDomainConfig( _config),
         scale = d3.scale.linear()
@@ -2964,17 +2989,19 @@ function _scaleLinear( _super,  _config) {
         var self = scaleLinear
 
         _selection.each(function(_data) {
-            var element = this
+            var extents, min, max,
+                element = this
             theData = _data
 
             // Get array of extents for each series.
-            var extents = _data.map( function(s) { return d3.extent( access.series(s), access.data)})
-            var min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
-            var max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
+            extents = _data.map( function(s) { return d3.extent( access.series(s), access.data)})
+            min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
+            max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
             //var max = d3.max( _data, function(s) { return d3.max( _config.seriesData(s), accessData); })
 
+            var rangeExtent = axisChar === 'x' ? [0, self.chartWidth()] : [self.chartHeight(), 0]
             scale.domain([min, max])
-                .range([self.chartHeight(), 0]);
+                .range( rangeExtent);
         })
     }
     scaleLinear[scaleName] = function() {

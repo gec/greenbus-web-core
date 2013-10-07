@@ -150,8 +150,7 @@ angular.module('ReefAdmin.filters', []).
                 return objects;
 
             var result = []
-            for( var index in objects) {
-                var o = objects[index]
+            objects.forEach( function( o) {
                 for( var keyIndex in objectKeys) {
                     var key = objectKeys[ keyIndex]
                     if( o[key].indexOf( searchText) !== -1) {
@@ -159,7 +158,7 @@ angular.module('ReefAdmin.filters', []).
                         break;
                     }
                 }
-            }
+            })
             return result
         };
     }).

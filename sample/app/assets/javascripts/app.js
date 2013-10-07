@@ -22,6 +22,7 @@ require.config({
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
         'ui-utils': '../lib/angular-ui/ui-utils.min',
+        'd3': '../lib/d3/d3.v3.min',
         'd3-traits': '../lib/d3-traits/d3-traits',
         text: '../lib/require/text'
     },
@@ -30,7 +31,8 @@ require.config({
         'angular' : {'exports' : 'angular'},
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
-        "ui-utils" : { deps: ["angular"] }
+        "ui-utils" : { deps: ["angular"] },
+        "d3-tratis" : { deps: ["d3"] }
     },
     priority: [
         "angular"
@@ -39,6 +41,7 @@ require.config({
 
 define([
     'angular',
+    'd3',
     'filters',
     'authentication/service',
     'authentication/interceptor',
@@ -53,7 +56,7 @@ define([
 
 
     // Declare app level module which depends on filters, and services
-    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'authentication.service', 'controllers', 'coral.event', 'coral.navigation']).
+    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'ReefAdmin.directives', 'authentication.service', 'controllers', 'coral.event', 'coral.navigation']).
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.

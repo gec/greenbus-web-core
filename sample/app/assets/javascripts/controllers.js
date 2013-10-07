@@ -151,8 +151,12 @@ return angular.module( 'controllers', ['authentication.service'] )
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
     $scope.charts = []
+    $scope.chartData = [
+        { name: "series one", values: [{ x: 5, y: 5}, { x: 10, y: 10}] }
+    ]
 
-    $rootScope.currentMenuItem = "measurements";
+
+        $rootScope.currentMenuItem = "measurements";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Measurements" }
@@ -167,12 +171,11 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    $scope.findPoint = function( name) {
-        for( var index in $scope.measurements) {
-            var point = $scope.measurements[ index]
-            if( name == point.name)
-                return point
-        }
+    $scope.findMeasurement = function( name) {
+        $scope.measurements.forEach( function( measurement) {
+            if( name == measurement.name)
+                return measurement
+        })
         return null
     }
 
@@ -200,21 +203,88 @@ return angular.module( 'controllers', ['authentication.service'] )
             measurement.checked = $scope.checkAllState
         }
     }
+    function makeChart( points) {
+        var name = points.length === 1 ? points[0].name : points[0].name + ",..."
+
+        points.forEach( function( point) {
+            point.measurements = [ /*{time: new Date(), value: 0}*/]
+        })
+        return {
+            name: name,
+            points: points,
+//            data: [
+//                { name: name, values: [] }
+//            ],
+            update: null
+        }
+    }
+
+    function onHistoryMeasurement( subscriptionId, type, measurement) {
+        var point = $scope.findMeasurement( measurement.name)
+        if( point)
+            point.value = formatMeasurementValue( measurement.value)
+    }
+
+    function onHistoryError( error, message) {
+
+    }
+
+
+    function subscribeToMeasurementHistory( chart) {
+        var points = chart.points,
+            since = 1000 * 60 * 60 * 24,
+            limit = 100
+
+        points.forEach( function( point) {
+            point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.pointUuid, since, limit,
+                function( subscriptionId, type, measurement) {
+                    if( type === "measurements") {
+                        measurement.forEach( function( m) {
+                            var value = parseFloat( m.value)
+                            if( ! isNaN( value)) {
+                                m.value = value
+                                m.time = new Date( m.time)
+                                console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
+                                point.measurements.push( m)
+                            } else {
+                                console.debug( "subscribeToMeasurementHistory " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
+                            }
+                        })
+                        if( chart.update)
+                            chart.update()
+
+                    } else {
+                        // one measurement
+                        measurement.value = parseFloat( measurement.value)
+                        measurement.time = new Date( measurement.time)
+                        console.log( "subscribeToMeasurementHistory " + measurement.name + " " + measurement.time + " " + measurement.value)
+                        point.measurements.push( measurement)
+                        if( chart.update)
+                            chart.update()
+                    }
+                },
+                function( error, message) {
+                    console.error( "subscribeToMeasurementHistory " + error + ", " + message)
+                })
+        })
+    }
     $scope.chartAdd = function( index) {
-        var chartMeasurements = []
+        var chart,
+            points = []
 
         if( index < 0) {
-            var i = $scope.measurements.length - 1
+            // Add all measurements that are checked
+            points = $scope.measurements.filter( function( m) { return m.checked === CHECKMARK_CHECKED })
 
-            for( ; i >= 0; i--) {
-                var measurement = $scope.measurements[ i]
-                if( measurement.checked === CHECKMARK_CHECKED)
-                    chartMeasurements.push( measurement)
-            }
-
-            $scope.charts.push( chartMeasurements)
         } else {
-            $scope.charts.push( [$scope.measurements[ index]])
+            // Add one measurement
+            points.push( $scope.measurements[ index])
+        }
+
+        if( points.length > 0) {
+            chart = makeChart( points)
+            $scope.charts.push( chart)
+            subscribeToMeasurementHistory( chart)
         }
     }
 
@@ -225,7 +295,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     $scope.onMeasurement = function( subscriptionId, type, measurement) {
         if( measurement.unit == "status")
             console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
-        var point = $scope.findPoint( measurement.name)
+        var point = $scope.findMeasurement( measurement.name)
         if( point)
             point.value = formatMeasurementValue( measurement.value)
     }
@@ -237,13 +307,11 @@ return angular.module( 'controllers', ['authentication.service'] )
     // Called after get /measurement returns successful.
     $scope.getSuccessListener = function( ) {
         var pointNames = []
-        for( var index in $scope.measurements) {
-            var measurement = $scope.measurements[ index]
+        $scope.measurements.forEach( function( measurement) {
             measurement.checked = CHECKMARK_UNCHECKED
             pointNames.push( measurement.name)
-
             measurement.value = formatMeasurementValue( measurement.value)
-        }
+        })
         reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
     }
 
@@ -293,21 +361,20 @@ return angular.module( 'controllers', ['authentication.service'] )
     function makeQueryStringFromArray( parameter, values) {
         parameter = parameter + "="
         var query = ""
-        for( var index in values) {
+        values.forEach( function( value, index) {
             if( index == 0)
-                query = parameter + values[index]
+                query = parameter + value
             else
-                query = query + "&" + parameter + values[index]
-        }
+                query = query + "&" + parameter + value
+        })
         return query
     }
 
     $scope.findPoint = function( name) {
-        for( var index in $scope.esses) {
-            var point = $scope.esses[ index]
+        $scope.esses.forEach( function( point) {
             if( name == point.name)
                 return point
-        }
+        })
         return null
     }
 
@@ -392,39 +459,35 @@ return angular.module( 'controllers', ['authentication.service'] )
     var POINT_TYPES =  ["%SOC", "Charging", "Standby", "Capacity"]
     function getInterestingType( types) {
 
-        for( var index in types) {
-            var typ = types[index]
+        types.forEach( function( typ) {
             switch( typ) {
                 case "%SOC":
                 case "Charging":
                 case "Standby":
                 case "Capacity":
                     return typ
+                default:
             }
-        }
+        })
+        return null
     }
     // Called after get /equipmentwithpointsbytype returns successful.
     $scope.getSuccessListener = function( ) {
-        var pointNames = []
-        for( var index in $scope.equipment) {
-            var essIndex = $scope.esses.length
-            var eq = $scope.equipment[ index]
-//            var capacityUnit = ""
-            for( var pIndex in eq.points) {
-                var point = eq.points[ pIndex]
+        var essIndex,
+            pointNames = []
+
+        $scope.equipment.forEach( function( eq) {
+            essIndex = $scope.esses.length
+            eq.points.forEach( function( point) {
                 pointNames.push( point.name)
-                var type = getInterestingType( point.types)
                 pointNameMap[ point.name] = {
                     "essIndex": essIndex,
-                    "type": type,
+                    "type": getInterestingType( point.types),
                     "unit": point.unit
                 }
-//                if( type == "capacity")
-//                    capacityUnit = point.unit
-            }
-            //$scope.esses.push( makeEss( eq, capacityUnit))
+            })
             $scope.esses.push( makeEss( eq))
-        }
+        })
         reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
     }
 

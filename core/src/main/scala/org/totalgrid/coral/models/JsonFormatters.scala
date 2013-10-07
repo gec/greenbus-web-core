@@ -247,13 +247,19 @@ object JsonFormatters {
         "pointUuid" -> o.getPointUuid.getValue,
         "value" -> measValue.toString,
         "unit" -> o.getUnit,
-        "time" -> o.getTime.toString,
+        "time" -> o.getTime,
         "shortQuality" -> shortQuality(o),
         "longQuality" -> longQuality(o)
       )
     }
   }
   lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
+
+
+  implicit val measurementsWrites = new Writes[List[Measurement]] {
+    def writes( o: List[Measurement]): JsValue = Json.toJson( o)
+  }
+  lazy val measurementsPushWrites = new PushWrites( "measurements", measurementsWrites)
 
 
   implicit val eventWrites = new Writes[Event] {

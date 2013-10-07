@@ -67,19 +67,20 @@
 
     <div ng-include src="'partials/loadingprogress.html'"></div>
 
-    <div class="navbar-fixed-bottom">
+    <div class="navbar-fixed-bottom invisible">
         <div class="coral-chart" ng-repeat="chart in charts">
             <div class="coral-win">
                 <div class="coral-win-titlebar clearfix">
-                    <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart[0].name }}</span></p>
+                    <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
                     <div class="coral-win-actions">
                         <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
                         <a href="" ng-click=""><i class="icon-share-alt icon-white"></i></a>
                         <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
                     </div>
                 </div>
-                <p ng-repeat="meas in chart">{{ meas.name }}</p>
-                <a href="" ng-click=""><i class="icon-plus"></i></a>
+                <!--<p ng-repeat="meas in chart">{{ meas.name }}</p>-->
+                <div chart="trend" data="chart.points" update="chart.update" style="height: 180px"></div>
+                <!--<chart type="trend" data="chartData" style="height: 180px"></chart>-->
             </div>
         </div>
     </div>

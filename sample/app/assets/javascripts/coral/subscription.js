@@ -161,11 +161,10 @@ define([
             $scope.$on( '$destroy', function( event) {
                 if( $scope.subscriptionIds) {
                     console.log( "reef.subscribe $destroy " + $scope.subscriptionIds.length);
-                    for( var id in $scope.subscriptionIds) {
-                        var subscriptionId = $scope.subscriptionIds[ id]
+                    $scope.subscriptionIds.forEach( function( subscriptionId) {
                         self.unsubscribe( subscriptionId)
                         delete subscription.listeners[ subscriptionId]
-                    }
+                    })
                     $scope.subscriptionIds = []
                 }
             });
@@ -177,9 +176,10 @@ define([
             var temp = subscription.listeners
             subscription.listeners = []
             webSocketPendingTasks = []
-            for( var index in temp)
-                if( temp[ index].error)
-                    temp[ index].error( error)
+            temp.forEach( function( listener) {
+                if( listener.error)
+                    listener.error( error)
+            })
         }
 
         function makeSubscriptionId( json) {

@@ -190,6 +190,20 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
     }
 
 
+    self.subscribeToMeasurementHistoryByUuid = function ( $scope, pointUuid, since, limit, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurementsByNames " );
+
+        var json = {
+            subscribeToMeasurementHistoryByUuid: {
+                "pointUuid": pointUuid,
+                "since": since,
+                "limit": limit
+            }
+        }
+        return subscription.subscribe( json, $scope, successListener, errorListener)
+    }
+
+
     self.subscribeToActiveAlarms = function ( $scope, limit, successListener, errorListener) {
         console.log( "reef.subscribeToActiveAlarms " );
 

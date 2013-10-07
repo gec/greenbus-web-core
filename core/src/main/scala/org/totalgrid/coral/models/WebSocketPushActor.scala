@@ -29,6 +29,8 @@ import org.totalgrid.reef.client.sapi.rpc.AllScadaService
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
 import org.totalgrid.reef.client.service.proto.Events.Event
 import com.google.protobuf.GeneratedMessage
+import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+
 ///import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.language.postfixOps // for postfix 'seconds'
@@ -57,7 +59,7 @@ object WebSocketPushActor {
     val id: String
   }
   case class SubscribeToMeasurementsByNames( override val id: String, names: Seq[String]) extends Subscribe
-  case class SubscribeToMeasurementHistory( override val id: String, name: String, since: Long, limit: Int) extends Subscribe
+  case class SubscribeToMeasurementHistoryByUuid( override val id: String, pointUuid: String, since: Long, limit: Int) extends Subscribe
   case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
   //case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
   case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
@@ -75,12 +77,12 @@ object WebSocketPushActor {
       (__ \ "names").read[Seq[String]]
     )(SubscribeToMeasurementsByNames)
 
-  implicit val subscribeToMeasurementHistoryReads = (
+  implicit val subscribeToMeasurementHistoryByUuidReads = (
     (__ \ "subscriptionId").read[String] and
-    (__ \ "name").read[String] and
+    (__ \ "pointUuid").read[String] and
     (__ \ "since").read[Long] and
       (__ \ "limit").read[Int]
-    )(SubscribeToMeasurementHistory)
+    )(SubscribeToMeasurementHistoryByUuid)
 
   implicit val subscribeToActiveAlarmsReads = (
     (__ \ "subscriptionId").read[String] and
@@ -128,6 +130,9 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
 
     case subscribe: SubscribeToMeasurementsByNames =>
       subscribeToMeasurementsByPointNames( subscribe)
+
+    case subscribe: SubscribeToMeasurementHistoryByUuid =>
+      subscribeToMeasurementsHistoryByUuid( subscribe)
 
     case subscribe: SubscribeToActiveAlarms =>
       subscribeToActiveAlarms( subscribe)
@@ -206,6 +211,34 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
       subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
     } else {
       Logger.error( "WebSocketPushActor.subscribeToMeasurementsByNames " + subscribe.id + ", No Reef service available.")
+      pushError( subscribe, "No Reef service available.")
+    }
+
+  }
+
+  def subscribeToMeasurementsHistoryByUuid( subscribe: SubscribeToMeasurementHistoryByUuid) = {
+    if( service.isDefined) {
+      Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryByUuid " + subscribe.id)
+      val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+      val result = service.get.subscribeToMeasurementHistoryByUuid( uuid, subscribe.since, subscribe.limit).await
+//      val subscription = subscriptionHandler[Measurement]( result, subscribe.id, measurementPushWrites)
+
+      // Push all the results in one message and don't reverse.
+      pushChannel.push( measurementsPushWrites.writes( subscribe.id, result.getResult))
+
+      // Push subscription results as they come in.
+      val subscription = result.getSubscription
+      subscription.start(new SubscriptionEventAcceptor[Measurement] {
+        def onEvent(event: SubscriptionEvent[Measurement]) {
+          pushChannel.push( measurementPushWrites.writes( subscribe.id, event.getValue))
+        }
+      })
+      subscription
+
+
+      subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    } else {
+      Logger.error( "WebSocketPushActor.subscribeToMeasurementsHistoryByUuid " + subscribe.id + ", No Reef service available.")
       pushError( subscribe, "No Reef service available.")
     }
 
