@@ -58,7 +58,7 @@
                     </td>
                     <td>
                         <div class="coral-icon-text" draggable id="meas.pointUuid">
-                            <img class="coral-icon" src="{{ meas.type | pointTypeImage: meas.unit }}" width="14px" height="14px" title="{{ meas.type | pointTypeText: meas.unit }}"/>
+                            <img class="coral-icon" src="{{ $parent.meas.type | pointTypeImage: $parent.meas.unit }}" width="14px" height="14px" title="{{ $parent.meas.type | pointTypeText: $parent.meas.unit }}"/>
                             {{$parent.meas.name}}
                         </div>
                     </td>
