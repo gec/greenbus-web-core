@@ -25,7 +25,8 @@ define([
 /* Directives */
 
 
-    angular.module('ReefAdmin.directives', []).directive('chart', function() {
+angular.module('ReefAdmin.directives', []).
+    directive('chart', function() {
         return {
             restrict: 'A',
             scope: {
@@ -62,57 +63,109 @@ define([
                     theChart.update( "trend")
                 }
 
-            },
-            controller: function($scope, $element, $attrs){
-                if( ! $scope.data)
-                    $scope.data = [
-                        { name: "series two", values: [{ x: 50, y: 50}, { x: 100, y: 100}] }
-                    ]
-            }
+            }//,
+//            controller: function($scope, $element, $attrs){
+//                if( ! $scope.data)
+//                    $scope.data = [
+//                        { name: "series two", values: [{ x: 50, y: 50}, { x: 100, y: 100}] }
+//                    ]
+//            }
         };
-    })
-
-    angular.module('ReefAdmin.directivesTest', []).directive('chartTest', function() {
+    }).
+    directive('draggable', function() {
         return {
             restrict: 'A',
             scope: {
-                chart: '=',  // chart type. use it later
-                data: '='    // binding to data in controller
+                id: "="
             },
             link: function (scope, elem, attrs) {
-                var margin = {top: 2, right: 2, bottom: 3, left: 4},
-                    width = 60 - margin.left - margin.right,
-                    height = 50 - margin.top - margin.bottom;
 
-                var x = d3.scale.ordinal().rangeRoundBands([0, width], .1);
-                var y = d3.scale.linear().range([height, 0]);
+                var el = elem.context
+                el.draggable = true
 
-                var svg = d3.select(elem[0]).append("svg")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                el.addEventListener(
+                    'dragstart',
+                    function(e) {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('Text', scope.id);
+                        this.classList.add('drag');
+                        return false;
+                    },
+                    false
+                );
 
-                var series = scope.data.series
-                x.domain( series.map(function(d) { return d.x; }));
-                y.domain( [0, d3.max(series, function(d) { return d.y; })]);
+                el.addEventListener(
+                    'dragend',
+                    function(e) {
+                        this.classList.remove('drag');
+                        return false;
+                    },
+                    false
+                );
 
-                svg.selectAll(".bar")
-                    .data(series)
-                    .enter().append("rect")
-                    .attr("class", "bar")
-                    .attr("x", function(d) { return x(d.x); })
-                    .attr("width", x.rangeBand())
-                    .attr("y", function(d) { return y(d.y); })
-                    .attr("height", function(d) { return height - y(d.y); });
-            },
-            controller: function($scope, $element, $attrs){
-                if( ! $scope.data)
-                    $scope.data = {}
-                $scope.data.series = [{ x: 10, y: 10}]
             }
         };
+    }).
+    directive('droppable', function() {
+        return {
+            scope: {
+                dropped: '='
+            },
+            replace: false,
+            link: function(scope, element) {
+                // again we need the native object
+                var el = element.context;
+                el.addEventListener(
+                    'dragover',
+                    function(e) {
+                        e.dataTransfer.dropEffect = 'move';
+                        // allows us to drop
+                        if (e.preventDefault) e.preventDefault();
+                        this.classList.add('over');
+                        return false;
+                    },
+                    false
+                )
+                el.addEventListener(
+                    'dragenter',
+                    function(e) {
+                        this.classList.add('over');
+                        return false;
+                    },
+                    false
+                )
+
+                el.addEventListener(
+                    'dragleave',
+                    function(e) {
+                        this.classList.remove('over');
+                        return false;
+                    },
+                    false
+                )
+                el.addEventListener(
+                    'drop',
+                    function(e) {
+                        // Stops some browsers from redirecting.
+                        if (e.stopPropagation) e.stopPropagation();
+
+                        this.classList.remove('over');
+
+                        var id = e.dataTransfer.getData('Text');
+                        console.log( "------------- drop: " + id)
+                        scope.dropped( id)
+
+//                        var item = document.getElementById(e.dataTransfer.getData('Text'));
+//                        this.appendChild(item);
+
+                        return false;
+                    },
+                    false
+                );
+            }
+        }
     })
+
 
 /*angular.module('myApp.directives', []).
   directive('appVersion', ['version', function(version) {

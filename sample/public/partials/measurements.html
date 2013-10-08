@@ -42,6 +42,7 @@
                     <th>Unit</th>
                     <th>Quality</th>
                     <th>Time</th>
+                    <th>pointUuid</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,11 +56,12 @@
                         <!--</div>-->
                     </td>
                     <td>{{meas.name}}</td>
-                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span draggable id="meas.pointUuid" class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{meas.value}}</td>
                     <td>{{meas.unit}}</td>
                     <td>{{meas.shortQuality}}</td>
                     <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>{{ meas.pointUuid }}</td>
                 </tr>
             </tbody>
         </table>
@@ -69,7 +71,7 @@
 
     <div class="navbar-fixed-bottom invisible">
         <div class="coral-chart" ng-repeat="chart in charts">
-            <div class="coral-win">
+            <div class="coral-win" >
                 <div class="coral-win-titlebar clearfix">
                     <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
                     <div class="coral-win-actions">
@@ -78,9 +80,14 @@
                         <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
                     </div>
                 </div>
-                <!--<p ng-repeat="meas in chart">{{ meas.name }}</p>-->
-                <div chart="trend" data="chart.points" update="chart.update" style="height: 180px"></div>
-                <!--<chart type="trend" data="chartData" style="height: 180px"></chart>-->
+                <div class="coral-win-container">
+                    <div class="coral-win-content">
+                        <div chart="trend" data="chart.points" update="chart.update"  style="height: 180px"></div>
+                    </div>
+                    <div class="coral-win-overlay" droppable dropped="droppedPoint">
+                        <h1>Drop point here</h1>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

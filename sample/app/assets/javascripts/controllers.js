@@ -244,7 +244,7 @@ return angular.module( 'controllers', ['authentication.service'] )
                             if( ! isNaN( value)) {
                                 m.value = value
                                 m.time = new Date( m.time)
-                                console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
+                                //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
                                 point.measurements.push( m)
                             } else {
                                 console.debug( "subscribeToMeasurementHistory " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
@@ -286,6 +286,9 @@ return angular.module( 'controllers', ['authentication.service'] )
             $scope.charts.push( chart)
             subscribeToMeasurementHistory( chart)
         }
+    }
+    $scope.droppedPoint = function( pointUuid) {
+         console.log( "============= dropped " + pointUuid)
     }
 
     $scope.chartRemove = function( index) {
