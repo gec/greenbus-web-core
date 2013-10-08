@@ -42,6 +42,7 @@
                     <th>Unit</th>
                     <th>Quality</th>
                     <th>Time</th>
+                    <th>type</th>
                     <th>pointUuid</th>
                 </tr>
             </thead>
@@ -55,12 +56,18 @@
                             <!--<div class="T-Jo-auh"></div>-->
                         <!--</div>-->
                     </td>
-                    <td>{{meas.name}}</td>
-                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span draggable id="meas.pointUuid" class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td>
+                        <div class="coral-icon-text" draggable id="meas.pointUuid">
+                            <img class="coral-icon" src="{{ meas.type | pointTypeImage: meas.unit }}" width="14px" height="14px" title="{{ meas.type | pointTypeText: meas.unit }}"/>
+                            {{$parent.meas.name}}
+                        </div>
+                    </td>
+                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{meas.value}}</td>
                     <td>{{meas.unit}}</td>
                     <td>{{meas.shortQuality}}</td>
                     <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>{{ meas.type }}</td>
                     <td>{{ meas.pointUuid }}</td>
                 </tr>
             </tbody>

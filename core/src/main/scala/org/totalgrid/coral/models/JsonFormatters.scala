@@ -246,6 +246,7 @@ object JsonFormatters {
         "name" -> o.getName,
         "pointUuid" -> o.getPointUuid.getValue,
         "value" -> measValue.toString,
+        "type" -> o.getType.toString,
         "unit" -> o.getUnit,
         "time" -> o.getTime,
         "shortQuality" -> shortQuality(o),

@@ -101,6 +101,16 @@
 .coral-checkbox-partial {
     background: url(../images/checkmark-partial.png) no-repeat -5px -3px;
 }
+.coral-icon {
+    margin-right: 4px;
+}
+.coral-icon-text {
+    white-space: nowrap;
+}
+.drag {
+    background-color: white;
+    border: 1px dashed #555753;
+}
 
 /*.navbar-fixed-bottom .dropdown .dropdown-menu {*/
     /*top: auto;*/

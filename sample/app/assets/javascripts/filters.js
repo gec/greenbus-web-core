@@ -165,6 +165,62 @@ angular.module('ReefAdmin.filters', []).
     filter('encodeURI', function() {
         // Search each element in the 'objects' array for key values containing searchText
         return window.encodeURI
+    }).
+    filter('pointTypeImage', function() {
+        return function(type, unit) {
+            var image
+
+            if( unit === "raw") {
+                image = "../images/pointRaw.png"
+            } else {
+                switch( type) {
+                    case "DOUBLE":
+                    case "INT":
+                        image = "../images/pointAnalog.png";
+                        break;
+
+                    case "STRING":
+                    case "BOOL":
+                        image = "../images/pointStatus.png";
+                        break;
+
+                    case "NONE":
+                    default:
+                        image = "../images/pointRaw.png";
+                }
+
+            }
+
+            return image
+        };
+    }).
+    filter('pointTypeText', function() {
+        return function(type, unit) {
+            var image
+
+            if( unit === "raw") {
+                image = "raw point"
+            } else {
+                switch( type) {
+                    case "DOUBLE":
+                    case "INT":
+                        image = "analog point";
+                        break;
+
+                    case "STRING":
+                    case "BOOL":
+                        image = "status point";
+                        break;
+
+                    case "NONE":
+                    default:
+                        image = "point with unknown type";
+                }
+
+            }
+
+            return image
+        };
     });
 
 }); // end RequireJS define
