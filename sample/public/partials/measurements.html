@@ -43,7 +43,7 @@
                     <th>Quality</th>
                     <th>Time</th>
                     <th>type</th>
-                    <th>pointUuid</th>
+                    <th>UUID</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,7 +57,7 @@
                         <!--</div>-->
                     </td>
                     <td>
-                        <div class="coral-icon-text" draggable id="point.pointUuid">
+                        <div class="coral-icon-text" draggable id="point.uuid">
                             <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
                             {{$parent.point.name}}
                         </div>
@@ -68,7 +68,7 @@
                     <td>{{point.currentMeasurement.shortQuality}}</td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                     <td>{{ point.valueType }}</td>
-                    <td>{{ point.currentMeasurement.pointUuid }}</td>
+                    <td>{{ point.uuid }}</td>
                 </tr>
             </tbody>
         </table>

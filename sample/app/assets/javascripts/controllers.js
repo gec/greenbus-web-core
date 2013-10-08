@@ -148,7 +148,6 @@ return angular.module( 'controllers', ['authentication.service'] )
 
 .controller( 'MeasurementControl', function( $rootScope, $scope, $filter, reef) {
     $scope.points = []
-    $scope.measurements = []
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
     $scope.charts = []
@@ -157,7 +156,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     ]
 
 
-        $rootScope.currentMenuItem = "measurements";
+    $rootScope.currentMenuItem = "measurements";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Measurements" }
@@ -172,21 +171,6 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    $scope.findMeasurement = function( name) {
-        $scope.measurements.forEach( function( measurement) {
-            if( name == measurement.name)
-                return measurement
-        })
-        return null
-    }
-
-    function findPointByUuid( uuid) {
-        $scope.measurements.forEach( function( measurement) {
-            if( uuid == measurement.pointUuid)
-                return measurement
-        })
-        return null
-    }
     function findPointBy( testTrue) {
         var i, point,
             length = $scope.points.length
@@ -198,16 +182,16 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    $scope.checkUncheck = function( measurement) {
-        measurement.checked = CHECKMARK_NEXT_STATE[ measurement.checked]
-        if( measurement.checked === CHECKMARK_CHECKED)
+    $scope.checkUncheck = function( point) {
+        point.checked = CHECKMARK_NEXT_STATE[ point.checked]
+        if( point.checked === CHECKMARK_CHECKED)
             $scope.checkCount ++
         else
             $scope.checkCount --
 
         if( $scope.checkCount === 0)
             $scope.checkAllState = CHECKMARK_UNCHECKED
-        else if( $scope.checkCount >= $scope.measurements.length - 1)
+        else if( $scope.checkCount >= $scope.points.length - 1)
             $scope.checkAllState = CHECKMARK_CHECKED
         else
             $scope.checkAllState = CHECKMARK_PARTIAL
@@ -215,11 +199,11 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
     $scope.checkUncheckAll = function() {
         $scope.checkAllState = CHECKMARK_NEXT_STATE[ $scope.checkAllState]
-        var i = $scope.measurements.length - 1
+        var i = $scope.points.length - 1
         $scope.checkCount = $scope.checkAllState === CHECKMARK_CHECKED ? i : 0
         for( ; i >= 0; i--) {
-            var measurement = $scope.measurements[ i]
-            measurement.checked = $scope.checkAllState
+            var point = $scope.points[ i]
+            point.checked = $scope.checkAllState
         }
     }
     function makeChart( points) {
@@ -238,24 +222,13 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    function onHistoryMeasurement( subscriptionId, type, measurement) {
-        var point = $scope.findMeasurement( measurement.name)
-        if( point)
-            point.value = formatMeasurementValue( measurement.value)
-    }
-
-    function onHistoryError( error, message) {
-
-    }
-
-
     function subscribeToMeasurementHistory( chart) {
         var points = chart.points,
             since = 1000 * 60 * 60 * 24,
             limit = 100
 
         points.forEach( function( point) {
-            point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.pointUuid, since, limit,
+            point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.uuid, since, limit,
                 function( subscriptionId, type, measurement) {
                     if( type === "measurements") {
                         measurement.forEach( function( m) {
@@ -293,11 +266,11 @@ return angular.module( 'controllers', ['authentication.service'] )
 
         if( index < 0) {
             // Add all measurements that are checked
-            points = $scope.measurements.filter( function( m) { return m.checked === CHECKMARK_CHECKED })
+            points = $scope.points.filter( function( m) { return m.checked === CHECKMARK_CHECKED })
 
         } else {
             // Add one measurement
-            points.push( $scope.measurements[ index])
+            points.push( $scope.points[ index])
         }
 
         if( points.length > 0) {
@@ -306,9 +279,9 @@ return angular.module( 'controllers', ['authentication.service'] )
             subscribeToMeasurementHistory( chart)
         }
     }
-    $scope.droppedPoint = function( pointUuid) {
-        console.log( "dropPoint uuid=" + pointUuid)
-        var point = findPointBy( function(p) { return p.uuid === pointUuid})
+    $scope.droppedPoint = function( uuid) {
+        console.log( "dropPoint uuid=" + uuid)
+        var point = findPointBy( function(p) { return p.uuid === uuid})
     }
 
     $scope.chartRemove = function( index) {
@@ -339,7 +312,6 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     reef.get( "/points", "points", $scope, function() {
-//        reef.get( "/measurements", "measurements", $scope, $scope.getSuccessListener);
         var pointNames = [],
             currentMeasurement = {
                 value: "-",
