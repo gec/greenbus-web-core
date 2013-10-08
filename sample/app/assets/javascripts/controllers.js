@@ -147,6 +147,7 @@ return angular.module( 'controllers', ['authentication.service'] )
 })
 
 .controller( 'MeasurementControl', function( $rootScope, $scope, $filter, reef) {
+    $scope.points = []
     $scope.measurements = []
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
@@ -177,6 +178,24 @@ return angular.module( 'controllers', ['authentication.service'] )
                 return measurement
         })
         return null
+    }
+
+    function findPointByUuid( uuid) {
+        $scope.measurements.forEach( function( measurement) {
+            if( uuid == measurement.pointUuid)
+                return measurement
+        })
+        return null
+    }
+    function findPointBy( testTrue) {
+        var i, point,
+            length = $scope.points.length
+
+        for( i = 0; i < length; i++) {
+            point = $scope.points[i]
+            if( testTrue( point))
+                return point
+        }
     }
 
     $scope.checkUncheck = function( measurement) {
@@ -288,38 +307,54 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
     $scope.droppedPoint = function( pointUuid) {
-         console.log( "============= dropped " + pointUuid)
+        console.log( "dropPoint uuid=" + pointUuid)
+        var point = findPointBy( function(p) { return p.uuid === pointUuid})
     }
 
     $scope.chartRemove = function( index) {
+        // TODO: cancel subscriptions and remove measurement history
         $scope.charts.splice( index, 1)
     }
 
     $scope.onMeasurement = function( subscriptionId, type, measurement) {
-        if( measurement.unit == "status")
-            console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
-        var point = $scope.findMeasurement( measurement.name)
-        if( point)
-            point.value = formatMeasurementValue( measurement.value)
+        var point = findPointBy( function(p) { return p.name == measurement.name})
+        if( point){
+            measurement.value = formatMeasurementValue( measurement.value)
+            point.currentMeasurement = measurement
+        } else {
+            console.error( "onMeasurement coudn't find point for measurement.name=" + measurement.name)
+        }
     }
 
     $scope.onError = function( error, message) {
 
     }
 
-    // Called after get /measurement returns successful.
-    $scope.getSuccessListener = function( ) {
-        var pointNames = []
-        $scope.measurements.forEach( function( measurement) {
-            measurement.checked = CHECKMARK_UNCHECKED
-            pointNames.push( measurement.name)
-            measurement.value = formatMeasurementValue( measurement.value)
-        })
-        reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
+    function compareByName( a, b) {
+        if (a.name < b.name)
+            return -1;
+        if (a.name > b.name)
+            return 1;
+        return 0;
     }
 
+    reef.get( "/points", "points", $scope, function() {
+//        reef.get( "/measurements", "measurements", $scope, $scope.getSuccessListener);
+        var pointNames = [],
+            currentMeasurement = {
+                value: "-",
+                time: null,
+                shortQuality: "-",
+                longQuality: "-"
+            }
+        $scope.points.forEach( function( point) {
+            point.checked = CHECKMARK_UNCHECKED
+            point.currentMeasurement = currentMeasurement
+            pointNames.push( point.name)
+        })
+        reef.subscribeToMeasurementsByNames( $scope, pointNames, $scope.onMeasurement, $scope.onError)
+    });
 
-    reef.get( "/measurements", "measurements", $scope, $scope.getSuccessListener);
 })
 
 /**

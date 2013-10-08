@@ -47,28 +47,28 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="meas in measurements">
+                <tr ng-repeat="point in points">
                     <td>
-                        <div class="coral-checkbox-container" ng-click="checkUncheck(meas)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
-                            <div ng-class="meas.checked | checkboxClass"></div>
+                        <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
+                            <div ng-class="point.checked | checkboxClass"></div>
                         </div>
                         <!--<div id=":2e" class="oZ-jc T-Jo J-J5-Ji T-Jo-Jp" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">-->
                             <!--<div class="T-Jo-auh"></div>-->
                         <!--</div>-->
                     </td>
                     <td>
-                        <div class="coral-icon-text" draggable id="meas.pointUuid">
-                            <img class="coral-icon" src="{{ $parent.meas.type | pointTypeImage: $parent.meas.unit }}" width="14px" height="14px" title="{{ $parent.meas.type | pointTypeText: $parent.meas.unit }}"/>
-                            {{$parent.meas.name}}
+                        <div class="coral-icon-text" draggable id="point.pointUuid">
+                            <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
+                            {{$parent.point.name}}
                         </div>
                     </td>
                     <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
-                    <td style="text-align: right">{{meas.value}}</td>
-                    <td>{{meas.unit}}</td>
-                    <td>{{meas.shortQuality}}</td>
-                    <td>{{meas.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                    <td>{{ meas.type }}</td>
-                    <td>{{ meas.pointUuid }}</td>
+                    <td style="text-align: right">{{point.currentMeasurement.value}}</td>
+                    <td>{{point.unit}}</td>
+                    <td>{{point.currentMeasurement.shortQuality}}</td>
+                    <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td>{{ point.valueType }}</td>
+                    <td>{{ point.currentMeasurement.pointUuid }}</td>
                 </tr>
             </tbody>
         </table>

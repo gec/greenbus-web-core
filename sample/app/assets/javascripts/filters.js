@@ -174,21 +174,10 @@ angular.module('ReefAdmin.filters', []).
                 image = "../images/pointRaw.png"
             } else {
                 switch( type) {
-                    case "DOUBLE":
-                    case "INT":
-                        image = "../images/pointAnalog.png";
-                        break;
-
-                    case "STRING":
-                    case "BOOL":
-                        image = "../images/pointStatus.png";
-                        break;
-
-                    case "NONE":
-                    default:
-                        image = "../images/pointRaw.png";
+                    case "ANALOG": image = "../images/pointAnalog.png"; break;
+                    case "STATUS": image = "../images/pointStatus.png"; break;
+                    default: image = "../images/pointRaw.png";
                 }
-
             }
 
             return image
@@ -196,30 +185,19 @@ angular.module('ReefAdmin.filters', []).
     }).
     filter('pointTypeText', function() {
         return function(type, unit) {
-            var image
+            var text
 
             if( unit === "raw") {
-                image = "raw point"
+                text = "raw point"
             } else {
                 switch( type) {
-                    case "DOUBLE":
-                    case "INT":
-                        image = "analog point";
-                        break;
-
-                    case "STRING":
-                    case "BOOL":
-                        image = "status point";
-                        break;
-
-                    case "NONE":
-                    default:
-                        image = "point with unknown type";
+                    case "ANALOG": text = "analog point"; break;
+                    case "STATUS": text = "status point"; break;
+                    default: text = "point with unknown type";
                 }
-
             }
 
-            return image
+            return text
         };
     });
 
