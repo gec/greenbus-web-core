@@ -89,9 +89,9 @@
                 </div>
                 <div class="coral-win-container">
                     <div class="coral-win-content">
-                        <div chart="trend" data="chart.points" update="chart.update"  style="height: 180px"></div>
+                        <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
                     </div>
-                    <div class="coral-win-overlay" droppable dropped="droppedPoint">
+                    <div class="coral-win-overlay" droppable target="chart" on-drop="onDropPoint">
                         <h1>Drop point here</h1>
                     </div>
                 </div>

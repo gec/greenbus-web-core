@@ -207,59 +207,86 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
     function makeChart( points) {
-        var name = points.length === 1 ? points[0].name : points[0].name + ",..."
+        var chartTraits, config,
+            name = points.length === 1 ? points[0].name : points[0].name + ",..."
 
         points.forEach( function( point) {
             point.measurements = [ /*{time: new Date(), value: 0}*/]
         })
+
+        config = {
+            x1: function(d) { return d.time; },
+            y1: function(d) { return d.value; },
+            seriesData: function(s) { return s.measurements},
+            seriesLabel: function(s) { return s.name}
+        }
+        chartTraits = d3.trait( d3.trait.chart.base, config )
+            .trait( d3.trait.scale.time, { axis: "x1"})
+            //.trait( d3.trait.scale.linear, { axis: "x1"})
+            .trait( d3.trait.scale.linear, { axis: "y1" })
+            .trait( d3.trait.chart.line,     { interpolate: "linear" })// linear, monotone
+            //.trait( d3.trait.control.brush, { axis: 'x1', target: chart, targetAxis: 'x1'})
+            //.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
+            .trait( d3.trait.axis.linear, { axis: "x1", ticks: 3})
+            .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
+            .trait( d3.trait.legend.series)
+            .trait( d3.trait.focus.tooltip)
+
+
         return {
             name: name,
+            traits: chartTraits,
             points: points,
 //            data: [
 //                { name: name, values: [] }
 //            ],
-            update: null
+            selection: null
         }
     }
 
-    function subscribeToMeasurementHistory( chart) {
-        var points = chart.points,
-            since = 1000 * 60 * 60 * 24,
+    function pointAlreadyHasSubscription( point) { return point.hasOwnProperty( 'subscriptionId') }
+
+    function subscribeToMeasurementHistory( chart, point) {
+        var now = new Date().getTime(),
+            since = now - 1000 * 60 * 60 * 24 * 31,
             limit = 100
 
-        points.forEach( function( point) {
-            point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.uuid, since, limit,
-                function( subscriptionId, type, measurement) {
-                    if( type === "measurements") {
-                        measurement.forEach( function( m) {
-                            var value = parseFloat( m.value)
-                            if( ! isNaN( value)) {
-                                m.value = value
-                                m.time = new Date( m.time)
-                                //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
-                                point.measurements.push( m)
-                            } else {
-                                console.debug( "subscribeToMeasurementHistory " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
-                            }
-                        })
-                        if( chart.update)
-                            chart.update()
+        // if point
+        if( pointAlreadyHasSubscription( point))
+            return
 
-                    } else {
-                        // one measurement
-                        measurement.value = parseFloat( measurement.value)
-                        measurement.time = new Date( measurement.time)
-                        console.log( "subscribeToMeasurementHistory " + measurement.name + " " + measurement.time + " " + measurement.value)
-                        point.measurements.push( measurement)
-                        if( chart.update)
-                            chart.update()
-                    }
-                },
-                function( error, message) {
-                    console.error( "subscribeToMeasurementHistory " + error + ", " + message)
-                })
-        })
+        point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.uuid, since, limit,
+            function( subscriptionId, type, measurement) {
+                if( type === "measurements") {
+                    console.log( "subscribeToMeasurementHistoryByUuid on measurements with length=" + measurement.length)
+                    measurement.forEach( function( m) {
+                        var value = parseFloat( m.value)
+                        if( ! isNaN( value)) {
+                            m.value = value
+                            m.time = new Date( m.time)
+                            //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
+                            point.measurements.push( m)
+                        } else {
+                            console.debug( "subscribeToMeasurementHistory " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
+                        }
+                    })
+                    chart.traits.update( "trend")
+
+                } else {
+                    // one measurement
+                    measurement.value = parseFloat( measurement.value)
+                    measurement.time = new Date( measurement.time)
+                    console.log( "subscribeToMeasurementHistory " + measurement.name + " " + measurement.time + " " + measurement.value)
+                    point.measurements.push( measurement)
+                    chart.traits.update( "trend")
+                }
+            },
+            function( error, message) {
+                console.error( "subscribeToMeasurementHistory " + error + ", " + message)
+            }
+        )
     }
+
     $scope.chartAdd = function( index) {
         var chart,
             points = []
@@ -276,12 +303,19 @@ return angular.module( 'controllers', ['authentication.service'] )
         if( points.length > 0) {
             chart = makeChart( points)
             $scope.charts.push( chart)
-            subscribeToMeasurementHistory( chart)
+            chart.points.forEach( function( point) {
+                subscribeToMeasurementHistory( chart, point)
+            })
+
         }
     }
-    $scope.droppedPoint = function( uuid) {
+    $scope.onDropPoint = function( uuid, chart) {
         console.log( "dropPoint uuid=" + uuid)
         var point = findPointBy( function(p) { return p.uuid === uuid})
+        point.measurements = []
+        chart.points.push( point)
+        subscribeToMeasurementHistory( chart, point)
+        chart.traits.call( chart.selection)
     }
 
     $scope.chartRemove = function( index) {

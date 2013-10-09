@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2013-10-07
+/*! d3-traits - v0.0.1 - 2013-10-09
 * https://github.com/gec/d3-traits
 * Copyright (c) 2013 d3-traits; Licensed ,  */
 (function (d3) {
@@ -1169,7 +1169,6 @@ function _chartArea( _super, _config) {
 
             var filtered = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
-            color.domain( filtered)
             area.y0( self.chartHeight())
 
             // DATA JOIN
@@ -1275,8 +1274,6 @@ function _chartBar( _super,  _config) {
                 var classes = _config.chartClass ? "chart-bar " + _config.chartClass : 'chart-bar'
                 group = this._chartGroup.append('g').classed( classes, true);
             }
-
-            color.domain( filtered)
 
             // DATA JOIN
             series = group.selectAll(".series")
@@ -1845,8 +1842,6 @@ function _chartLine( _super, _config) {
 
             filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
-            color.domain( filteredData)
-
             // DATA JOIN
             series = group.selectAll( ".series")
                 .data( filteredData)
@@ -2046,8 +2041,6 @@ trait.chart.line = _chartLine
                     var classes = _config.chartClass ? "chart-scatter " + _config.chartClass : 'chart-scatter'
                     group = this._chartGroup.append('g').classed( classes, true);
                 }
-
-                color.domain( filtered)
 
                 // DATA JOIN
                 series = group.selectAll(".series")
@@ -2592,7 +2585,7 @@ function _legendSeries( _super, _config) {
 
             var filtered = _config.legendFilter ? _data.filter( _config.legendFilter) : _data
 
-            color.domain( filtered)
+            //TODO: Don't assume default colors (i.e. d3.scale.category10()). Get the color from the series.
 
             if( topOrBottom()) {
                 // DATA JOIN

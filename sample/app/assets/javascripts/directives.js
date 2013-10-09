@@ -30,37 +30,37 @@ angular.module('ReefAdmin.directives', []).
         return {
             restrict: 'A',
             scope: {
-                chart: '=',  // chart type. use it later
+                chart: '=',  // chart traits
                 data: '=',    // binding to data in controller
-                update: '='    // This directive will supply the update method
+                selection: '='    // give controller binding to d3 selection
             },
             link: function (scope, elem, attrs) {
+                var chartEl
+//                    config = {
+//                        x1: function(d) { return d.time; },
+//                        y1: function(d) { return d.value; },
+//                        seriesData: function(s) { return s.measurements},
+//                        seriesLabel: function(s) { return s.name}
+//                    }
 
-                var config = {
-                    x1: function(d) { return d.time; },
-                    y1: function(d) { return d.value; },
-                    seriesData: function(s) { return s.measurements},
-                    seriesLabel: function(s) { return s.name}
-                }
-
-                var chartEl = d3.select(elem.context)
-                var theChart = d3.trait( d3.trait.chart.base, config )
-                    .trait( d3.trait.scale.time, { axis: "x1"})
-                    //.trait( d3.trait.scale.linear, { axis: "x1"})
-                    .trait( d3.trait.scale.linear, { axis: "y1" })
-                    .trait( d3.trait.chart.line,     { interpolate: "linear" })// linear, monotone
-                    //.trait( d3.trait.control.brush, { axis: 'x1', target: chart, targetAxis: 'x1'})
-//                    .trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
-                    .trait( d3.trait.axis.linear, { axis: "x1", ticks: 3})
-                    .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
-                    .trait( d3.trait.legend.series)
-                    .trait( d3.trait.focus.tooltip)
-                var brushSelection = chartEl.datum( scope.data)
-                theChart.call( brushSelection)
+                chartEl = d3.select(elem.context)
+//                theChart = d3.trait( d3.trait.chart.base, config )
+//                    .trait( d3.trait.scale.time, { axis: "x1"})
+//                    //.trait( d3.trait.scale.linear, { axis: "x1"})
+//                    .trait( d3.trait.scale.linear, { axis: "y1" })
+//                    .trait( d3.trait.chart.line,     { interpolate: "linear" })// linear, monotone
+//                    //.trait( d3.trait.control.brush, { axis: 'x1', target: chart, targetAxis: 'x1'})
+//                    //.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
+//                    .trait( d3.trait.axis.linear, { axis: "x1", ticks: 3})
+//                    .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
+//                    .trait( d3.trait.legend.series)
+//                    .trait( d3.trait.focus.tooltip)
+                scope.selection = chartEl.datum( scope.data)
+                scope.chart.call( scope.selection)
 
                 scope.update = function() {
                     //console.log( "ReefAdmin.directives chart update")
-                    theChart.update( "trend")
+                    scope.chart.update( "trend")
                 }
 
             }//,
@@ -73,6 +73,7 @@ angular.module('ReefAdmin.directives', []).
         };
     }).
     directive('draggable', function() {
+        // from http://blog.parkji.co.uk/2013/08/11/native-drag-and-drop-in-angularjs.html
         return {
             restrict: 'A',
             scope: {
@@ -110,7 +111,8 @@ angular.module('ReefAdmin.directives', []).
     directive('droppable', function() {
         return {
             scope: {
-                dropped: '='
+                onDrop: '=',
+                target: '=?'
             },
             replace: false,
             link: function(scope, element) {
@@ -153,11 +155,7 @@ angular.module('ReefAdmin.directives', []).
                         this.classList.remove('over');
 
                         var id = e.dataTransfer.getData('Text');
-                        console.log( "------------- drop: " + id)
-                        scope.dropped( id)
-
-//                        var item = document.getElementById(e.dataTransfer.getData('Text'));
-//                        this.appendChild(item);
+                        scope.onDrop( id, scope.target)
 
                         return false;
                     },
