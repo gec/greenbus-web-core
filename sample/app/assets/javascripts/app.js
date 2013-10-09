@@ -19,6 +19,7 @@
 require.config({
     paths: {
         angular: '../lib/angular/angular',
+        'angular-route': '../lib/angular/angular-route',
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
         'ui-utils': '../lib/angular-ui/ui-utils.min',
@@ -29,6 +30,7 @@ require.config({
     baseUrl: '/javascripts',
     shim: {
         'angular' : {'exports' : 'angular'},
+        "angular-route" : { deps: ["angular"] },
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] },
@@ -41,6 +43,7 @@ require.config({
 
 define([
     'angular',
+    'angular-route',
     'd3',
     'filters',
     'authentication/service',
@@ -56,7 +59,16 @@ define([
 
 
     // Declare app level module which depends on filters, and services
-    var app = angular.module('ReefAdmin', [ 'ReefAdmin.services', 'ReefAdmin.filters', 'ReefAdmin.directives', 'authentication.service', 'controllers', 'coral.event', 'coral.navigation']).
+    var app = angular.module('ReefAdmin', [
+            'ngRoute',
+            'ReefAdmin.services',
+            'ReefAdmin.filters',
+            'ReefAdmin.directives',
+            'authentication.service',
+            'controllers',
+            'coral.event',
+            'coral.navigation'
+        ]).
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.
