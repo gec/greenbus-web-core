@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2013-10-09
+/*! d3-traits - v0.0.1 - 2013-10-14
 * https://github.com/gec/d3-traits
 * Copyright (c) 2013 d3-traits; Licensed ,  */
 (function (d3) {
@@ -1061,16 +1061,13 @@ d3.trait.utils = {
                 if( c.nice)
                     scaleForUpdate.nice( c.nice)
 
-                scale = scaleForUpdate
-
-
-                axis.scale(scale)
+                axis.scale(scaleForUpdate)
                     .orient( c.orient )
-                applyTickConfig( axis, scale, c)
+                applyTickConfig( axis, scaleForUpdate, c)
 
                 //.tickFormat(d3.time.format('%e')) // %d is 01, 02. %e is \b1, \b2
                     //.ticks( 15)
-                    //.tickValues( tickValuesForMonthDays( scale))
+                    //.tickValues( tickValuesForMonthDays( scaleForUpdate))
                     //.tickSubdivide(4)
 
 
@@ -1084,14 +1081,14 @@ d3.trait.utils = {
                 extension.transition()
                     .attr("class", "axis-extension")
                     .attr( "d", function( d) {
-                        return "M0,0L" + scale(d) + ",0";
+                        return "M0,0L" + scaleForUpdate(d) + ",0";
                     })
 
                 extension.enter()
                     .append( "path")
                     .attr("class", "axis-extension")
                     .attr( "d", function( d) {
-                        return "M0,0L" + scale(d) + ",0";
+                        return "M0,0L" + scaleForUpdate(d) + ",0";
                     })
                 lastDomainMax = d3.trait.utils.extentMax( domain)
 
@@ -1101,10 +1098,9 @@ d3.trait.utils = {
         axisMonth.update = function( type, duration) {
             this._super( type, duration)
 
-            var scale2 = _super[c.name]()
             scaleForUpdate.range( d3.trait.utils.getChartRange( _super, c.name))
 
-            var domain = scale2.domain()
+            var domain = scale.domain() // original scale
             var domainMax = d3.trait.utils.extentMax( domain)
             var delta = domainMax.getTime() - lastDomainMax.getTime()
             var min = new Date( domain[0].getTime() + delta)
@@ -1252,23 +1248,46 @@ function _chartBar( _super,  _config) {
         return countRange
     }
 
+    function minDistanceBetween( data, access, scale) {
+        var i,
+            min = Number.MAX_VALUE,
+            length = data.length
+
+        if( length < 2)
+            return 0
+
+        var current,
+            last = scale( access( data[0]))
+        for( i = 1; i < length; i++) {
+            current = scale( access( data[i]))
+            min = Math.min( min, current-last)
+            last = current
+        }
+
+        return min
+    }
+
     var dispatch = d3.dispatch('customHover');
     function chartBar( _selection) {
         var self = chartBar
 
         _selection.each(function(_data) {
-            var element = this
+            var element = this,
+                filtered = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data,
+                minDistanceX = d3.min( filtered, function( s) { return minDistanceBetween( _config.seriesData( s), _config.x1, x1) } )
 
-            var filtered = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
+            barW = Math.floor( minDistanceX * 0.9 - gap)
 
-            var xBand = d3.scale.ordinal()
-                .domain( getBarCountRange( filtered))
-                .rangeRoundBands([0, self.chartWidth()], 0.1); // bar padding will be 0.1 * bar width
-            var gapSize = xBand.rangeBand() / 100 * gap;
-            barW = xBand.rangeBand() - gapSize;
-            barOffsetX = Math.round( gapSize / 2 - barW / 2);
+//            var xBand = d3.scale.ordinal()
+//                .domain( getBarCountRange( filtered))
+//                .rangeRoundBands(x1.range(), 0.1); // bar padding will be 0.1 * bar width
+//            var gapSize = xBand.rangeBand() / 100 * gap;
+//            barW = xBand.rangeBand() - gapSize;
+//            barOffsetX = Math.round( gapSize / 2 - barW / 2);
+            barOffsetX = Math.round( gap / 2 - barW / 2);
             // The bar padding is already .1 * bar width. Let's use * 0.4 for better outer padding
-            self.minRangeMarginLeft( "x1", Math.ceil( gapSize / 2 + barW * 0.4 + barW / 2))
+//            self.minRangeMarginLeft( "x1", Math.ceil( gapSize / 2 + barW * 0.4 + barW / 2))
+            self.minRangeMarginLeft( "x1", Math.ceil( gap / 2 + barW * 0.4 + barW / 2))
 
             if( !group) {
                 var classes = _config.chartClass ? "chart-bar " + _config.chartClass : 'chart-bar'
@@ -1385,6 +1404,8 @@ var chartGroupClipPathNextId = 1
 function _chartBase( _super, _config) {
 
 
+    if( !_config)
+        _config = {}
 
     var margin = d3.trait.utils.configMargin( _config.margin, {top: 5, right: 5, bottom: 5, left: 5})
 
@@ -1412,23 +1433,25 @@ function _chartBase( _super, _config) {
         if( ! rangeMargin)
             return this
 
-        var m = minRangeMargins[axis],
+        var current = minRangeMargins[axis],
             changed = false;
 
-        if( rangeMargin.left && rangeMargin.left < m.left) {
-            m.left = rangeMargin.left
+        console.log( "=============== rangeMargin=" + rangeMargin + " left=" + rangeMargin.left)
+
+        if( rangeMargin.left && current.left < rangeMargin.left) {
+            current.left = rangeMargin.left
             changed = true
         }
-        if( rangeMargin.right && rangeMargin.right < m.right) {
-            m.right = rangeMargin.right
+        if( rangeMargin.right && current.right < rangeMargin.right) {
+            current.right = rangeMargin.right
             changed = true
         }
-        if( rangeMargin.top && rangeMargin.top < m.top) {
-            m.top = rangeMargin.top
+        if( rangeMargin.top && current.top < rangeMargin.top) {
+            current.top = rangeMargin.top
             changed = true
         }
-        if( rangeMargin.bottom && rangeMargin.bottom < m.bottom) {
-            m.bottom = rangeMargin.bottom
+        if( rangeMargin.bottom && current.bottom < rangeMargin.bottom) {
+            current.bottom = rangeMargin.bottom
             changed = true
         }
 
@@ -1766,7 +1789,7 @@ function _chartBase( _super, _config) {
     }
     chartBase.minRangeMarginRight = function( axis, marginRight) {
         if( !arguments.length) return 0
-        if( arguments.length === 1) return minRangeMargins[axis] ? minRangeMargins[axis].left : 0
+        if( arguments.length === 1) return minRangeMargins[axis] ? minRangeMargins[axis].right : 0
         initMinRangeMargin( axis)
         if( minRangeMargins[axis].right < marginRight) {
             minRangeMargins[axis].right = marginRight
@@ -2675,11 +2698,28 @@ function makeAccessorsFromConfig( config, axisName) {
     }
 }
 
+/**
+ * domainMin or domainMax overrides domain.
+ *
+ * @param config
+ * @returns domain config { trend, domain, domainMin, domainMax }
+ */
 function makeDomainConfig( config) {
-    return {
-        domain: config.domain,
-        trend: config.trend
+    var dMin = d3.trait.utils.configFloat( config.domainMin, null),
+        dMax = d3.trait.utils.configFloat( config.domainMax, null),
+        dc = {
+            trend: config.trend
+        }
+
+    if( dMin !== null && dMax !== null) {
+        dc.domain = [dMin, dMax]
+    } else if( dMin !== null || dMax != null) {
+        dc.domainMin = dMin
+        dc.domainMax = dMax
+    } else {
+        dc.domain = config.domain
     }
+    return dc
 }
 
 
@@ -2702,6 +2742,12 @@ function makeIntervalFromConfig( config) {
         }
 }
 
+function minFromData( data, access) {
+    return d3.min( data, function(s) { return d3.min( access.series(s), access.data); })
+}
+function maxFromData( data, access) {
+    return d3.max( data, function(s) { return d3.max( access.series(s), access.data); })
+}
 function extentFromData( data, access) {
     var extents, min, max
 
@@ -2709,14 +2755,8 @@ function extentFromData( data, access) {
     extents = data.map( function(s) { return d3.extent( access.series(s), access.data)})
     min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
     max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
-    //var min = d3.min( data, function(s) { return d3.min( _config.seriesData(s), accessData); })
-    //var max = d3.max( data, function(s) { return d3.max( _config.seriesData(s), accessData); })
 
     return [min, max]
-}
-
-function maxFromData( data, access) {
-    return d3.max( data.map( function(s) { return d3.max( access.series(s), access.data)}))
 }
 
 // trendDomain: { interval: d3.time.month, count: 1 }
@@ -2792,6 +2832,10 @@ function getDomain( domainConfig, data, access) {
 
     if( domainConfig.trend)
         domain = getDomainTrend( domainConfig, data, access)
+    else if( domainConfig.domainMin != null)
+        domain = [domainConfig.domainMin, maxFromData( data, access)]
+    else if( domainConfig.domainMax != null)
+        domain = [minFromData( data, access), domainConfig.domainMax]
     else
         domain = extentFromData( data, access)
 
@@ -2986,15 +3030,9 @@ function _scaleLinear( _super,  _config) {
                 element = this
             theData = _data
 
-            // Get array of extents for each series.
-            extents = _data.map( function(s) { return d3.extent( access.series(s), access.data)})
-            min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
-            max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
-            //var max = d3.max( _data, function(s) { return d3.max( _config.seriesData(s), accessData); })
+            scale.domain( getDomain( domainConfig, _data, access))
+            scale.range( d3.trait.utils.getChartRange( self, scaleName))
 
-            var rangeExtent = axisChar === 'x' ? [0, self.chartWidth()] : [self.chartHeight(), 0]
-            scale.domain([min, max])
-                .range( rangeExtent);
         })
     }
     scaleLinear[scaleName] = function() {
