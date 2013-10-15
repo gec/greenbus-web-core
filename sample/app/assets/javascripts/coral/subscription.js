@@ -180,7 +180,7 @@ define([
             for( subscriptionId in temp) {
                 listener = temp[subscriptionId]
                 if( listener.error)
-                    listener.error( error)
+                    listener.error( error, "")
             }
         }
 

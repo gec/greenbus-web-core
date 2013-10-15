@@ -19,6 +19,7 @@
 require.config({
     paths: {
         angular: '../lib/angular/angular',
+        'angular-route': '../lib/angular/angular-route',
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
         'ui-utils': '../lib/angular-ui/ui-utils.min',
@@ -27,6 +28,7 @@ require.config({
     baseUrl: '/javascripts',
     shim: {
         'angular' : {'exports' : 'angular'},
+        "angular-route" : { deps: ["angular"] },
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] }
@@ -38,13 +40,18 @@ require.config({
 
 define([
     'angular',
+    'angular-route',
     'angular-cookies',
     'authentication/service',
     'authentication/controller'
 ], function( angular, $cookies, authentication) {
     'use strict';
 
-    var app = angular.module('ReefAdmin', ['authentication.service', 'authentication.controller'])
+    var app = angular.module('ReefAdmin', [
+            'ngRoute',
+            'authentication.service',
+            'authentication.controller'
+        ])
         .config(['$routeProvider', function($routeProvider) {
             "use strict";
             $routeProvider.
