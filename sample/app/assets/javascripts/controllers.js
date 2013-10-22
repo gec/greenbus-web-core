@@ -206,29 +206,59 @@ return angular.module( 'controllers', ['authentication.service'] )
             point.checked = $scope.checkAllState
         }
     }
+
+    function makeChartConfig( units) {
+        var axis,
+            config = {
+            x1: function(d) { return d.time; },
+            seriesData: function(s) { return s.measurements},
+            seriesLabel: function(s) { return s.name}
+        }
+        units.forEach( function( unit, index) {
+            axis = 'y' + (index+1)
+            config[axis] = function(d) { return d.value; }
+        })
+        return config
+    }
+    function getChartUnits( points) {
+        var units = []
+
+        points.forEach( function( point) {
+            if( units.indexOf( point.unit) < 0)
+                units.push( point.unit)
+        })
+        console.debug( "makeChart: Points have " + units.length + " units")
+        if( units.length <= 0) {
+            console.error( "makeChart: Points have no units")
+            return
+        }
+        return units
+    }
     function makeChart( points) {
         var chartTraits, config,
+            units = getChartUnits( points),
+            config = makeChartConfig( units),
             name = points.length === 1 ? points[0].name : points[0].name + ",..."
 
+        // TODO: Still see a NaN error when displaying chart before we have data back from subscription
         points.forEach( function( point) {
             point.measurements = [ /*{time: new Date(), value: 0}*/]
         })
 
-        config = {
-            x1: function(d) { return d.time; },
-            y1: function(d) { return d.value; },
-            seriesData: function(s) { return s.measurements},
-            seriesLabel: function(s) { return s.name}
-        }
         chartTraits = d3.trait( d3.trait.chart.base, config )
             .trait( d3.trait.scale.time, { axis: "x1"})
-            //.trait( d3.trait.scale.linear, { axis: "x1"})
-            .trait( d3.trait.scale.linear, { axis: "y1" })
-            .trait( d3.trait.chart.line,     { interpolate: "linear" })// linear, monotone
-            //.trait( d3.trait.control.brush, { axis: 'x1', target: chart, targetAxis: 'x1'})
-            //.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
-            .trait( d3.trait.axis.linear, { axis: "x1", ticks: 3})
-            .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
+
+        units.forEach( function( unit, index) {
+            var axis = 'y' + (index + 1),
+                filter = function( s) { return s.unit === unit},
+                orient = index === 0 ? 'left' : 'right'
+
+            chartTraits = chartTraits.trait( d3.trait.scale.linear, { axis: axis, seriesFilter: filter, unit: unit })
+                .trait( d3.trait.chart.line, { interpolate: "linear", seriesFilter: filter, yAxis: axis})
+                .trait( d3.trait.axis.linear, { axis: axis, orient: orient, extentTicks: true, label: unit})
+        })
+
+        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
             .trait( d3.trait.legend.series)
             .trait( d3.trait.focus.tooltip)
 
@@ -267,7 +297,7 @@ return angular.module( 'controllers', ['authentication.service'] )
                             //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
                             point.measurements.push( m)
                         } else {
-                            console.debug( "subscribeToMeasurementHistory " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
+                            console.error( "subscribeToMeasurementHistoryByUuid " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
                         }
                     })
                     chart.traits.update( "trend")

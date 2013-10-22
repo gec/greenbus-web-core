@@ -233,9 +233,6 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
           pushChannel.push( measurementPushWrites.writes( subscribe.id, event.getValue))
         }
       })
-      subscription
-
-
       subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
     } else {
       Logger.error( "WebSocketPushActor.subscribeToMeasurementsHistoryByUuid " + subscribe.id + ", No Reef service available.")

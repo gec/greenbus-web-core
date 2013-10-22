@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2013-10-14
+/*! d3-traits - v0.0.1 - 2013-10-22
 * https://github.com/gec/d3-traits
 * Copyright (c) 2013 d3-traits; Licensed ,  */
 (function (d3) {
@@ -486,35 +486,25 @@ d3.trait.utils = {
 }
 
 }(d3));
-/**
- * Copyright 2013 Green Energy Corp.
- *
- * Licensed to Green Energy Corp (www.greenenergycorp.com) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. Green Energy
- * Corp licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- *
- * Author: Flint O'Brien
- */
 (function (d3, trait) {
 
     function Point( x, y) {
-        this.x = x
-        this.y = y
+        if( arguments.length <= 0) {
+            this.x = 0
+            this.y = 0
+        } else {
+            this.x = x
+            this.y = y
+        }
     }
     function Size( width, height) {
-        this.width = width
-        this.height = height
+        if( arguments.length <= 0) {
+            this.width = 0
+            this.height = 0
+        } else {
+            this.width = width
+            this.height = height
+        }
     }
 
     /**
@@ -608,11 +598,20 @@ d3.trait.utils = {
         this.spaceOnTop = function( rectAbove) { return this.minY() - rectAbove.maxY() }
         this.spaceOnBottom = function( rectBelow) { return rectBelow.minY() - this.maxY() }
 
-        this.roomOnRight = function( roomWidth) { return roomWidth - this.maxX()}
-        this.roomOnBottom = function( roomHeight) { return roomHeight - this.maxY()}
-        this.roomOnLeft = function() { return this.minX()}
-        this.roomOnTop = function() { return this.minY()}
+        this.roomOnRight = function( room) { return room.maxX() - this.maxX()}
+        this.roomOnBottom = function( room) { return room.maxY() - this.maxY()}
+        this.roomOnLeft = function( room) { return this.minX() - room.minX()}
+        this.roomOnTop = function( room) { return this.minY() - room.minY()}
 
+//        this.roomOnRight = function( roomWidth) { return roomWidth - this.maxX()}
+//        this.roomOnBottom = function( roomHeight) { return roomHeight - this.maxY()}
+//        this.roomOnLeft = function() { return this.minX()}
+//        this.roomOnTop = function() { return this.minY()}
+
+        this.translate = function( point) {
+            this.origin.x += point.x
+            this.origin.y += point.y
+        }
     }
 
     var LEFT = -1,
@@ -620,7 +619,7 @@ d3.trait.utils = {
     function sortOnY(a,b) { return a.rect.origin.y - b.rect.origin.y}
 
     // We have enough space to fit everything.
-    function listNudgeUpFromBottom( itemsWithRect, height) {
+    function listNudgeUpFromBottom( itemsWithRect, maxY) {
         var last = null,
             index = itemsWithRect.length - 1
 
@@ -630,7 +629,7 @@ d3.trait.utils = {
                 r = item.rect
 
             if( index === itemsWithRect.length - 1) {
-                spacingBottom = height - r.maxY()
+                spacingBottom = maxY - r.maxY()
             } else {
                 spacingBottom = last.rect.spaceOnTop( r)
             }
@@ -658,13 +657,13 @@ d3.trait.utils = {
     // Starting from top, remove overlaps by nudging down
     // if minOverlap > 0, then we know they won't fit and need to overlap
     //
-    function removeOverlapFromTop( itemsWithRect, minOverlap) {
+    function removeOverlapFromTop( itemsWithRect, inRect, minOverlap) {
         var r, last = null
 
         itemsWithRect.forEach( function( item, index, array) {
             r = item.rect
             if( index === 0) {
-                rectRemoveOverlap( r, r.minY(), minOverlap)
+                rectRemoveOverlap( r, r.roomOnTop( inRect), minOverlap)
             } else {
                 rectRemoveOverlap( r, r.spaceOnTop( last.rect), minOverlap)
             }
@@ -694,7 +693,7 @@ d3.trait.utils = {
     //
     // There is no overlap
     //
-    function listBalanceFromTop( itemsWithRect, height, originalYs) {
+    function listBalanceFromTop( itemsWithRect, inRect, originalYs) {
         var r, itemSpaceOnTop, item,
             index = 0,
             spanStart = 0,
@@ -709,7 +708,7 @@ d3.trait.utils = {
         for( ; index < itemsWithRect.length; index++) {
             item = itemsWithRect[ index]
             r = item.rect
-            itemSpaceOnTop =  index === 0 ? r.minY() : r.spaceOnTop( last.rect)
+            itemSpaceOnTop =  index === 0 ? r.roomOnTop( inRect) : r.spaceOnTop( last.rect)
 
             if( itemSpaceOnTop > 0) {
                 // end of last span or start of new span
@@ -774,7 +773,7 @@ d3.trait.utils = {
                     yOffsetAve = Math.min( yOffsetAve, spanSpaceOnTop)
                 } else {
                     // Move down, but not more than space on bottom
-                    var bottom = last.rect.roomOnBottom( height)
+                    var bottom = last.rect.roomOnBottom( inRect)
                     if( bottom > 0)
                         yOffsetAve = -Math.min( -yOffsetAve, bottom)
                     else
@@ -788,7 +787,7 @@ d3.trait.utils = {
         }
     }
 
-    function layoutVertical( itemsWithRect, height) {
+    function layoutVertical( itemsWithRect, inRect) {
         if( itemsWithRect.length <= 0)
             return ;
 
@@ -796,6 +795,7 @@ d3.trait.utils = {
 
         var totalSpacing = 0,
             minOverlap = 0,
+            height = inRect.size.height,
             totalHeight = d3.sum( itemsWithRect, function( item) { return item.rect.size.height} ),
             originalYs = itemsWithRect.map( function( item) { return item.rect.origin.y})
 
@@ -804,11 +804,11 @@ d3.trait.utils = {
         else
             totalSpacing = height - totalHeight
 
-        removeOverlapFromTop( itemsWithRect, minOverlap)
+        removeOverlapFromTop( itemsWithRect, inRect, minOverlap)
 
         if( totalSpacing > 0) {
-            listNudgeUpFromBottom( itemsWithRect, height)
-            listBalanceFromTop( itemsWithRect, height, originalYs)
+            listNudgeUpFromBottom( itemsWithRect, inRect.maxY())
+            listBalanceFromTop( itemsWithRect, inRect, originalYs)
         }
     }
 
@@ -821,7 +821,7 @@ d3.trait.utils = {
      * @param width
      * @param height
      */
-    function adjustOrientationToFitWidth( itemsWithRect, width) {
+    function adjustOrientationToFitWidth( itemsWithRect, inRect) {
         var r,
             left = [],
             right = []
@@ -830,7 +830,7 @@ d3.trait.utils = {
             r = item.rect
             if( r.anchor.x < 0.5) {
                 // right justified
-                if ( r.roomOnRight( width) >= 0)  {
+                if ( r.roomOnRight( inRect) >= 0)  {
                     item.orient = RIGHT
                     right.push( item)
                 } else {
@@ -840,7 +840,7 @@ d3.trait.utils = {
                 }
             } else {
                 // left justified
-                if ( r.roomOnLeft() >= 0)  {
+                if ( r.roomOnLeft( inRect) >= 0)  {
                     item.orient = LEFT
                     left.push( item)
                 } else {
@@ -855,11 +855,54 @@ d3.trait.utils = {
         return [left, right]
     }
 
-    function layoutVerticalAnchorLeftRight( itemsWithRect, width, height) {
-        var leftRight = adjustOrientationToFitWidth( itemsWithRect, width )
-        layoutVertical( leftRight[0], height)
-        layoutVertical( leftRight[1], height)
+    function layoutVerticalAnchorLeftRight( itemsWithRect, inRect) {
+        var leftRight = adjustOrientationToFitWidth( itemsWithRect, inRect )
+        layoutVertical( leftRight[0], inRect)
+        layoutVertical( leftRight[1], inRect)
     }
+
+    function layoutByOrientation( itemsWithRect, rect, orient, _wrap) {
+        var r, i,
+            coordinate = 0,
+            wrap = _wrap || false
+
+        switch( orient) {
+            case 'left':
+                coordinate = rect.minX()
+                itemsWithRect.forEach( function( item, index, array) {
+                    r = item.rect
+                    r.origin.x += coordinate - r.minX()
+                    coordinate = r.maxX()
+                })
+                break;
+            case 'right':
+                coordinate = rect.maxX()
+                for( i = itemsWithRect.length - 1; i >= 0; i--) {
+                    r = itemsWithRect[i].rect
+                    r.origin.x += coordinate - r.maxX()
+                    coordinate = r.minX()
+                }
+                break;
+            case 'top':
+                coordinate = rect.minY()
+                itemsWithRect.forEach( function( item, index, array) {
+                    r = item.rect
+                    r.origin.y += coordinate - r.minY()
+                    coordinate = r.maxY()
+                })
+                break;
+            case 'bottom':
+                coordinate = rect.maxY()
+                for( i = itemsWithRect.length - 1; i >= 0; i--) {
+                    r = itemsWithRect[i].rect
+                    r.origin.y += coordinate - r.maxY()
+                    coordinate = r.minY()
+                }
+                break;
+            default:
+        }
+    }
+
 
     ///////////////////////////////////
     // Export to d3.trait
@@ -875,6 +918,7 @@ d3.trait.utils = {
 
     trait.layout.adjustOrientationToFitWidth = adjustOrientationToFitWidth
     trait.layout.vertical = layoutVertical
+    trait.layout.byOrientation = layoutByOrientation
     trait.layout.verticalAnchorLeftRight = layoutVerticalAnchorLeftRight
     trait.layout.utils.listNudgeUpFromBottom = listNudgeUpFromBottom
     trait.layout.utils.removeOverlapFromTop = removeOverlapFromTop
@@ -899,20 +943,24 @@ d3.trait.utils = {
      */
     function axisConfig( config) {
         var name = config.axis,        // x1, y1, x2, etc.
-            axisChar = name.charAt(0) // x | y
-        return {
-            name: name,
-            axisChar: axisChar,
-            accessData: config[name],
-            axisMargin: config.axisMargin || 30,
-            orient: orientFromConfig( axisChar, config.orient),
-            ticks: config.ticks,
-            extentTicks: config.extentTicks || false,
-            tickSize: config.tickSize,
-            tickPadding: config.tickPadding,
-            tickFormat: config.tickFormat,
-            nice: config.nice
-        }
+            axisChar = name.charAt(0 ), // x | y
+            c = {
+                name: name,
+                axisChar: axisChar,
+                accessData: config[name],
+                orient: orientFromConfig( axisChar, config.orient),
+                ticks: config.ticks,
+                extentTicks: config.extentTicks || false,
+                tickSize: config.tickSize,
+                tickPadding: config.tickPadding,
+                tickFormat: config.tickFormat,
+                nice: config.nice,
+                label: config.label
+            }
+
+        c.labelLineHeight = c.label ? (config.labelLineHeight || 14) : 0
+        c.axisMargin = config.axisMargin || (40 + c.labelLineHeight)
+        return c
     }
 
     function adjustChartMarginForAxis( _super, c) {
@@ -931,13 +979,57 @@ d3.trait.utils = {
         }
     }
 
-    function axisTransform( self, c) {
+    function containerTransform( self, c) {
 
         switch( c.orient) {
-            case 'left': return null;
-            case 'bottom': return 'translate(0,' + self.chartHeight() + ')';
-            case 'top': return null;
-            case 'right': return 'translate(' + self.chartWidth() + ')';
+            case 'left': return 'translate(' + self.marginLeft() + ',' + self.marginTop() + ')';
+            case 'bottom': return 'translate(' + self.marginLeft() + ',' + (self.chartHeight()+self.marginTop()) + ')';
+            case 'top': return 'translate(' + self.marginLeft() + ',0)';
+            case 'right': return 'translate(' + (self.marginLeft() + self.chartWidth()) + ',' + self.marginTop() + ')';
+            default:
+                return null;
+        }
+    }
+
+    function axisTransform( self, c) {
+        if( !c.label)
+            return null;
+
+        switch( c.orient) {
+            case 'left': return 'translate(' + c.labelLineHeight + ',0)';
+            case 'bottom': return null;
+            case 'top': return 'translate(0,' + c.labelLineHeight + ',0)';
+            case 'right': return null;
+            default:
+                return null;
+        }
+    }
+
+    function labelTransform( self, c, label) {
+        if( !c.label)
+            return null;
+
+        var tx, ty,
+            bBox = label.node().getBBox(),
+            labelWidth2 = Math.round( bBox.width / 2 ),
+            tXorY = c.axisMargin - c.labelLineHeight
+        switch( c.orient) {
+            case 'left':
+                tx = -c.axisMargin + c.labelLineHeight
+                ty = self.chartHeight()/2 + labelWidth2
+                return 'translate( ' + tx + ',' + ty + ') rotate( -90)';
+            case 'bottom':
+                tx = self.chartWidth()/2 - labelWidth2
+                ty = c.axisMargin - c.labelLineHeight
+                return 'translate( ' + tx + ',' + ty + ')';
+            case 'top':
+                tx = self.chartWidth()/2 - labelWidth2
+                ty = -c.axisMargin + c.labelLineHeight
+                return 'translate( ' + tx + ',' + ty + ')';
+            case 'right':
+                tx = c.axisMargin - c.labelLineHeight
+                ty = self.chartHeight()/2 - labelWidth2
+                return 'translate( ' + tx + ',' + ty + ') rotate( 90)';
             default:
                 return null;
         }
@@ -971,11 +1063,11 @@ d3.trait.utils = {
      * @private
      */
     function _axisLinear( _super, _config) {
-        var group, axis,
+        var group, groupAxis, label, axis,
             c = axisConfig( _config ),
             scale = _super[c.name]()  // ex: x1()
 
-        adjustChartMarginForAxis( _super, c)
+        //adjustChartMarginForAxis( _super, c)
 
         function axisLinear( _selection) {
             var self = axisLinear
@@ -984,7 +1076,10 @@ d3.trait.utils = {
                 var element = this
 
                 if( !group) {
-                    group = this._container.append('g').classed('axis axis-' + c.name, true)
+                    group = this._container.append('g').classed('axis', true)
+                    groupAxis = group.append('g').classed('axis-' + c.name, true)
+                    if( c.label)
+                        label = group.append('text').classed('axis-label axis-label-' + c.name, true)
                     axis = d3.svg.axis()
                 }
 
@@ -992,9 +1087,15 @@ d3.trait.utils = {
                     .orient( c.orient)
                 applyTickConfig( axis, scale, c)
 
-                group
-                    .attr({transform: axisTransform( self, c)})
-                    .call(axis);
+                self.layoutAxis( group, c.orient, c.axisMargin)
+
+                //group.attr( {transform: containerTransform( self, c)})
+                if( c.label) {
+                    //groupAxis.attr( {transform: axisTransform( self, c)})
+                    label.text( c.label)
+                    label.attr( { transform: labelTransform( self, c, label) } )
+                }
+                groupAxis.call(axis);
             })
         }
         axisLinear.update = function( type, duration) {
@@ -1005,9 +1106,9 @@ d3.trait.utils = {
             applyTickConfig( axis, scale, c)
 
             if( duration === 0) {
-                group.call( axis);
+                groupAxis.call( axis);
             } else {
-                group.transition()
+                groupAxis.transition()
                     .duration( duration || _super.duration())
                     .ease( "linear")
                     .call( axis);
@@ -1035,14 +1136,14 @@ d3.trait.utils = {
     }
 
     function _axisMonth( _super, _config) {
-        var group, lastDomainMax,
+        var group, groupAxis, label, lastDomainMax,
             axis = d3.svg.axis(),
             scaleForUpdate = d3.time.scale(),
             c = axisConfig( _config ),
             scale = _super[c.name]()
 
 
-        adjustChartMarginForAxis( _super, c)
+//        adjustChartMarginForAxis( _super, c)
 
         function axisMonth( _selection) {
             var self = axisMonth
@@ -1051,7 +1152,11 @@ d3.trait.utils = {
                 var element = this
 
                 if( !group) {
-                    group = this._container.append('g').classed('axis axis-' + c.name, true)
+                    group = this._container.append('g').classed('axis', true)
+                    groupAxis = group.append('g').classed('axis-' + c.name, true)
+                    if( c.label)
+                        label = group.append('text').classed('axis-label axis-label-' + c.name, true)
+                    axis = d3.svg.axis()
                 }
 
                 var domain = scale.domain()
@@ -1070,9 +1175,14 @@ d3.trait.utils = {
                     //.tickValues( tickValuesForMonthDays( scaleForUpdate))
                     //.tickSubdivide(4)
 
+                self.layoutAxis( group, c.orient, c.axisMargin)
+                if( c.label) {
+                    label.text( c.label)
+                    label.attr( { transform: labelTransform( self, c, label) } )
+                }
 
                 group
-                    .attr({transform: axisTransform( self, c)})
+//                    .attr({transform: containerTransform( self, c)})
                     .call(axis);
 
                 var extension = group.selectAll( "path.axis-extension")
@@ -1412,7 +1522,8 @@ function _chartBase( _super, _config) {
     // Margin for adjusting the x1-scale range
     // Example: { x1: {left: 5, right: 5} }
     // Without this margin, the outer bars on a bar chart may be half off the chart.
-    var minRangeMargins = {}
+    var minRangeMargins = {},
+        axisGroups = []
 
     var MIN_RANGE_MARGIN_DEFAULT = {left: 0, right: 0, top: 0, bottom: 0}
     function initMinRangeMargin( axis) {
@@ -1468,6 +1579,7 @@ function _chartBase( _super, _config) {
     }
 
     var ease = 'cubic-in-out'
+    var sizeFromElement = true
     var width = 200
     var height = 100
     var chartWidth = width - margin.left - margin.right,
@@ -1507,8 +1619,8 @@ function _chartBase( _super, _config) {
             select = d3.select(element)
 //            width = element.parentElement.offsetWidth || width
 //            height = element.parentElement.offsetHeight || height
-            width = element.offsetWidth || width
-            height = element.offsetHeight || height
+            width = sizeFromElement ? element.offsetWidth || width : width
+            height = sizeFromElement ? element.offsetHeight || height : height
 
             chartWidth = width - margin.left - margin.right
             chartHeight = height - margin.top - margin.bottom
@@ -1540,6 +1652,11 @@ function _chartBase( _super, _config) {
                         focusPoint = new d3.trait.Point( mousePoint[0], mousePoint[1] )
 
                     foci = onChart ? self.getFocusItems.call( element, focusPoint) : []
+                    foci.forEach( function( item, index, array) {
+                        item.point.x += margin.left
+                        item.point.y += margin.top
+                    })
+
                     if( fociDifferentFromLast( element, foci))
                         onFocusDispatch( element, foci, focusPoint)
                     element.__onFocusChangeLastFoci = foci
@@ -1555,8 +1672,8 @@ function _chartBase( _super, _config) {
             element._svg.transition()
                 .duration(duration)
                 .attr({width: width, height: height})
-            element._svg.select('.container-group')
-                .attr({transform: 'translate(' + margin.left + ',' + margin.top + ')'});
+            element._svg.select('.chart-group')
+                .attr( 'transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
             element._chartGroupClipPathRect.attr("width", chartWidth).attr("height", chartHeight)
 
@@ -1621,8 +1738,11 @@ function _chartBase( _super, _config) {
         chartWidth = width - margin.left - margin.right
         chartHeight = height - margin.top - margin.bottom
         //console.log( "baseChart.updateChartSize chartWidth=" + chartWidth + ", chartHeight=" + chartHeight)
-        if( prev.chartWidth !== chartWidth || prev.chartHeight !== chartHeight)
+        if( prev.chartWidth !== chartWidth || prev.chartHeight !== chartHeight) {
+            if( selection)
+                selection.call( chartBase)
             dispatch.chartResized()
+        }
     }
 
     function updateSize() {
@@ -1658,6 +1778,137 @@ function _chartBase( _super, _config) {
 
     };
 
+    function findAxisByGroup( group) {
+        var i, axis,
+            length = axisGroups.length
+
+        for( i = 0; i < length; i++) {
+            axis = axisGroups[i]
+            if( axis.group === group)
+                return axis
+        }
+        return null
+    }
+
+    function updateChartMarginForAxis( axes, orient) {
+        var axisMargin,
+            updatedMargin = false
+
+        if( axes.length <= 0)
+            return updatedMargin
+
+        switch( orient) {
+            case 'left':
+                axisMargin = axes[ axes.length-1].rect.maxX()
+                if( margin.left < axisMargin) {
+                    margin.left = axisMargin
+                    updatedMargin = true;
+                }
+                break;
+            case 'right':
+                axisMargin = width - axes[0].rect.minX()
+                if( margin.right < axisMargin) {
+                    margin.right = axisMargin
+                    updatedMargin = true;
+                }
+                break;
+            case 'top':
+                axisMargin = axes[ axes.length-1].rect.maxY()
+                if( margin.top < axisMargin) {
+                    margin.top = axisMargin
+                    updatedMargin = true;
+                }
+                break;
+
+            case 'bottom':
+                axisMargin = height - axes[0].rect.minY()
+                if( margin.bottom < axisMargin) {
+                    margin.bottom = axisMargin
+                    updatedMargin = true;
+                }
+                break;
+
+            default:
+        }
+        return updatedMargin
+    }
+    function updateAxesForChartMargin( axes, orient) {
+        var axisMargin,
+            updatedOrigin = false
+
+        if( axes.length <= 0)
+            return updatedOrigin
+
+        switch( orient) {
+            case 'left':
+            case 'right':
+                axes.forEach( function( axis) {
+                    if( axis.rect.minY() < margin.top) {
+                        axis.rect.origin.y = margin.top
+                        updatedOrigin = true;
+                    }
+                })
+                break;
+            case 'top':
+            case 'bottom':
+                axes.forEach( function( axis) {
+                    if( axis.rect.minX() < margin.left) {
+                        axis.rect.origin.x = margin.left
+                        updatedOrigin = true;
+                    }
+                })
+                break;
+
+            default:
+        }
+        return updatedOrigin
+    }
+    function relayoutAxes() {
+        var axes, key,
+            updatedMargin = false,
+            rect = new d3.trait.Rect( 0, 0, width, height ),
+            orients = [ 'left', 'right', 'top', 'bottom'],
+            axesByOrient = {}
+
+        orients.forEach( function( orient) {
+            axes = axisGroups.filter( function( e) {return e.orient === orient} )
+            d3.trait.layout.byOrientation( axes, rect, orient)
+            updatedMargin = updatedMargin || updateChartMarginForAxis( axes, orient)
+            axesByOrient[orient] = axes
+        })
+        for( key in axesByOrient) {
+            axes = axesByOrient[key]
+            updateAxesForChartMargin( axes, key)
+        }
+
+        if( updatedMargin)
+            updateChartSize()
+    }
+    function makeRect( orient, widthOrHeight) {
+        switch( orient) {
+            case 'left': return new d3.trait.Rect( 0, 0, widthOrHeight, 0, 1, 0);
+            case 'right': return new d3.trait.Rect( 0, 0, widthOrHeight, 0);
+            case 'top': return new d3.trait.Rect( 0, 0, 0, widthOrHeight, 0, 1);
+            case 'bottom': return new d3.trait.Rect( 0, 0, 0, widthOrHeight);
+            default: return  new d3.trait.Rect();
+        }
+    }
+    chartBase.layoutAxis = function( group, orient, widthOrHeight) {
+        var axisGroup = findAxisByGroup( group ),
+            rect = makeRect( orient, widthOrHeight)
+
+        if( ! axisGroup) {
+            axisGroup = {group: group, orient: orient, rect: rect}
+            axisGroups.push( axisGroup)
+            relayoutAxes()
+        } else if( axisGroup.orient !== orient || axisGroup.rect.size !== rect.size) {
+            axisGroup.orient = orient
+            axisGroup.rect = rect
+            relayoutAxes()
+        }
+        axisGroup.group.attr ( 'transform', 'translate(' + axisGroup.rect.origin.x + ',' + axisGroup.rect.origin.y + ')');
+    }
+
     // Return a list of points in focus.
     chartBase.getFocusItems = function( point) {
         return []
@@ -1679,12 +1930,14 @@ function _chartBase( _super, _config) {
 
     chartBase.width = function(_x) {
         if (!arguments.length) return width;
+        sizeFromElement = false
         width = parseInt(_x, 10);
         updateChartSize()
         return this;
     };
     chartBase.height = function(_x) {
         if (!arguments.length) return height;
+        sizeFromElement = false
         height = parseInt(_x, 10);
         updateChartSize()
         duration = 0;
@@ -1737,6 +1990,10 @@ function _chartBase( _super, _config) {
         updateChartSize()
         return this;
     };
+
+    chartBase.chartRect = function() {
+        return new d3.trait.Rect( margin.left, margin.top, chartWidth, chartHeight)
+    }
 
     chartBase.chartWidth = function(_x) {
         if (!arguments.length) return chartWidth;
@@ -1846,14 +2103,16 @@ function _chartLine( _super, _config) {
     // Store the group element here so we can have multiple line charts in one chart.
     // A second "line chart" might have a different y-axis, style or orientation.
     var group, series, filteredData, lastDomainMax,
+        yAxis = _config.yAxis || 'y1',
         x1 = _super.x1(),
-        y1 = _super.y1(),
+        y = _super[yAxis](),
+        access = { x: _config.x1, y: _config[yAxis]},
         color = d3.scale.category10(),
         focus = d3.trait.chart.utils.configFocus( _config),
         line = d3.svg.line()
             .interpolate( _config.interpolate || "linear")
-            .x(function(d) { return x1( _config.x1(d)); })
-            .y(function(d) { return y1( _config.y1(d)); });
+            .x(function(d) { return x1( access.x(d)); })
+            .y(function(d) { return y( access.y(d)); });
 
     function chartLine( _selection) {
         _selection.each(function(_data) {
@@ -1960,8 +2219,8 @@ function _chartLine( _super, _config) {
     function getFocusItem( series, data, index, focusPoint) {
         var item, domainPoint, rangePoint, dist, distX
         item = data[index]
-        //domainPoint = { x: _config.x1(item), y: _config.y1(item)}
-        rangePoint = new d3.trait.Point( x1( _config.x1(item)), y1( _config.y1(item)))
+        //domainPoint = { x: _config.x1(item), y: access.y(item)}
+        rangePoint = new d3.trait.Point( x1( _config.x1(item)), y( access.y(item)))
         dist = distance( rangePoint, focusPoint)
         distX = distanceX( rangePoint, focusPoint)
         return {
@@ -1977,7 +2236,7 @@ function _chartLine( _super, _config) {
         var foci = this._super( focusPoint)
 
         // Search the domain for the closest point in x
-        var targetDomain = new d3.trait.Point( x1.invert( focusPoint.x ), y1.invert ( focusPoint.y) )
+        var targetDomain = new d3.trait.Point( x1.invert( focusPoint.x ), y.invert ( focusPoint.y) )
         var bisectLeft = d3.bisector( _config.x1 ).left
 
         filteredData.forEach( function( series, seriesIndex, array) {
@@ -1993,8 +2252,8 @@ function _chartLine( _super, _config) {
             alterIndex = found.index - 1
             if( alterIndex >= 0) {
                 var alter = getFocusItem( series, data, alterIndex, focusPoint)
-//                console.log( "found x=" + _config.x1( found.item) + " y=" + _config.y1( found.item) + " d=" + found.distance + "  " + targetDomain.x + " " + targetDomain.y)
-//                console.log( "alter x=" + _config.x1( alter.item) + " y=" + _config.y1( alter.item) + " d=" + alter.distance + "  " + targetDomain.x + " " + targetDomain.y)
+//                console.log( "found x=" + _config.x1( found.item) + " y=" + access.y( found.item) + " d=" + found.distance + "  " + targetDomain.x + " " + targetDomain.y)
+//                console.log( "alter x=" + _config.x1( alter.item) + " y=" + access.y( alter.item) + " d=" + alter.distance + "  " + targetDomain.x + " " + targetDomain.y)
                 if( focus.axis === 'x') {
                     if( alter.distanceX < found.distanceX)
                         found = alter
@@ -2501,7 +2760,7 @@ trait.control.brush = _controlBrush
                         item.rect = new d3.trait.Rect( item.point, bbox, anchorMidY)
                     })
 
-                    d3.trait.layout.verticalAnchorLeftRight( foci, self.chartWidth(), self.chartHeight())
+                    d3.trait.layout.verticalAnchorLeftRight( foci, self.chartRect())
 
                     foci.forEach( function( item, index, array) {
                         var seriesIndex = _data.indexOf( item.series),
@@ -2921,7 +3180,8 @@ function updateScale( scale, range, domainConfig, data, access) {
 
 
 function _scaleOrdinalBars( _super, _config) {
-    var scaleName = _config.axis,
+    var filteredData,
+        scaleName = _config.axis,
         axisChar = scaleName.charAt(0), // x | y
         accessData = _config[scaleName],
         scale = d3.scale.ordinal()
@@ -2933,11 +3193,13 @@ function _scaleOrdinalBars( _super, _config) {
             var ordinals,
                 element = this
 
+            filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
+
             var rangeMax = axisChar === 'x' ? self.chartWidth() : self.chartHeight()
             scale.rangeRoundBands([0, rangeMax], 0.1)
 
             // Use the first series for the ordinals. TODO: should we merge the series ordinals?
-            ordinals = _data[0].map( accessData)
+            ordinals = filteredData[0].map( accessData)
             scale.domain( ordinals);
         })
     }
@@ -2949,7 +3211,7 @@ function _scaleOrdinalBars( _super, _config) {
 
 function _scaleTime( _super,  _config) {
 
-    var theData,
+    var filteredData,
         scaleName = _config.axis,
         axisChar = scaleName.charAt(0 ),
         access = makeAccessorsFromConfig( _config, scaleName ),
@@ -2966,7 +3228,9 @@ function _scaleTime( _super,  _config) {
         _selection.each(function(_data, i , j) {
             var currentDomain,
                 element = this
-            theData = _data // TODO: store this in each selection.
+
+            // TODO: store this in each selection?
+            filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
             scale.domain( getDomain( domainConfig, _data, access))
 
@@ -2992,7 +3256,7 @@ function _scaleTime( _super,  _config) {
         // calculate newRangeMax below, then we'll extend the range to that.
         var range = d3.trait.utils.getChartRange( _super, scaleName)
 
-        updateScale( scale, range, domainConfig, theData, access)
+        updateScale( scale, range, domainConfig, filteredData, access)
 
         return this;
     };
@@ -3012,7 +3276,7 @@ function _scaleTime( _super,  _config) {
  */
 function _scaleLinear( _super,  _config) {
 
-    var theData,
+    var filteredData,
         scaleName = _config.axis,
         axisChar = scaleName.charAt(0 ),
         access = makeAccessorsFromConfig( _config, scaleName ),
@@ -3028,7 +3292,8 @@ function _scaleLinear( _super,  _config) {
         _selection.each(function(_data) {
             var extents, min, max,
                 element = this
-            theData = _data
+
+            filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
             scale.domain( getDomain( domainConfig, _data, access))
             scale.range( d3.trait.utils.getChartRange( self, scaleName))
@@ -3041,7 +3306,7 @@ function _scaleLinear( _super,  _config) {
     scaleLinear.update = function( type, duration) {
         this._super( type, duration)
         var range = d3.trait.utils.getChartRange( _super, scaleName)
-        updateScale( scale, range, domainConfig, theData, access)
+        updateScale( scale, range, domainConfig, filteredData, access)
 
         return this;
     };
