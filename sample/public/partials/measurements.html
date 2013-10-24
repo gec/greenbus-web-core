@@ -96,10 +96,9 @@
                     </li>
                 </ul>
                 <div class="coral-win-container">
-                    <div class="coral-win-content">
-                        <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
+                    <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
+                        <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 150px"></div>
                     </div>
-                    <div class="coral-win-overlay" droppable target="chart" on-drop="onDropPoint"/>
                 </div>
             </div>
         </div>

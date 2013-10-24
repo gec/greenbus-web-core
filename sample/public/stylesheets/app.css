@@ -54,9 +54,18 @@
 .coral-win-content {
     width: 100%;
     height: 100%;
+}
+.coral-win-content.over {
+    background-color: black;
+    color: white;
+    opacity: .80;
+}
+.over:before {
+    font-size: 140%;
     position: absolute;
-    top: 0;
-    left: 0;
+    bottom: 20px;
+    left: 20px;
+    content: "Drop point here";
 }
 .coral-win-overlay.over {
     background-color: black;
