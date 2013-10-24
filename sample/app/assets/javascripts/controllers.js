@@ -207,49 +207,42 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    function makeChartConfig( units) {
+    function makeChartConfig( unitMapKeys) {
         var axis,
             config = {
-            x1: function(d) { return d.time; },
-            seriesData: function(s) { return s.measurements},
-            seriesLabel: function(s) { return s.name}
-        }
-        units.forEach( function( unit, index) {
+                x1: function(d) { return d.time; },
+                seriesData: function(s) { return s.measurements},
+                seriesLabel: function(s) { return s.name}
+            }
+        unitMapKeys.forEach( function( key, index) {
             axis = 'y' + (index+1)
             config[axis] = function(d) { return d.value; }
         })
         return config
     }
+
     function getChartUnits( points) {
-        var units = []
+        var units = {}
 
         points.forEach( function( point) {
-            if( units.indexOf( point.unit) < 0)
-                units.push( point.unit)
+            if( ! units.hasOwnProperty( point.unit))
+                units[point.unit] = [ point]
+            else
+                units[point.unit].push( point)
         })
-        console.debug( "makeChart: Points have " + units.length + " units")
-        if( units.length <= 0) {
-            console.error( "makeChart: Points have no units")
-            return
-        }
         return units
     }
-    function makeChart( points) {
-        var chartTraits, config,
-            units = getChartUnits( points),
-            config = makeChartConfig( units),
-            name = points.length === 1 ? points[0].name : points[0].name + ",..."
 
-        // TODO: Still see a NaN error when displaying chart before we have data back from subscription
-        points.forEach( function( point) {
-            point.measurements = [ /*{time: new Date(), value: 0}*/]
-        })
-
-        chartTraits = d3.trait( d3.trait.chart.base, config )
+    function makeChartTraits( unitMap) {
+        var unit,
+            unitMapKeys = Object.keys( unitMap),
+            config = makeChartConfig( unitMapKeys),
+            chartTraits = d3.trait( d3.trait.chart.base, config )
             .trait( d3.trait.scale.time, { axis: "x1"})
 
-        units.forEach( function( unit, index) {
-            var axis = 'y' + (index + 1),
+
+        unitMapKeys.forEach( function( unit, index) {
+            var axis = 'y' + (index+1),
                 filter = function( s) { return s.unit === unit},
                 orient = index === 0 ? 'left' : 'right'
 
@@ -259,14 +252,30 @@ return angular.module( 'controllers', ['authentication.service'] )
         })
 
         chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
-            .trait( d3.trait.legend.series)
+//            .trait( d3.trait.legend.series)
             .trait( d3.trait.focus.tooltip)
 
+        return chartTraits
+    }
+
+    function makeChart( points) {
+        var chartTraits, config, unit, yIndex,
+            unitMap = getChartUnits( points),
+            name = points.length === 1 ? points[0].name : points[0].name + ",..."
+
+        // TODO: Still see a NaN error when displaying chart before we have data back from subscription
+        points.forEach( function( point) {
+            if( !point.measurements)
+                point.measurements = [ /*{time: new Date(), value: 0}*/]
+        })
+
+        chartTraits = makeChartTraits( unitMap)
 
         return {
             name: name,
             traits: chartTraits,
             points: points,
+            unitMap: unitMap,
 //            data: [
 //                { name: name, values: [] }
 //            ],
@@ -279,7 +288,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
             since = now - 1000 * 60 * 60 * 24 * 31,
-            limit = 100
+            limit = 500
 
         // if point
         if( pointAlreadyHasSubscription( point))
@@ -297,7 +306,7 @@ return angular.module( 'controllers', ['authentication.service'] )
                             //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
                             point.measurements.push( m)
                         } else {
-                            console.error( "subscribeToMeasurementHistoryByUuid " + m.name + " " + m.time + " " + m.value) + " -- value is not a number."
+                            console.error( "subscribeToMeasurementHistoryByUuid " + m.name + " time=" + m.time + " value='" + m.value + "' -- value is not a number.")
                         }
                     })
                     chart.traits.update( "trend")
@@ -315,6 +324,11 @@ return angular.module( 'controllers', ['authentication.service'] )
                 console.error( "subscribeToMeasurementHistory " + error + ", " + message)
             }
         )
+    }
+
+    function unsubscribeToMeasurementHistory( point) {
+        reef.unsubscribe( point.subscriptionId);
+        delete point.subscriptionId;
     }
 
     $scope.chartAdd = function( index) {
@@ -340,12 +354,58 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
     $scope.onDropPoint = function( uuid, chart) {
-        console.log( "dropPoint uuid=" + uuid)
+        console.log( "dropPoint chart=" + chart.name + " uuid=" + uuid)
         var point = findPointBy( function(p) { return p.uuid === uuid})
-        point.measurements = []
-        chart.points.push( point)
+        if( !point.measurements)
+            point.measurements = []
+        chart.points.push( point);
+        delete point.__color__;
+
         subscribeToMeasurementHistory( chart, point)
+
+        if( chart.unitMap.hasOwnProperty( point.unit)) {
+            chart.unitMap[point.unit].push( point)
+        } else {
+            chart.unitMap[point.unit] = [point]
+            chart.traits.remove()
+            chart.traits = makeChartTraits( chart.unitMap)
+        }
+
         chart.traits.call( chart.selection)
+    }
+
+    $scope.onDragSuccess = function( uuid, chart) {
+        console.log( "onDragSuccess chart=" + chart.name + " uuid=" + uuid)
+
+        $scope.$apply(function () {
+            var point = findPointBy( function(p) { return p.uuid === uuid})
+            $scope.removePoint( chart, point, true)
+        })
+    }
+
+    $scope.removePoint = function( chart, point, keepSubscription) {
+        var index = chart.points.indexOf( point);
+        chart.points.splice(index, 1);
+        if( ! keepSubscription)
+            unsubscribeToMeasurementHistory( point);
+
+        if( chart.points.length > 0) {
+            var pointsForUnit = chart.unitMap[ point.unit]
+            index = pointsForUnit.indexOf( point)
+            pointsForUnit.splice( index, 1)
+
+            if( pointsForUnit.length <= 0) {
+                delete chart.unitMap[point.unit];
+                chart.traits.remove()
+                chart.traits = makeChartTraits( chart.unitMap)
+            }
+
+            chart.traits.call( chart.selection)
+        } else {
+            index = $scope.charts.indexOf( chart)
+            $scope.chartRemove( index)
+        }
+
     }
 
     $scope.chartRemove = function( index) {

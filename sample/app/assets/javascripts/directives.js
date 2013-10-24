@@ -77,7 +77,9 @@ angular.module('ReefAdmin.directives', []).
         return {
             restrict: 'A',
             scope: {
-                id: "="
+                ident: "=",
+                source: "=?",
+                onDragSuccess: "=?"
             },
             link: function (scope, elem, attrs) {
 
@@ -87,9 +89,9 @@ angular.module('ReefAdmin.directives', []).
                 el.addEventListener(
                     'dragstart',
                     function(e) {
-                        console.debug( "dragstart " + scope.id)
+                        console.debug( "dragstart " + scope.ident)
                         e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('Text', scope.id);
+                        e.dataTransfer.setData('Text', scope.ident);
                         this.classList.add('drag');
                         return false;
                     },
@@ -100,6 +102,11 @@ angular.module('ReefAdmin.directives', []).
                     'dragend',
                     function(e) {
                         this.classList.remove('drag');
+
+                        if(e.dataTransfer.dropEffect !== 'none' && scope.onDragSuccess) {
+                            scope.onDragSuccess( scope.ident, scope.source)
+                        }
+
                         return false;
                     },
                     false
@@ -154,8 +161,8 @@ angular.module('ReefAdmin.directives', []).
 
                         this.classList.remove('over');
 
-                        var id = e.dataTransfer.getData('Text');
-                        scope.onDrop( id, scope.target)
+                        var ident = e.dataTransfer.getData('Text');
+                        scope.onDrop( ident, scope.target)
 
                         return false;
                     },

@@ -57,7 +57,7 @@
                         <!--</div>-->
                     </td>
                     <td>
-                        <div class="coral-icon-text" draggable id="point.uuid">
+                        <div class="coral-icon-text draggable" draggable ident="point.uuid">
                             <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
                             {{$parent.point.name}}
                         </div>
@@ -87,13 +87,19 @@
                         <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
                     </div>
                 </div>
+                <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
+                    <li class="coral-legend" ng-repeat="point in chart.points">
+                        <div class="coral-icon-text draggable" draggable ident="point.uuid" source="chart" on-drag-success="onDragSuccess">
+                            <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}}</span>
+                            <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.chart, $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
+                        </div>
+                    </li>
+                </ul>
                 <div class="coral-win-container">
                     <div class="coral-win-content">
                         <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
                     </div>
-                    <div class="coral-win-overlay" droppable target="chart" on-drop="onDropPoint">
-                        <h1>Drop point here</h1>
-                    </div>
+                    <div class="coral-win-overlay" droppable target="chart" on-drop="onDropPoint"/>
                 </div>
             </div>
         </div>

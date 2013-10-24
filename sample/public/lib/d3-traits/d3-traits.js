@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2013-10-22
+/*! d3-traits - v0.0.1 - 2013-10-23
 * https://github.com/gec/d3-traits
 * Copyright (c) 2013 d3-traits; Licensed ,  */
 (function (d3) {
@@ -66,6 +66,12 @@ function extentMax( extent) { return extent[ extent.length - 1] }
 
 function isData( _data, accessSeries) {
     return d3.max( _data, function(s) { return accessSeries(s ).length}) > 0
+}
+
+function isValidDate(d) {
+    if ( Object.prototype.toString.call(d) !== "[object Date]" )
+        return false;
+    return !isNaN(d.getTime());
 }
 
 function getChartRange( _super, name) {
@@ -478,6 +484,7 @@ d3.trait.utils = {
     isX: isX,
     isY: isY,
     isData: isData,
+    isValidDate: isValidDate,
     extentMax: extentMax,
     getChartRange: getChartRange,
     getTraitCache: getTraitCache,
@@ -1186,7 +1193,7 @@ d3.trait.utils = {
                     .call(axis);
 
                 var extension = group.selectAll( "path.axis-extension")
-                    .data( [domain[0]])
+                    .data( d3.trait.utils.isValidDate( domain[0]) ? [domain[0]] : [])
 
                 extension.transition()
                     .attr("class", "axis-extension")
@@ -1254,7 +1261,6 @@ function _chartArea( _super, _config) {
     var group, series, lastDomainMax,
         x1 = _super.x1(),
         y1 = _super.y1(),
-        color = d3.scale.category10(),
         area = d3.svg.area()
             .interpolate( _config.interpolate || "linear")
             .x(function(d) { return x1( _config.x1(d)); })
@@ -1294,7 +1300,7 @@ function _chartArea( _super, _config) {
                 .append("path")
                     .attr("class", "area")
                     .attr("d", function(d) { return area( _config.seriesData(d)); })
-                    .style("fill", function(d, i) { return color(i); });
+                    .style("fill", self.color);
 
             lastDomainMax = d3.trait.utils.extentMax( x1.domain())
         })
@@ -1338,7 +1344,6 @@ function _chartBar( _super,  _config) {
     var group, series, bars, barW, barOffsetX, lastDomainMax,
         x1 = _super.x1(),
         y1 = _super.y1(),
-        color = d3.scale.category10(),
         gap = 0,                        // gap is the extra spacing beyond bar padding of 0.1 * barWidth.
         barCount = _config.barCount
 
@@ -1414,7 +1419,7 @@ function _chartBar( _super,  _config) {
                 series.enter()
                     .append("g")
                         .attr("class", "series")
-                        .style("fill", function(d, i) { return color(i); });
+                        .style("fill", self.color);
             }
 
             // DATA JOIN
@@ -1583,7 +1588,11 @@ function _chartBase( _super, _config) {
     var width = 200
     var height = 100
     var chartWidth = width - margin.left - margin.right,
-        chartHeight = height - margin.top - margin.bottom;
+        chartHeight = height - margin.top - margin.bottom,
+        colorIndexNext = 0,
+        colors = d3.scale.category10(),
+        colorsUsed = []
+
 
     var select, duration = 0
     var selection
@@ -1609,7 +1618,6 @@ function _chartBase( _super, _config) {
                 mousePoint[1] >= 0 && mousePoint[1] <= chartHeight
 
     }
-
     function chartBase( _selection) {
         var self = chartBase
         selection = _selection
@@ -1666,6 +1674,19 @@ function _chartBase( _super, _config) {
                         onChart = mouseOnChart( mousePoint,  chartWidth, chartHeight )
                     if( ! onChart)
                         onChartMouseOutDispatch( element)
+                })
+
+                colorsUsed = []
+                _data.forEach( function( d) {
+                    var i
+                    if( d.__color__) {
+                        i = colorsUsed.indexOf( d.__color__)
+                        if( i >= 0) {
+                            delete d.__color__;
+                        } else {
+                            colorsUsed.push( d.__color__)
+                        }
+                    }
                 })
             }
 
@@ -1928,6 +1949,34 @@ function _chartBase( _super, _config) {
         return select;
     };
 
+    function getColor( series) {
+        if( series.__color__)
+            return series.__color__
+
+        var i,
+            count = 0;
+        while( count < 10) {
+            series.__color__ = colors( colorIndexNext++)
+            i = colorsUsed.indexOf( series.__color__)
+            if( i < 0)
+                break;
+            count++
+        }
+        colorsUsed.push( series.__color__)
+        return series.__color__
+    }
+    chartBase.color = function( series, _color) {
+        switch( arguments.length) {
+            case 1: return getColor( series);
+            case 3: return getColor( series); // d3 attribute call with (series, seriesIndex, array)
+            case 2:
+                series.__color__ = _color
+                return this;
+            default:
+                return 'black'; // What else to do?
+        }
+    };
+
     chartBase.width = function(_x) {
         if (!arguments.length) return width;
         sizeFromElement = false
@@ -2107,7 +2156,6 @@ function _chartLine( _super, _config) {
         x1 = _super.x1(),
         y = _super[yAxis](),
         access = { x: _config.x1, y: _config[yAxis]},
-        color = d3.scale.category10(),
         focus = d3.trait.chart.utils.configFocus( _config),
         line = d3.svg.line()
             .interpolate( _config.interpolate || "linear")
@@ -2115,6 +2163,8 @@ function _chartLine( _super, _config) {
             .y(function(d) { return y( access.y(d)); });
 
     function chartLine( _selection) {
+        var self = chartLine
+
         _selection.each(function(_data) {
 
             if( !group) {
@@ -2141,7 +2191,13 @@ function _chartLine( _super, _config) {
                 .append("path")
                     .attr("class", "line")
                     .attr("d", function(d) { return line( _config.seriesData(d)); })
-                    .style("stroke", function(d, i) { return color(i); });
+                    .style("stroke", self.color);
+
+            // EXIT
+            series.exit()
+                .transition()
+                .style({opacity: 0})
+                .remove();
 
             lastDomainMax = d3.trait.utils.extentMax( x1.domain())
         })
@@ -2233,7 +2289,8 @@ function _chartLine( _super, _config) {
         }
     }
     chartLine.getFocusItems = function( focusPoint) {
-        var foci = this._super( focusPoint)
+        var self = chartLine,
+            foci = this._super( focusPoint)
 
         // Search the domain for the closest point in x
         var targetDomain = new d3.trait.Point( x1.invert( focusPoint.x ), y.invert ( focusPoint.y) )
@@ -2264,7 +2321,7 @@ function _chartLine( _super, _config) {
             }
 
             if( found.distance <= focus.distance) {
-                found.color = color( seriesIndex)
+                found.color = self.color( series)
                 foci.push( found)
             }
         })
@@ -2307,7 +2364,6 @@ trait.chart.line = _chartLine
         var group, series, points, barW, barOffsetX, lastDomainMax,
             x1 = _super.x1(),
             y1 = _super.y1(),
-            color = d3.scale.category10(),
             shape = "circle" // rect
 
         var dispatch = d3.dispatch('customHover');
@@ -2334,7 +2390,7 @@ trait.chart.line = _chartLine
                     series.enter()
                         .append("g")
                         .attr("class", "series")
-                        .style("fill", function(d, i) { return color(i); });
+                        .style("fill", self.color);
                 }
 
                 // DATA JOIN
@@ -2821,7 +2877,6 @@ function _legendSeries( _super, _config) {
     // Store the group element here so we can have multiple line charts in one chart.
     // A second "line chart" might have a different y-axis, style or orientation.
 
-    var color = d3.scale.category10()
     var orient = _config.orient || "top"
     function topOrBottom() { return orient === "top" || orient === "bottom"}
 
@@ -2867,8 +2922,6 @@ function _legendSeries( _super, _config) {
 
             var filtered = _config.legendFilter ? _data.filter( _config.legendFilter) : _data
 
-            //TODO: Don't assume default colors (i.e. d3.scale.category10()). Get the color from the series.
-
             if( topOrBottom()) {
                 // DATA JOIN
                 var legendTop = this._legend.selectAll("li")
@@ -2880,7 +2933,7 @@ function _legendSeries( _super, _config) {
                 legendTop.enter()
                     .append("li")
                     .attr("class", "legend-item")
-                    .style("border-bottom-color", function(d, i) { return color(i); })
+                    .style("border-bottom-color", self.color)
                     .text( _config.seriesLabel)
 
                 // also try: <li><span>• </span>Lorem ipsum</li> with css span { font-size: 20pt; }
@@ -2902,7 +2955,7 @@ function _legendSeries( _super, _config) {
                         .attr("x", self.chartWidth() - 18)
                         .attr("width", 18)
                         .attr("height", 18)
-                        .style("fill", function(d, i) { return color(i); })
+                        .style("fill", self.color)
 
                 legend.append("text")
                     .attr("x", self.chartWidth() - 24)
@@ -3232,7 +3285,7 @@ function _scaleTime( _super,  _config) {
             // TODO: store this in each selection?
             filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
-            scale.domain( getDomain( domainConfig, _data, access))
+            scale.domain( getDomain( domainConfig, filteredData, access))
 
             // TODO: nice overlaps wth interval. Maybe it's one or the other?
             if( _config.nice)
@@ -3295,7 +3348,7 @@ function _scaleLinear( _super,  _config) {
 
             filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
-            scale.domain( getDomain( domainConfig, _data, access))
+            scale.domain( getDomain( domainConfig, filteredData, access))
             scale.range( d3.trait.utils.getChartRange( self, scaleName))
 
         })
