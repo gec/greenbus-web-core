@@ -327,7 +327,11 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     function unsubscribeToMeasurementHistory( point) {
-        reef.unsubscribe( point.subscriptionId);
+        try {
+            reef.unsubscribe( point.subscriptionId);
+        } catch( ex) {
+            console.error( "Unsubscribe measurement history for " + point.name + " exception " + ex)
+        }
         delete point.subscriptionId;
     }
 
