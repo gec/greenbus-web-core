@@ -146,14 +146,11 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( '/commands/' + commandName, "command", $scope);
 })
 
-.controller( 'MeasurementControl', function( $rootScope, $scope, $filter, reef) {
+.controller( 'MeasurementControl', function( $rootScope, $scope, $window, $filter, reef) {
     $scope.points = []
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
     $scope.charts = []
-    $scope.chartData = [
-        { name: "series one", values: [{ x: 5, y: 5}, { x: 10, y: 10}] }
-    ]
 
 
     $rootScope.currentMenuItem = "measurements";
@@ -413,6 +410,20 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     $scope.chartRemove = function( index) {
+        // TODO: cancel subscriptions and remove measurement history
+        $scope.charts.splice( index, 1)
+    }
+
+    $scope.chartPopout = function( index) {
+
+        $window.coralChart = $scope.charts[index];
+        $window.open(
+            '/chart',
+            '_blank',
+            'resizeable,top=100,left=100,height=200,width=300,location=no,toolbar=no'
+        )
+        //child window:   $scope.chart = $window.opener.coralChart;
+
         // TODO: cancel subscriptions and remove measurement history
         $scope.charts.splice( index, 1)
     }

@@ -1,0 +1,26 @@
+@(title: String)
+
+@main(title, routes.Assets.at("javascripts/chart")) {
+<div class="statusBanner">
+    <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
+        <div class="statusBlock">
+            <div class="statusBox">
+                <div class=statusText><strong>Not connected. </strong> {{status.description}}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid" ng-controller="ChartControl">
+
+    <div ng-view></div>
+
+    <hr>
+
+    <footer>
+        <p>&copy; Green Energy Corp 2013</p>
+    </footer>
+
+</div>
+
+}

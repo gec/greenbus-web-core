@@ -57,6 +57,10 @@ angular.module('ReefAdmin.directives', []).
 //                    .trait( d3.trait.focus.tooltip)
                 scope.selection = chartEl.datum( scope.data)
                 scope.chart.call( scope.selection)
+                if( scope.data && scope.data.length > 0)
+                    console.log( "directive.chart chart.call scope.data[0].measurements.length=" + scope.data[0].measurements.length)
+                else
+                    console.log( "directive.chart chart.call scope.data null or length=0 - chart=" + scope.chart + ", data=" + scope.data)
 
                 scope.update = function() {
                     //console.log( "ReefAdmin.directives chart update")

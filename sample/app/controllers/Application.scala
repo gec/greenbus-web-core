@@ -47,6 +47,11 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Ok(views.html.index("Coral Sample"))
   }
 
+  def chart = AuthenticatedPageAction { (request, client) =>
+    Logger.debug( "Application.chart")
+    Ok(views.html.chart("Coral Sample"))
+  }
+
 
   def getMenus( name: String) = ReefClientAction { (request, client) =>
 
