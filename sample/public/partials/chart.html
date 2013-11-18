@@ -2,16 +2,13 @@
 
 
 <div>
-    <div ng-include src="'partials/loadingprogress.html'"></div>
 
-    <div class="coral-chart">
+    <div class="coral-chart" style="width: 100%; height: 100%; margin: 0">
         <div class="coral-win" >
             <div class="coral-win-titlebar clearfix">
                 <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
                 <div class="coral-win-actions">
-                    <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
-                    <a href="" ng-click="chartPopout($index)"><i class="icon-share-alt icon-white"></i></a>
-                    <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
+                    <a href="" ng-click="chartRemove()"><i class="icon-remove icon-white"></i></a>
                 </div>
             </div>
             <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
@@ -22,9 +19,12 @@
                     </div>
                 </li>
             </ul>
-            <div class="coral-win-container">
-                <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
-                    <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 150px"></div>
+            <div id="chart-container" class="coral-win-container" style="height: 100%">
+                <div class="coral-loading-overlay" ng-show="loading">
+                    <div ng-include src="'partials/loadingprogress.html'"></div>
+                </div>
+                <div class="coral-win-content" ng-hide="loading" droppable target="chart" on-drop="onDropPoint">
+                    <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 100%"></div>
                 </div>
             </div>
         </div>

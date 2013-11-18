@@ -36,8 +36,13 @@ return angular.module( 'chartController', ['authentication.service'] )
     });
 })
 
-.controller( 'ChartControl', function( $rootScope, $scope, $window, $filter, reef) {
-    var chartSource = $window.opener.coralChart;
+.controller( 'ChartControl', function( $rootScope, $scope, $timeout, $window, $filter, reef) {
+    var chartSource = $window.opener.coralChart,
+        documentElement = $window.document.documentElement,
+        windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
+        _chartContainer = null,
+        chartSize = new d3.trait.Size()
+
     console.log( "ChartController $scope.chart=" + chartSource)
 
     $scope.chart = {
@@ -47,6 +52,31 @@ return angular.module( 'chartController', ['authentication.service'] )
         unitMap: {},
         selection: null
     }
+    $scope.loading = true
+
+    documentElement.style.overflow = 'hidden';  // firefox, chrome
+    $window.document.body.scroll = "no"; // ie only
+    function chartContainer() {
+        if( ! _chartContainer) {
+            _chartContainer = $window.document.getElementById('chart-container')
+        }
+        return _chartContainer
+    }
+    function onResize() {
+        windowSize.width = documentElement.clientWidth
+        windowSize.height = documentElement.clientHeight
+        var offsetTop = chartContainer().offsetTop,
+            offsetLeft = chartContainer().offsetLeft,
+            width = windowSize.width - offsetLeft,
+            height = windowSize.height - offsetTop
+        console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
+
+        if( width !== chartSize.width || height !== chartSize.height) {
+            $scope.chart.traits.height( windowSize.height - offsetTop)
+            $scope.chart.traits.width( windowSize.width - offsetLeft)
+        }
+    }
+    $window.onresize = onResize
 
 
     var number = $filter('number')
@@ -60,10 +90,11 @@ return angular.module( 'chartController', ['authentication.service'] )
 
     function findPointBy( testTrue) {
         var i, point,
-            length = $scope.points.length
+            points = $scope.chart.points,
+            length = points.length
 
         for( i = 0; i < length; i++) {
-            point = $scope.points[i]
+            point = points[i]
             if( testTrue( point))
                 return point
         }
@@ -197,8 +228,14 @@ return angular.module( 'chartController', ['authentication.service'] )
         delete point.subscriptionId;
     }
 
+    /**
+     * A new point was dropped on us. Add it to the chart.
+     * @param uuid
+     * @param chart
+     */
     $scope.onDropPoint = function( uuid, chart) {
         console.log( "dropPoint chart=" + chart.name + " uuid=" + uuid)
+        // TODO: Shouldn't find the point. It's from another screen.
         var point = findPointBy( function(p) { return p.uuid === uuid})
         if( !point.measurements)
             point.measurements = []
@@ -218,6 +255,11 @@ return angular.module( 'chartController', ['authentication.service'] )
         chart.traits.call( chart.selection)
     }
 
+        /**
+         * One of our points was dragged away from us.
+         * @param uuid
+         * @param chart
+         */
     $scope.onDragSuccess = function( uuid, chart) {
         console.log( "onDragSuccess chart=" + chart.name + " uuid=" + uuid)
 
@@ -253,12 +295,9 @@ return angular.module( 'chartController', ['authentication.service'] )
     }
 
     $scope.chartRemove = function( index) {
-        // TODO: cancel subscriptions and remove measurement history
+        // TODO: remove chart.
+        // TODO: Cancel subscriptions and remove measurement history
         $scope.charts.splice( index, 1)
-    }
-
-    $scope.chartPopin = function() {
-        // TODO chartPopin
     }
 
     $scope.onMeasurement = function( subscriptionId, type, measurement) {
@@ -288,8 +327,13 @@ return angular.module( 'chartController', ['authentication.service'] )
     $scope.chart.points.forEach( function( point) {
         subscribeToMeasurementHistory( $scope.chart, point)
     })
+    //$scope.loading = false
+    $timeout( function() {
+        onResize()
+        $scope.loading = false
+    }, 500)
 
-    })
+})  // end .controller 'ChartControl'
 
 
 
