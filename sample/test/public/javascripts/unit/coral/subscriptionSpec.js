@@ -227,7 +227,7 @@ define([
                     state: subscription.STATE.CONNECTION_FAILED,
                     reinitializing: false
                 })
-                expect( mock.errorListener).toHaveBeenCalledWith( "WebSocket onclose()")
+                expect( mock.errorListener).toHaveBeenCalledWith( 'WebSocket onclose()', '')
                 expect( mock.websocket.send).not.toHaveBeenCalled()
             }));
 
@@ -246,7 +246,7 @@ define([
                     state: subscription.STATE.CONNECTION_FAILED,
                     reinitializing: false
                 })
-                expect( mock.errorListener).toHaveBeenCalledWith( "WebSocket onerror()")
+                expect( mock.errorListener).toHaveBeenCalledWith( 'WebSocket onerror()', '')
                 expect( mock.websocket.send).not.toHaveBeenCalled()
             }));
 		});

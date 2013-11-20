@@ -18,7 +18,8 @@
  */
 define([
     'authentication/service',
-    'services'
+    'services',
+    'd3-traits'
 ], function( authentication) {
 'use strict';
 
@@ -36,7 +37,7 @@ return angular.module( 'chartController', ['authentication.service'] )
     });
 })
 
-.controller( 'ChartControl', function( $rootScope, $scope, $timeout, $window, $filter, reef) {
+.controller( 'ChartController', function( $scope, $timeout, $window, $filter, reef) {
     var chartSource = $window.opener.coralChart,
         documentElement = $window.document.documentElement,
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
@@ -333,7 +334,7 @@ return angular.module( 'chartController', ['authentication.service'] )
         $scope.loading = false
     }, 500)
 
-})  // end .controller 'ChartControl'
+});  // end .controller 'ChartControl'
 
 
 

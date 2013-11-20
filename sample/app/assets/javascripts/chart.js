@@ -72,7 +72,7 @@ define([
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.
-          when('/chart', {templateUrl: 'partials/chart.html', controller: 'ChartControl'}).
+          when('/chart', {templateUrl: 'partials/chart.html', controller: 'ChartController'}).
           otherwise({redirectTo: '/chart'});
       }]);
 

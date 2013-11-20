@@ -5,6 +5,7 @@ target
 tmp
 .history
 dist
+etc
 /.idea
 /*.iml
 /out

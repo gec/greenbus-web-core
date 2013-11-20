@@ -23,7 +23,7 @@ define([
 'use strict';
 
 
-var AuthenticationService = function( $rootScope, $timeout, $http, $location, $cookies) {
+var AuthenticationService = function( $rootScope, $timeout, $http, $location, $cookies, $window) {
     var self = this;
 
     var STATE = {
@@ -96,9 +96,9 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
                     $cookies.userName = userName
                     console.log( "login success, setting cookie, redirectLocation: '/#' + '" + redirectLocation + "'")
                     if( redirectLocation)
-                        window.location.href = "/#" + redirectLocation
+                        $window.location.href = "/#" + redirectLocation
                     else
-                        window.location.href = "/#/entity"
+                        $window.location.href = "/#/entity"
                 }
             }).
             error(function (json, statusCode, headers, config) {
@@ -145,7 +145,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
                     })
                     authToken = null
                     delete $cookies[authTokenName]
-                    window.location.href = "/login"
+                    $window.location.href = "/login"
                 }
             }).
             error(function (json, statusCode, headers, config) {
@@ -189,7 +189,7 @@ var AuthenticationService = function( $rootScope, $timeout, $http, $location, $c
         console.log( "AuthenticationService.redirectToLoginPage( redirectAfterLogin = " + redirectAfterLogin + ")")
         authToken = null
         console.log( "redirectToLoginPage window.location.href = '/login'")
-        window.location.href = getLoginUri( redirectAfterLogin)
+        $window.location.href = getLoginUri( redirectAfterLogin)
     }
 
     self.getHttpHeaders = function() {
@@ -210,8 +210,8 @@ return angular.module( 'authentication.service', [
     'ngCookies'
 ])
 
-.factory('authentication', function( $rootScope, $timeout, $http, $location, $cookies){
-    return new AuthenticationService( $rootScope, $timeout, $http, $location, $cookies)
+.factory('authentication', function( $rootScope, $timeout, $http, $location, $cookies, $window){
+    return new AuthenticationService( $rootScope, $timeout, $http, $location, $cookies, $window)
 });
 
 }); // end RequireJS define

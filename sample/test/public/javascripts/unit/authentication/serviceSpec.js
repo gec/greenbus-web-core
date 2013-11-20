@@ -36,15 +36,23 @@ define([
 
     describe('authentication service log in/out successfully', function() {
 
-        var service, $httpBackend, cookies = [];
+        var service, $httpBackend,
+            $window = {
+                location: {
+                    href: null
+                }
+            },
+            cookies = [];
 
         //you need to indicate your module in a test
         beforeEach( module('authentication.service'));
         beforeEach( module(function($provide) {
             $provide.value( "$cookies", cookies)
+            $provide.value( "$window", $window)
         }));
-        beforeEach(inject(function( _$httpBackend_) {
-            $httpBackend = _$httpBackend_;
+        beforeEach( inject(function( $injector) {
+            $httpBackend = $injector.get('$httpBackend');
+            service = $injector.get('authentication')
 
             var data = {
                 "userName": "userName",
@@ -52,7 +60,7 @@ define([
             }
             var response = {};
             response[ authTokenName] = authTokenValue
-            $httpBackend.expectPOST('/login').respond( response)
+            $httpBackend.when( 'POST', '/login').respond( response)
         }));
 
         afterEach( function() {
@@ -78,7 +86,7 @@ define([
                 })
                 expect( authentication.getAuthToken()).toBe(authTokenValue)
                 expect( authentication.getHttpHeaders()).toEqual( {'Authorization': authTokenValue})
-                //expect( window.location.href).toBe( "redirectLocation")
+                expect( $window.location.href).toBe( "/#redirectLocation")
 
                 // Logout after successful login
                 $httpBackend.expectDELETE('/login').respond( {})
@@ -90,6 +98,7 @@ define([
                     reinitializing: false,
                     message: ""
                 })
+                expect( $window.location.href).toBe( "/login")
 
             }));
         });
