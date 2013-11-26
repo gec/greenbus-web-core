@@ -99,6 +99,7 @@ return angular.module( 'chartController', ['authentication.service'] )
             if( testTrue( point))
                 return point
         }
+        return null
     }
 
     function makeChartConfig( unitMapKeys) {
@@ -229,31 +230,45 @@ return angular.module( 'chartController', ['authentication.service'] )
         delete point.subscriptionId;
     }
 
+    function getPointSuccess( json) {
+        var point = json
+        console.log( "getPointSuccess: " + point.name + " " + point.uuid + " unit=" + point.unit)
+
+        if( !point.measurements)
+            point.measurements = []
+        $scope.chart.points.push( point)
+
+        subscribeToMeasurementHistory( $scope.chart, point)
+
+        if( $scope.chart.unitMap.hasOwnProperty( point.unit)) {
+            $scope.chart.unitMap[point.unit].push( point)
+        } else {
+            $scope.chart.unitMap[point.unit] = [point]
+            $scope.chart.traits.remove()
+            $scope.chart.traits = makeChartTraits( $scope.chart.unitMap)
+        }
+
+        $scope.chart.traits.call( $scope.chart.selection)
+
+        $timeout( function() {
+            console.log( "getPointSuccess.onResize: " + point.name + " " + point.uuid + " unit=" + point.unit)
+            onResize()
+        }, 500)
+    }
+
     /**
      * A new point was dropped on us. Add it to the chart.
      * @param uuid
-     * @param chart
      */
-    $scope.onDropPoint = function( uuid, chart) {
-        console.log( "dropPoint chart=" + chart.name + " uuid=" + uuid)
-        // TODO: Shouldn't find the point. It's from another screen.
+    $scope.onDropPoint = function( uuid) {
+        console.log( "dropPoint uuid=" + uuid)
+        // Don't add a point that we're already charting.
         var point = findPointBy( function(p) { return p.uuid === uuid})
-        if( !point.measurements)
-            point.measurements = []
-        chart.points.push( point);
-        delete point.__color__;
+        if( point)
+            return
 
-        subscribeToMeasurementHistory( chart, point)
 
-        if( chart.unitMap.hasOwnProperty( point.unit)) {
-            chart.unitMap[point.unit].push( point)
-        } else {
-            chart.unitMap[point.unit] = [point]
-            chart.traits.remove()
-            chart.traits = makeChartTraits( chart.unitMap)
-        }
-
-        chart.traits.call( chart.selection)
+        reef.get( '/points/' + uuid, "point", $scope, getPointSuccess);
     }
 
         /**
@@ -266,12 +281,13 @@ return angular.module( 'chartController', ['authentication.service'] )
 
         $scope.$apply(function () {
             var point = findPointBy( function(p) { return p.uuid === uuid})
-            $scope.removePoint( chart, point, true)
+            $scope.removePoint( point, true)
         })
     }
 
-    $scope.removePoint = function( chart, point, keepSubscription) {
-        var index = chart.points.indexOf( point);
+    $scope.removePoint = function( point, keepSubscription) {
+        var chart = $scope.chart,
+            index = chart.points.indexOf( point);
         chart.points.splice(index, 1);
         if( ! keepSubscription)
             unsubscribeToMeasurementHistory( point);
@@ -288,6 +304,11 @@ return angular.module( 'chartController', ['authentication.service'] )
             }
 
             chart.traits.call( chart.selection)
+            $timeout( function() {
+                console.log( "removePoint.onResize: " + point.name + " " + point.uuid + " unit=" + point.unit)
+                onResize()
+            }, 500)
+
         } else {
             index = $scope.charts.indexOf( chart)
             $scope.chartRemove( index)

@@ -177,6 +177,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             if( testTrue( point))
                 return point
         }
+        return null
     }
 
     $scope.checkUncheck = function( point) {
@@ -434,7 +435,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             measurement.value = formatMeasurementValue( measurement.value)
             point.currentMeasurement = measurement
         } else {
-            console.error( "onMeasurement coudn't find point for measurement.name=" + measurement.name)
+            console.error( "onMeasurement couldn't find point for measurement.name=" + measurement.name)
         }
     }
 

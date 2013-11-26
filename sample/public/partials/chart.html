@@ -15,7 +15,7 @@
                 <li class="coral-legend" ng-repeat="point in chart.points">
                     <div class="coral-icon-text draggable" draggable ident="point.uuid" source="chart" on-drag-success="onDragSuccess">
                         <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}} {{$parent.point.measurements.length}}</span>
-                        <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.chart, $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
+                        <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
                     </div>
                 </li>
             </ul>

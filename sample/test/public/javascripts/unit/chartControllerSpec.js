@@ -8,21 +8,25 @@ define([
 	'use strict';
 
     describe('ChartController', function(){
-        var chartController, scope;
-
-        var scope = {},
+        var chartController,
+            scope = {},
             timeoutMock = null,
-            pointMock = {
-                name: "somePointName",
-                uuid: "somePointUuid",
+            point1 = {
+                name: "point1",
+                uuid: "point1Uuid",
                 unit: "somePointUnit",
-                measurements: [],  // handle null, empty, and some measurements
-                subscriptionId: "someSubscriptionId"
+                measurements: []  // handle null, empty, and some measurements
+            },
+            point2 = {
+                name: "point2",
+                uuid: "point2Uuid",
+                unit: "somePointUnit",
+                measurements: []  // handle null, empty, and some measurements
             },
             chartSource = {
-                points: [ pointMock ]
+                points: [ point1 ]
             },
-            windowMock = {
+            $window = {
                 opener: {
                     coralChart: chartSource
                 },
@@ -46,7 +50,7 @@ define([
                 },
                 onresize: null
             },
-            reefMock = {
+            reef = {
                 subscribeParams: {
                     scope: null,
                     pointUuid: null,
@@ -65,28 +69,99 @@ define([
                     return "someSubscriptionId"
                 }
             }
+        beforeEach( module(function($provide) {
+            spyOn( $window.document, "getElementById").andCallThrough()
+            $provide.value( "$window", $window)
+
+            spyOn( reef, "subscribeToMeasurementHistoryByUuid").andCallThrough()
+            $provide.value( "reef", reef)
+
+            $window.document.documentElement.clientWidth = 200
+            $window.document.documentElement.clientHeight = 100
+            point1.measurements = [];
+            point2.measurements = [];
+            delete point1.subscriptionId;
+            delete point2.subscriptionId;
+        }));
+
         beforeEach(function() {
             mocks.module('chartController');
-            spyOn( reefMock, "subscribeToMeasurementHistoryByUuid").andCallThrough()
-            spyOn( windowMock.document, "getElementById").andCallThrough()
             mocks.inject(function($rootScope, $controller, $timeout, $filter) {
                 scope = $rootScope.$new()
                 timeoutMock = $timeout
                 chartController = $controller('ChartController', {
-                    $scope: scope,
-                    $window: windowMock,
-                    reef: reefMock
+                    $scope: scope
                 })
             });
         });
 
         it( 'should create chart with point from opener window', function() {
-            expect( scope.chart.name).toBe( "somePointName")
+            expect( scope.chart.name).toBe( "point1")
+            expect( scope.loading).toBe( true)
 
+            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+                jasmine.any(Object),
+                point1.uuid,
+                jasmine.any(Number),
+                500,
+                jasmine.any(Function),
+                jasmine.any(Function)
+            )
+
+
+            // After timeout, call onResize and set chart size to window.
+            timeoutMock.flush()
+            expect( scope.loading).toBe( false)
+            expect( $window.document.getElementById).toHaveBeenCalledWith( 'chart-container')
+            expect( scope.chart.traits.width()).toEqual( 198)
+            expect( scope.chart.traits.height()).toEqual( 99)
+        })
+
+        it( 'should resize chart on window resize', function() {
+            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
+            // After timeout, call onResize and set chart size to window.
+            timeoutMock.flush()
+            expect( scope.loading).toBe( false)
+            expect( $window.document.getElementById).toHaveBeenCalledWith( 'chart-container')
+            expect( scope.chart.traits.width()).toEqual( 198)
+            expect( scope.chart.traits.height()).toEqual( 99)
+
+            $window.document.documentElement.clientWidth = 300
+            $window.document.documentElement.clientHeight = 200
+            $window.onresize()
+            expect( scope.chart.traits.width()).toEqual( 298)
+            expect( scope.chart.traits.height()).toEqual( 199)
+
+        })
+
+        it( 'should add newly dropped point', function() {
             // on resize
-            //expect( windowMock.getElementById).toHaveBeenCalled()
+            timeoutMock.flush()
+            expect( scope.loading).toBe( false)
 
-            //expect( authenticationMock.login).toHaveBeenCalledWith( "userName1", "password1", null, jasmine.any(Function))
+            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+                jasmine.any(Object),
+                point1.uuid,
+                jasmine.any(Number),
+                500,
+                jasmine.any(Function),
+                jasmine.any(Function)
+            )
+
+
+            reef.subscribeToMeasurementHistoryByUuid.reset()
+            scope.onDropPoint( point2.uuid)
+            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+                jasmine.any(Object),
+                point2.uuid,
+                jasmine.any(Number),
+                500,
+                jasmine.any(Function),
+                jasmine.any(Function)
+            )
         })
 
     });
