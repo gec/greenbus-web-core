@@ -58,9 +58,10 @@ trait RestServices extends ReefAuthentication {
     Ok( Json.toJson( service.getPoints().await))
   }
 
-  def getPoint( name: String) = ReefClientAction { (request, client) =>
+  def getPoint( uuid: String) = ReefClientAction { (request, client) =>
     val service = client.getService( classOf[PointService])
-    Ok( Json.toJson( service.getPointByName( name).await))
+    val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
+    Ok( Json.toJson( service.getPointByUuid( reefUuid).await))
   }
 
   /**
