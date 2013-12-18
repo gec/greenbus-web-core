@@ -16,7 +16,7 @@ object ApplicationBuild extends Build {
 
   lazy val baseSettings = Seq(
     version            := "0.1.0-SNAPSHOT",
-    // Need these scala versions or it tries Scala-2.9.2
+    // Need these scala versions or it tries the wrong version
     scalaVersion       := "2.10.3",
     //scalaBinaryVersion := "2.10",
     //crossScalaVersions := Seq("2.10.3"),
@@ -73,7 +73,6 @@ object ApplicationBuild extends Build {
     .settings(
       name := appName,
       libraryDependencies += "com.typesafe.play"  %% "play" % playVersion % "provided",
-//      libraryDependencies += "play" %% "play" % playVersion,
       libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion,
       libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % reefVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
@@ -89,7 +88,6 @@ object ApplicationBuild extends Build {
     .settings(
       name := appName + ".test",
       libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion,
-//      libraryDependencies += "play" %% "play-test" % playVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
       publishMavenStyle       := appPublishMavenStyle,
       publishArtifact in Test := appPublishArtifactInTest,
