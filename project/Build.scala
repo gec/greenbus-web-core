@@ -3,10 +3,13 @@ import sbt.Keys._
 import play.Project._
 import com.google.javascript.jscomp.{CompilerOptions, CompilationLevel}
 
+// See example at: https://github.com/t2v/play2-auth
+//
+
 object ApplicationBuild extends Build {
 
   val appName           = "coral"
-  val playVersion       = "2.1.1"
+  val playVersion       = "2.2.1"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
   val reefVersion       = "0.5.0-SNAPSHOT" // "0.4.8"
@@ -14,12 +17,13 @@ object ApplicationBuild extends Build {
   lazy val baseSettings = Seq(
     version            := "0.1.0-SNAPSHOT",
     // Need these scala versions or it tries Scala-2.9.2
-    scalaVersion       := "2.10.0",
+    scalaVersion       := "2.10.3",
     //scalaBinaryVersion := "2.10",
-    //crossScalaVersions := Seq("2.10.0"),
+    //crossScalaVersions := Seq("2.10.3"),
     organization       := "org.totalgrid.coral",
     scalacOptions += "-feature", // show compiler warnings for language features
     scalacOptions += "-unchecked", // compiler warnings for type aliases and ???
+    resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scala-tools" at "http://repo.typesafe.com/typesafe/scala-tools-releases-cache",
     credentials += Credentials( Path.userHome / ".ivy2" / ".credentials"),
     resolvers += "totalgrid-snapshot" at totalGridSnapshot,
@@ -68,7 +72,8 @@ object ApplicationBuild extends Build {
     .settings(baseSettings: _*)
     .settings(
       name := appName,
-      libraryDependencies += "play" %% "play" % playVersion,
+      libraryDependencies += "com.typesafe.play"  %% "play" % playVersion % "provided",
+//      libraryDependencies += "play" %% "play" % playVersion,
       libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion,
       libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % reefVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
@@ -83,7 +88,8 @@ object ApplicationBuild extends Build {
     .settings(baseSettings: _*)
     .settings(
       name := appName + ".test",
-      libraryDependencies += "play" %% "play-test" % playVersion,
+      libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion,
+//      libraryDependencies += "play" %% "play-test" % playVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
       publishMavenStyle       := appPublishMavenStyle,
       publishArtifact in Test := appPublishArtifactInTest,

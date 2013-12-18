@@ -22,6 +22,7 @@ import play.api.libs.json.{JsError, JsObject, JsValue}
 import akka.actor.ActorRef
 import play.api.libs.iteratee.Iteratee
 import play.api.Logger
+import play.api.libs.concurrent.Execution.Implicits._
 
 /**
  *
