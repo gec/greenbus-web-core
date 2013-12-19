@@ -43,28 +43,28 @@ trait LoginLogout extends Authentication {
   /**
    * Return the login page content
    */
-  def loginPageContent( request: RequestHeader): Result
+  def loginPageContent( request: RequestHeader): SimpleResult
 
   /**
    * Return the index page content
    */
-  def indexPageContent( request: RequestHeader): Result
+  def indexPageContent( request: RequestHeader): SimpleResult
 
   /**
    * Redirect the user to the index page (because they're already logged in).
    */
-  def redirectToIndex(request: RequestHeader, authToken: String): Result
+  def redirectToIndex(request: RequestHeader, authToken: String): SimpleResult
 
   /**
    * Redirect the user to the login page (because they're not logged in).
    */
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): SimpleResult
 
   /**
    * Ajax reply for successful login. Store the cookie so the index page
    * can pick it up.
    */
-  def loginSuccess(request: RequestHeader, authToken: String): Result = {
+  def loginSuccess(request: RequestHeader, authToken: String): SimpleResult = {
     Ok( Json.obj( authTokenName -> authToken))
       .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
   }
@@ -72,21 +72,21 @@ trait LoginLogout extends Authentication {
   /**
    * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginJsError(request: RequestHeader, error: JsError): Result
+  def loginJsError(request: RequestHeader, error: JsError): SimpleResult
 
   /**
    * Ajax reply for successful logout
    *
    * @see deleteLogin
    */
-  def logoutSuccess(request: RequestHeader): PlainResult
+  def logoutSuccess(request: RequestHeader): SimpleResult
 
   /**
    * Ajax reply for failed logout
    *
    * @see deleteLogin
    */
-  def logoutFailure(request: RequestHeader): PlainResult
+  def logoutFailure(request: RequestHeader): SimpleResult
 
 
   /**

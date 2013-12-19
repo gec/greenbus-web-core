@@ -82,7 +82,7 @@ trait Authentication {
   /**
    * Ajax reply for failed login or the user is not logged in and tries to access a protected resource.
    */
-  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): SimpleResult
 
 
   def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {

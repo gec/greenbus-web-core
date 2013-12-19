@@ -23,7 +23,7 @@ import org.specs2.mock.Mockito
 import org.mockito.Matchers._
 
 import play.api._
-import play.api.mvc.{Cookie, Result, RequestHeader, Controller}
+import play.api.mvc.{Cookie, Controller}
 import play.api.libs.concurrent.Execution.Implicits._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._

@@ -67,12 +67,11 @@ class ApplicationSpec extends Specification {
     
     "send 404 on a bad request" in {
       running(FakeApplication(path = new File("sample"), withGlobal = globalMock) ) {
+
         val result = route(FakeRequest(GET, "/boum"))
         result match {
           case Some( noPage) =>
-            whenReady( noPage.asInstanceOf[AsyncResult].result) { r =>
-              status(r) must equalTo(NOT_FOUND)
-            }
+            status( noPage) must equalTo(NOT_FOUND)
           case None =>
             failure( "This used to be the expected failure")
         }
@@ -141,17 +140,13 @@ class ApplicationSpec extends Specification {
             .withCookies( Cookie(cookieName, authTokenGood))
         ).getOrElse( failure( "No result from GET /entities"))
 
-        whenReady( resultAsync.asInstanceOf[AsyncResult].result) { resultAsync2 =>
-          whenReady( resultAsync2.asInstanceOf[AsyncResult].result) { result =>
-            status(result) must equalTo(OK)
-            contentType(result) must beSome.which(_ == "application/json")
+        status(resultAsync) must equalTo(OK)
+        contentType(resultAsync) must beSome.which(_ == "application/json")
+        val json = Json.parse( contentAsString(resultAsync)).as[JsArray]
+        json.value.length == 1 must beTrue
+        (json(0) \ "name").as[String] mustEqual "entity1"
+        (json(0) \ "uuid").as[String] mustEqual "uuid1"
 
-            val json = Json.parse( contentAsString(result)).as[JsArray]
-            json.value.length == 1 must beTrue
-            (json(0) \ "name").as[String] mustEqual "entity1"
-            (json(0) \ "uuid").as[String] mustEqual "uuid1"
-          }
-        }
       }
     }
 
@@ -163,16 +158,13 @@ class ApplicationSpec extends Specification {
             .withCookies( Cookie(cookieName, authTokenBad))
         ).getOrElse( failure( "No result from GET /entities"))
 
-        whenReady( resultAsync.asInstanceOf[AsyncResult].result) { resultAsync2 =>
-          whenReady( resultAsync2.asInstanceOf[AsyncResult].result) { result =>
-            status(result) must equalTo(UNAUTHORIZED)
-            contentType(result) must beSome.which(_ == "application/json")
+        status(resultAsync) must equalTo(UNAUTHORIZED)
+        contentType(resultAsync) must beSome.which(_ == "application/json")
 
-            val json = Json.parse( contentAsString(result))
-            val error = (json \ "error")
-            (error \ "name").as[String] mustEqual "AUTHENTICATION_FAILURE"
-          }
-        }
+        val json = Json.parse( contentAsString(resultAsync))
+        val error = (json \ "error")
+        (error \ "name").as[String] mustEqual "AUTHENTICATION_FAILURE"
+
       }
     }
 

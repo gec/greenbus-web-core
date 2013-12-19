@@ -23,13 +23,13 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits._
+//import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
 import akka.pattern.ask
 import org.totalgrid.reef.client.Client
 import org.totalgrid.coral.models._
 import akka.util.Timeout
-
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   self: Controller =>
@@ -88,24 +88,22 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
    * @param action
    * @return
    */
-  def AuthenticatedPageAction( action: (Request[AnyContent], Client) => Result): Action[AnyContent] = {
-    Action { request =>
-      Async {
-        authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
-          case Some( ( authToken, serviceClient)) =>
-            Logger.debug( "AuthenticatedPageAction " + request + " authenticateRequest authenticated")
-            try {
-              action( request, serviceClient)
-                .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
-            } catch {
-              case ex: org.totalgrid.reef.client.exception.UnauthorizedException => redirectToLogin( request, AuthenticationFailure(AUTHENTICATION_FAILURE))
-              case ex: org.totalgrid.reef.client.exception.ReefServiceException => redirectToLogin( request, AuthenticationFailure(REEF_FAILURE))
-            }
-          case None =>
-            // No authToken found or invalid authToken
-            Logger.debug( "AuthenticatedPageAction " + request + " redirectToLogin (because no authToken or invalid authToken)")
-            redirectToLogin( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
-        }
+  def AuthenticatedPageAction( action: (Request[AnyContent], Client) => SimpleResult): Action[AnyContent] = {
+    Action.async { request =>
+      authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
+        case Some( ( authToken, serviceClient)) =>
+          Logger.debug( "AuthenticatedPageAction " + request + " authenticateRequest authenticated")
+          try {
+            action( request, serviceClient)
+              .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
+          } catch {
+            case ex: org.totalgrid.reef.client.exception.UnauthorizedException => redirectToLogin( request, AuthenticationFailure(AUTHENTICATION_FAILURE))
+            case ex: org.totalgrid.reef.client.exception.ReefServiceException => redirectToLogin( request, AuthenticationFailure(REEF_FAILURE))
+          }
+        case None =>
+          // No authToken found or invalid authToken
+          Logger.debug( "AuthenticatedPageAction " + request + " redirectToLogin (because no authToken or invalid authToken)")
+          redirectToLogin( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
       }
     }
   }
@@ -113,23 +111,21 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   /**
    * Action for Ajax request.
    */
-  def ReefClientAction( action: (Request[AnyContent], Client) => Result): Action[AnyContent] = {
-    Action { request =>
-      Async {
-        authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
-          case Some( ( token, serviceClient)) =>
-            Logger.debug( "ReefClientAction " + request + " authenticated")
-            try {
-              action( request, serviceClient)
-            } catch {
-              case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
-              case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailure( request, AuthenticationFailure( REEF_FAILURE))
-            }
-          case None =>
-            // No authToken found or invalid authToken
-            Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
-            authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
-        }
+  def ReefClientAction( action: (Request[AnyContent], Client) => SimpleResult): Action[AnyContent] = {
+    Action.async { request =>
+      authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
+        case Some( ( token, serviceClient)) =>
+          Logger.debug( "ReefClientAction " + request + " authenticated")
+          try {
+            action( request, serviceClient)
+          } catch {
+            case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
+            case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailure( request, AuthenticationFailure( REEF_FAILURE))
+          }
+        case None =>
+          // No authToken found or invalid authToken
+          Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
+          authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
       }
     }
   }

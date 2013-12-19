@@ -7,7 +7,7 @@ tmp
 dist
 etc
 /.idea
-/*.iml
+*.iml
 /out
 /.idea_modules
 /.classpath
