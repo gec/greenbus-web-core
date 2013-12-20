@@ -12,10 +12,11 @@ object ApplicationBuild extends Build {
   val playVersion       = "2.2.1"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
-  val reefVersion       = "0.5.0-SNAPSHOT" // "0.4.8"
+  val reefVersion       = "0.6.0.M2-SNAPSHOT" // "0.5.0-SNAPSHOT"
+  val msgVersion       = "0.0.1-SNAPSHOT"
 
   lazy val baseSettings = Seq(
-    version            := "0.1.0-SNAPSHOT",
+    version            := "0.2.0-SNAPSHOT",
     // Need these scala versions or it tries the wrong version
     scalaVersion       := "2.10.3",
     //scalaBinaryVersion := "2.10",
@@ -74,7 +75,7 @@ object ApplicationBuild extends Build {
       name := appName,
       libraryDependencies += "com.typesafe.play"  %% "play" % playVersion % "provided",
       libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion,
-      libraryDependencies += "org.totalgrid.reef" % "reef-service-client" % reefVersion,
+      libraryDependencies += "org.totalgrid.msg" % "msg-qpid" % msgVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
       publishMavenStyle       := appPublishMavenStyle,
       publishArtifact in Test := appPublishArtifactInTest,
