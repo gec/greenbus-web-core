@@ -105,7 +105,7 @@ trait Authentication {
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
         getService( authToken, validationTiming).map {
-          case Right( service) => Some((authToken, service))
+          case Right( session) => Some((authToken, session))
           case Left( failure) => None
         }
       case None => Future(None)

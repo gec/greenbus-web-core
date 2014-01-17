@@ -42,12 +42,12 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   var reefConnectionManager: ActorRef = null
   def connectionManager: ActorRef = reefConnectionManager
 
-  def index = AuthenticatedPageAction { (request, client) =>
+  def index = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.index")
     Ok(views.html.index("Coral Sample"))
   }
 
-  def chart = AuthenticatedPageAction { (request, client) =>
+  def chart = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.chart")
     Ok(views.html.chart("Coral Sample"))
   }

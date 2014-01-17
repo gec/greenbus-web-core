@@ -18,7 +18,8 @@
  */
 package org.totalgrid.coral.models
 
-import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
+import org.totalgrid.reef.client.service.proto.Model.Entity
+import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 
 /**
  *

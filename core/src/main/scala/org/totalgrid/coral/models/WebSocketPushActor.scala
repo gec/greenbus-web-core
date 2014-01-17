@@ -30,6 +30,10 @@ import org.totalgrid.reef.client.service.proto.Measurements.Measurement
 import org.totalgrid.reef.client.service.proto.Events.Event
 import com.google.protobuf.GeneratedMessage
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+import org.totalgrid.msg.Session
+import org.totalgrid.reef.client.service.MeasurementService
+import scala.concurrent.Await
+import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 
 ///import scala.collection.JavaConversions._
 import scala.concurrent.duration._
@@ -105,15 +109,15 @@ object WebSocketPushActor {
  *
  * @author Flint O'Brien
  */
-class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient : Option[Client], aPushChannel: Concurrent.Channel[JsValue]) extends Actor  {
+class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession : Session, aPushChannel: Concurrent.Channel[JsValue]) extends Actor  {
 
   import WebSocketPushActor._
   import ReefConnectionManager._
   import JsonFormatters._
 
   var clientStatus = initialClientStatus
-  var client : Option[Client] = initialClient
-  var service : Option[AllScadaService] = client.map( _.getService(classOf[AllScadaService]))
+  var session : Option[Session] = Some( initialSession)
+  //var service : Option[AllScadaService] = session.map( _.getService(classOf[AllScadaService]))
 
   val pushChannel = aPushChannel
 
@@ -121,11 +125,11 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
 
   def receive = {
 
-    case UpdateClient( clientStatus, client) => {
-      Logger.info( "WebSocketPushActor receive UpdateClient " + clientStatus)
-      this.clientStatus = clientStatus
-      this.client = client
-      // TODO: client is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef client.
+    case UpdateConnection( connectionStatus, session) => {
+      Logger.info( "WebSocketPushActor receive UpdateClient " + connectionStatus)
+      this.clientStatus = connectionStatus
+      this.session = session
+      // TODO: session is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef session.
     }
 
     case subscribe: SubscribeToMeasurementsByNames =>
@@ -217,17 +221,32 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialClient :
   }
 
   def subscribeToMeasurementsHistoryByUuid( subscribe: SubscribeToMeasurementHistoryByUuid) = {
-    if( service.isDefined) {
+    if( session.isDefined) {
+      val service = MeasurementService.client( session.get)
       Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryByUuid " + subscribe.id)
       val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
-      val result = service.get.subscribeToMeasurementHistoryByUuid( uuid, subscribe.since, subscribe.limit).await
-//      val subscription = subscriptionHandler[Measurement]( result, subscribe.id, measurementPushWrites)
+      val uuids = Seq( uuid)
+      //val result = service.subscribeWithCurrentValue( uuids) //, subscribe.since, subscribe.limit).await
+
+      val (result, subscription) = Await.result( service.subscribeWithCurrentValue( uuids), 5000.milliseconds)
+      val currentMeasurementTime = result(0).getValue.getTime
+      val query = MeasurementHistoryQuery.newBuilder()
+        .setPointUuid( uuid)
+        .setWindowEnd( currentMeasurementTime)
+        .setLimit( subscribe.limit)
+        .setLatest( true)
+        .build
+
+      val values = Await.result( service.getHistory( query), 5000.milliseconds)
 
       // Push all the results in one message and don't reverse.
-      pushChannel.push( measurementsPushWrites.writes( subscribe.id, result.getResult))
+      pushChannel.push( measurementsPushWrites.writes( subscribe.id, values.))
 
       // Push subscription results as they come in.
-      val subscription = result.getSubscription
+      subscription.start { measNotification =>
+        widths.set(SimpleMeasurementView.printRows(List((measNotification.getValue, measNotification.getPointName)), widths.get()))
+      }
+
       subscription.start(new SubscriptionEventAcceptor[Measurement] {
         def onEvent(event: SubscriptionEvent[Measurement]) {
           pushChannel.push( measurementPushWrites.writes( subscribe.id, event.getValue))

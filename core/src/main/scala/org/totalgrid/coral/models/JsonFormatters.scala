@@ -19,14 +19,14 @@
 package org.totalgrid.coral.models
 
 import play.api.libs.json._
-import org.totalgrid.reef.client.service.proto.Model.{Command, Point, Entity}
+import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Events.Event
-import org.totalgrid.reef.client.service.proto.Alarms.Alarm
+import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
 import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
-import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
-import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
+//import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
+//import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
+import org.totalgrid.reef.client.service.proto.FrontEnd.{Point, Endpoint, Command}
 
 /**
  *
@@ -119,7 +119,7 @@ object JsonFormatters {
       Json.obj(
         "name" -> o.getName,
         "uuid" -> o.getUuid.getValue,
-        "permissions" -> o.getPermissionSetsList.map( _.getName).toList
+        "permissions" -> o.getPermissionSetsList.toList
       )
   }
 
@@ -132,11 +132,11 @@ object JsonFormatters {
     }
     def writes( o: Permission): JsValue =
       Json.obj(
-        "id" -> o.getId.getValue,
+        //"id" -> o.getId.getValue,
         "allow" -> o.getAllow,
-        "actions" -> o.getVerbList.toList,
-        "resources" -> o.getResourceList.toList,
-        "selectors" -> o.getSelectorList.map( selectorString).toList
+        "actions" -> o.getActionsList.toList,
+        "resources" -> o.getResourcesList.toList,
+        "selectors" -> o.getSelectorsList.map( selectorString).toList
       )
   }
 
@@ -164,18 +164,18 @@ object JsonFormatters {
   }
 
   // TODO: ApplicationConfig proto should be renamed to Application
-  implicit val applicationConfigWrites = new Writes[ApplicationConfig] {
-    def writes( o: ApplicationConfig): JsValue =
-      Json.obj(
-        "name" -> o.getInstanceName,
-        "uuid" -> o.getUuid.getValue,
-        "version" -> o.getVersion,
-        "timesOutAt" -> o.getTimesOutAt,
-        "online" -> o.getOnline,
-        "agent" -> o.getUserName,
-        "capabilities" -> o.getCapabilitesList.toList
-      )
-  }
+//  implicit val applicationConfigWrites = new Writes[ApplicationConfig] {
+//    def writes( o: ApplicationConfig): JsValue =
+//      Json.obj(
+//        "name" -> o.getInstanceName,
+//        "uuid" -> o.getUuid.getValue,
+//        "version" -> o.getVersion,
+//        "timesOutAt" -> o.getTimesOutAt,
+//        "online" -> o.getOnline,
+//        "agent" -> o.getUserName,
+//        "capabilities" -> o.getCapabilitesList.toList
+//      )
+//  }
 
   implicit val entityWrites = new Writes[Entity] {
     def writes( o: Entity): JsValue =
@@ -193,44 +193,44 @@ object JsonFormatters {
         "uuid" -> o.getUuid.getValue,
         "commandType" -> o.getType.name,
         "displayName" -> o.getDisplayName,
-        "endpoint" -> o.getEndpoint.getName
+        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
   }
 
-  implicit val commChannelWrites = new Writes[CommChannel] {
-    def writes( o: CommChannel): JsValue =
-      Json.obj(
-        "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "state" -> o.getState.toString
-      )
-  }
+//  implicit val commChannelWrites = new Writes[CommChannel] {
+//    def writes( o: CommChannel): JsValue =
+//      Json.obj(
+//        "name" -> o.getName,
+//        "uuid" -> o.getUuid.getValue,
+//        "state" -> o.getState.toString
+//      )
+//  }
 
   implicit val endpointWrites = new Writes[Endpoint] {
     def writes( o: Endpoint): JsValue =
       Json.obj(
         "name" -> o.getName,
         "uuid" -> o.getUuid.getValue,
-        "protocol" -> o.getProtocol,
-        "autoAssigned" -> o.getAutoAssigned,
-        "channel" -> o.getChannel
+        "protocol" -> o.getProtocol//,
+//        "autoAssigned" -> o.getAutoAssigned,
+//        "channel" -> o.getChannel
       )
   }
 
-  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
-    def writes( o: EndpointConnection): JsValue = {
-      val ep = o.getEndpoint
-      Json.obj(
-        "name" -> ep.getName,
-        "id" -> o.getId.getValue,
-        "state" -> o.getState.toString,
-        "enabled" -> o.getEnabled,
-        "endpoint" -> o.getEndpoint,
-        "fep" -> o.getFrontEnd.getAppConfig.getInstanceName,
-        "routed" -> o.getRouting.hasServiceRoutingKey
-      )
-    }
-  }
+//  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
+//    def writes( o: EndpointConnection): JsValue = {
+//      val ep = o.getEndpoint
+//      Json.obj(
+//        "name" -> ep.getName,
+//        "id" -> o.getId.getValue,
+//        "state" -> o.getState.toString,
+//        "enabled" -> o.getEnabled,
+//        "endpoint" -> o.getEndpoint,
+//        "fep" -> o.getFrontEnd.getAppConfig.getInstanceName,
+//        "routed" -> o.getRouting.hasServiceRoutingKey
+//      )
+//    }
+//  }
 
 
   implicit val measurementWrites = new Writes[Measurement] {
@@ -243,8 +243,8 @@ object JsonFormatters {
         case Measurement.Type.NONE => "" // or perhaps JsNull?
       }
       Json.obj(
-        "name" -> o.getName,
-        "pointUuid" -> o.getPointUuid.getValue,
+        //"name" -> o.getName,
+        //"pointUuid" -> o.getPointUuid.getValue,
         "value" -> measValue.toString,
         "type" -> o.getType.toString,
         "unit" -> o.getUnit,
@@ -271,8 +271,8 @@ object JsonFormatters {
         "eventType" -> o.getEventType,
         "alarm" -> o.getAlarm,
         "severity" -> o.getSeverity,
-        "agent" -> o.getUserId,
-        "entity" -> o.getEntity.getName,
+        "agent" -> o.getAgent,
+        "entity" -> o.getEntity.getValue, // TODO: need entity name
         "message" -> o.getRendered,
         "time" -> o.getTime
       )
@@ -298,7 +298,7 @@ object JsonFormatters {
         "uuid" -> o.getUuid.getValue,
         "valueType" -> o.getType.name,
         "unit" -> o.getUnit,
-        "endpoint" -> o.getEndpoint.getName
+        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
   }
 
@@ -309,7 +309,7 @@ object JsonFormatters {
         "uuid" -> o.point.getUuid.getValue,
         "valueType" -> o.point.getType.name,     // ANALOG, COUNTER, STATUS
         "unit" -> o.point.getUnit,
-        "endpoint" -> o.point.getEndpoint.getName,
+        "endpoint" -> o.point.getEndpointUuid.getValue,  // TODO: get EndpointName
         "types" -> o.types
       )
   }

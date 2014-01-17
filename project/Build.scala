@@ -74,7 +74,7 @@ object ApplicationBuild extends Build {
     .settings(
       name := appName,
       libraryDependencies += "com.typesafe.play"  %% "play" % playVersion % "provided",
-      libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion,
+      libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion withSources(),
       libraryDependencies += "org.totalgrid.msg" % "msg-qpid" % msgVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
       publishMavenStyle       := appPublishMavenStyle,
