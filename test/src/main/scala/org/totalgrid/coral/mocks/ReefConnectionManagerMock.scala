@@ -43,9 +43,9 @@ class ReefConnectionManagerMock extends Actor {
 
     case LogoutRequest( authToken) =>
 
-    case ServiceClientRequest( authToken, validation) =>
+    case SessionRequest( authToken, validation) =>
       if( ! authToken.toLowerCase.startsWith( "bad"))
-        sender ! ClientMock.client
+        sender ! SessionMock.session
       else
         sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
 

@@ -30,7 +30,7 @@ object AuthenticationMessages {
   import ValidationTiming._
 
   case class AuthenticationFailure( status: ConnectionStatus)
-  case class ServiceClientRequest( authToken: String, validationTiming: ValidationTiming)
+  case class SessionRequest( authToken: String, validationTiming: ValidationTiming)
   case class ServiceClientFailure( status: ConnectionStatus)
 }
 

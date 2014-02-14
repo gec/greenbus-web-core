@@ -47,11 +47,11 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
 
         // NOTE: messages sent to pushActor are actually JsResult[T]
 
-        case "subscribeToMeasurementsByNames" =>
-          subscribeToMeasurementsByNamesReads.reads( data)
-            .map( request => pushActor ! request)
-            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementsByNames", jsError))
-
+//        case "subscribeToMeasurementsByNames" =>
+//          subscribeToMeasurementsByNamesReads.reads( data)
+//            .map( request => pushActor ! request)
+//            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementsByNames", jsError))
+//
         case "subscribeToMeasurementHistoryByUuid" =>
           subscribeToMeasurementHistoryByUuidReads.reads( data)
             .map( request => pushActor ! request)

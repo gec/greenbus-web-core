@@ -22,7 +22,8 @@ import play.api.libs.json._
 import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
-import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
+import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValues, PointMeasurementValue, Quality, Measurement}
+
 //import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
 //import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
@@ -257,11 +258,34 @@ object JsonFormatters {
   lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
 
 
-  implicit val measurementsWrites = new Writes[List[Measurement]] {
-    def writes( o: List[Measurement]): JsValue = Json.toJson( o)
+//  implicit val measurementValuesWrites = new Writes[List[Measurement]] {
+//    def writes( o: List[Measurement]): JsValue = Json.toJson( o)
+//  }
+
+  /**
+   * One point with many values
+   */
+  implicit val measurementsWrites = new Writes[PointMeasurementValues] {
+    def writes( o: PointMeasurementValues): JsValue = {
+      Json.obj(
+        "pointUuid" -> o.getPoint.getValue,
+        "measurements" -> o.getValueList.toList
+      )
+    }
   }
   lazy val measurementsPushWrites = new PushWrites( "measurements", measurementsWrites)
 
+  /**
+   * Seq of PointMeasurementValue. Each measurement is for a different point
+   */
+  implicit val pointMeasurementWrites = new Writes[PointMeasurementValue] {
+    def writes( o: PointMeasurementValue): JsValue = {
+      Json.obj(
+        "pointUuid" -> o.getPoint.getValue,
+        "measurement" -> o.getValue
+      )
+    }
+  }
 
   implicit val eventWrites = new Writes[Event] {
     def writes( o: Event): JsValue = {

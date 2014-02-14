@@ -37,6 +37,7 @@ import org.totalgrid.reef.client.service.{EntityService, LoginService}
 import org.totalgrid.reef.client.service.proto.LoginRequests
 import org.totalgrid.reef.client.service.proto.EntityRequests.EntityKeySet
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+import java.util.UUID
 
 
 object ReefConnectionManager {
@@ -95,7 +96,7 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
   def receive = {
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
-    case ServiceClientRequest( authToken, validationTiming) => serviceClientRequest( authToken, validationTiming)
+    case SessionRequest( authToken, validationTiming) => sessionRequest( authToken, validationTiming)
     case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
     case ChildActorStop( childActor) =>
       context.unwatch( childActor)
@@ -109,7 +110,8 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     val (status, session) = loginReefSession( userName, password)
 
     if( status == UP & session.isDefined) {
-      session.get.headers.get( "AuthToken") match {
+
+      session.get.headers.get( ReefConnection.tokenHeader) match {
         case Some( authToken) =>
           //authTokenToSession += ( authToken -> session.get )
           Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
@@ -166,7 +168,7 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
    * Since this is an extra round trip call to the service, it should only be used when it's
    * absolutely necessary to validate the authToken -- like when first showing the index page.
    */
-  private def serviceClientRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
+  private def sessionRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
 
     if( connectionStatus != AMQP_UP || !connection.isDefined) {
       Logger.debug( "ReefConnectionManager.serviceClientRequest AMQP is not UP or connection not defined: " + connectionStatus)
@@ -252,10 +254,12 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
    */
   private def maybePrevalidateAuthToken( session: Session, validationTiming: ValidationTiming) = {
     if( validationTiming == PREVALIDATED) {
+      Logger.info( "ReefConnectionManager: maybePrevalidateAuthToken validationTiming == PREVALIDATED")
       val service = EntityService.client( session)
-      val uuid = ReefUUID.newBuilder().setValue( "Just checking if this session is authorized.")
+//TODO: use new validate method      val uuid = ReefUUID.newBuilder().setValue( "Just checking if this session is authorized.")
+      val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
       // TODO: use a future
-      Await.result( service.get(EntityKeySet.newBuilder().addUuids( uuid).build), 5000.milliseconds)
+      val e = Await.result( service.get(EntityKeySet.newBuilder().addUuids( uuid).build), 5000.milliseconds)
     }
   }
 

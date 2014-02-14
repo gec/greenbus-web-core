@@ -34,6 +34,8 @@ import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmQuery, EventQ
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointQuery
 import org.totalgrid.reef.client.service.proto.FrontEnd.Point
+import scala.concurrent.ExecutionContext.Implicits._
+
 
 // for postfix 'seconds'
 
@@ -51,6 +53,8 @@ trait RestServices extends ReefAuthentication {
   import org.totalgrid.coral.models.ReefExtensions._
 
   val timeout = 5000.milliseconds
+  val JSON_EMPTY_ARRAY = Json.toJson( Seq[JsValue]())
+  val JSON_EMPTY_OBJECT = Json.toJson( Json.obj())
 
   def getEntities( types: List[String]) = ReefClientActionAsync { (request, session) =>
     val service = EntityService.client(session)
@@ -79,7 +83,7 @@ trait RestServices extends ReefAuthentication {
     //last.foreach(query.setLastUuid)
 
     service.entityQuery( query.build).flatMap {
-      case Seq.empty => Future.successful( Ok( Seq()))
+      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
       case pointEnts =>
         val frontEndService = FrontEndService.client( session)
         val reefUuids = pointEnts.map(_.getUuid)
@@ -95,7 +99,7 @@ trait RestServices extends ReefAuthentication {
     val keys = EntityKeySet.newBuilder().addUuids( reefUuid).build()
 
     service.getPoints( keys).map{
-      case Seq.empty => Ok( Json.toJson( Nil)) // TODO: error message?  The client just expects a point object
+      case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a point object
       case points => Ok( Json.toJson( points(0)))
     }
   }
@@ -112,11 +116,11 @@ trait RestServices extends ReefAuthentication {
     //last.foreach(query.setLastUuid)
 
     service.entityQuery( query.build).flatMap {
-      case Seq.empty => Future.successful( Ok( Seq()))
+      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY))
       case pointEnts =>
         val measService = MeasurementService.client( session)
         val reefUuids = pointEnts.map(_.getUuid)
-        measService.getCurrentValue( reefUuids).map{ result => Ok( Json.toJson( result)) }
+        measService.getCurrentValue( reefUuids).map{ result => Ok( Json.toJson( result.toList)) }
     }
   }
 
@@ -127,7 +131,7 @@ trait RestServices extends ReefAuthentication {
     //last.foreach(query.setLastUuid)
 
     service.entityQuery( query.build).flatMap {
-      case Seq.empty => Future.successful( Ok( Seq()))
+      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY))
       case pointEnts =>
         val frontEndService = FrontEndService.client( session)
         val reefUuids = pointEnts.map(_.getUuid)
@@ -141,7 +145,7 @@ trait RestServices extends ReefAuthentication {
     val service = FrontEndService.client( session)
     val keys = EntityKeySet.newBuilder().addNames( name).build()
     service.getCommands( keys).map{
-      case Seq.empty => Ok( Json.toJson( Nil)) // TODO: error message?  The client just expects a command object
+      case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a command object
       case result => Ok( Json.toJson( result(0))) }
   }
 
@@ -176,56 +180,64 @@ trait RestServices extends ReefAuthentication {
     val query = EndpointQuery.newBuilder().setAll( true) //.setPageSize(pageSize)
     service.endpointQuery( query.build()).map{ result => Ok( Json.toJson(result)) }
   }
-/*
+
   def getEndpointConnections = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[EndpointService])
-    Ok( Json.toJson( service.getEndpointConnections().await))
+//    val service = client.getService( classOf[EndpointService])
+//    Ok( Json.toJson( service.getEndpointConnections().await))
+    Ok( Json.toJson( JSON_EMPTY_ARRAY))
   }
 
   def getEndpointConnection( name: String) = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[EndpointService])
-    Ok( Json.toJson( service.getEndpointConnectionByEndpointName( name).await))
+//    val service = client.getService( classOf[EndpointService])
+//    Ok( Json.toJson( service.getEndpointConnectionByEndpointName( name).await))
+    Ok( Json.toJson( JSON_EMPTY_OBJECT))
   }
 
   def getApplications = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[ApplicationService])
-    Ok( Json.toJson( service.getApplications.await))
+//    val service = client.getService( classOf[ApplicationService])
+//    Ok( Json.toJson( service.getApplications.await))
+    Ok( Json.toJson( JSON_EMPTY_ARRAY))
   }
 
   def getApplication( name: String) = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[ApplicationService])
-    Ok( Json.toJson( service.getApplicationByName( name).await))
+//    val service = client.getService( classOf[ApplicationService])
+//    Ok( Json.toJson( service.getApplicationByName( name).await))
+    Ok( Json.toJson( JSON_EMPTY_OBJECT))
   }
 
   def getAgents = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[AgentService])
-    Ok( Json.toJson( service.getAgents.await))
+//    val service = client.getService( classOf[AgentService])
+//    Ok( Json.toJson( service.getAgents.await))
+    Ok( Json.toJson( JSON_EMPTY_ARRAY))
   }
 
   def getAgent( name: String) = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[AgentService])
-    Ok( Json.toJson( service.getAgentByName( name).await))
+//    val service = client.getService( classOf[AgentService])
+//    Ok( Json.toJson( service.getAgentByName( name).await))
+    Ok( Json.toJson( JSON_EMPTY_OBJECT))
   }
 
   def getPermissionSet( name: String) = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[AgentService])
-    Ok( Json.toJson( service.getPermissionSet( name).await))
+//    val service = client.getService( classOf[AgentService])
+//    Ok( Json.toJson( service.getPermissionSet( name).await))
+    Ok( Json.toJson( JSON_EMPTY_OBJECT))
   }
 
   def getPermissionSets = ReefClientAction { (request, session) =>
-    val service = client.getService( classOf[AgentService])
-    val permissionSets = service.getPermissionSets.await
-    Ok( Json.toJson( permissionSets.map( permissionSetSummaryWrites.writes)))
+//    val service = client.getService( classOf[AgentService])
+//    val permissionSets = service.getPermissionSets.await
+//    Ok( Json.toJson( permissionSets.map( permissionSetSummaryWrites.writes)))
+    Ok( Json.toJson( JSON_EMPTY_ARRAY))
   }
-*/
+
 
   /**
    * Get Equipment by types with child Points by types
    */
-  /*
+
   def getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String]) = ReefClientAction { (request, session) =>
     Logger.info( "getEquipmentWithPointsByType( " + eqTypes + ", " + pointTypes + ")")
-
+/*
     val entityService = client.getService( classOf[EntityService])
     val eTreesWithRelationsWithPoints = getEntityTreesForEquipmentWithPointsByType( entityService, eqTypes, pointTypes)
     val equipmentsWithPointEntities = eTreesWithRelationsWithPoints.map( eTree => EquipmentWithPointEntities(eTree, eTree.getRelations(0).getEntitiesList.toList))
@@ -250,8 +262,10 @@ trait RestServices extends ReefAuthentication {
     //    }
 
     Ok( Json.toJson( equipmentsWithPoints))
+*/
+    Ok( Json.toJson( JSON_EMPTY_ARRAY))
   }
-
+/*
   private def getEntityTreesForEquipmentWithPointsByType( service: EntityService, eqTypes: List[String], pointTypes: List[String]) = {
     // Build up a structure: enity(type==eqTypes) -> "owns" -> enity(type=pointTypes)
     val point = Entity.newBuilder()
