@@ -17,7 +17,7 @@ GET        /menus/:name                        controllers.Application.getMenus(
 GET        /coral/menus/:name                  controllers.Application.getCoralMenus( name: String)
 
 GET        /entities                           controllers.Application.getEntities( types: List[String])
-GET        /entities/:name                     controllers.Application.getEntity( name: String)
+GET        /entities/:uuid                     controllers.Application.getEntity( uuid: String)
 
 GET        /points/:uuid                       controllers.Application.getPoint( uuid: String)
 GET        /points                             controllers.Application.getPoints

@@ -154,8 +154,8 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     }
   }
 
-  private def sessionFromAuthToken( authToken: String): Session = {
-    val session = connection.get.session.spawn
+  private def sessionFromAuthToken( authToken: String): CoralSession = {
+    val session = new CoralSession( connection.get.session.spawn)
     session.addHeader( ReefConnection.tokenHeader, authToken)
     session
   }

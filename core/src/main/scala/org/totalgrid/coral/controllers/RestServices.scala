@@ -57,7 +57,8 @@ trait RestServices extends ReefAuthentication {
   val JSON_EMPTY_OBJECT = Json.toJson( Json.obj())
 
   def getEntities( types: List[String]) = ReefClientActionAsync { (request, session) =>
-    val service = EntityService.client(session)
+
+    val service = session.entityService
     val query = EntityRequests.EntityQuery.newBuilder()
 
     types.length match {
@@ -69,15 +70,16 @@ trait RestServices extends ReefAuthentication {
     service.entityQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
 
-  def getEntity( name: String) = ReefClientActionAsync { (request, session) =>
-    val service = EntityService.client(session)
-    val query = EntityKeySet.newBuilder().addNames(name)
+  def getEntity( uuid: String) = ReefClientActionAsync { (request, session) =>
+    val service = session.entityService
+    val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
+    val query = EntityKeySet.newBuilder().addUuids(reefUuid)
 
     service.get( query.build).map{ result => Ok( Json.toJson(result)) }
   }
 
   def getPoints = ReefClientActionAsync { (request, session) =>
-    val service = EntityService.client(session)
+    val service = session.entityService
     val query = EntityRequests.EntityQuery.newBuilder()
     query.addIncludeTypes("Point")  //.setPageSize(pageSize)
     //last.foreach(query.setLastUuid)
@@ -110,7 +112,7 @@ trait RestServices extends ReefAuthentication {
    */
   def getMeasurements = ReefClientActionAsync { (request, session) =>
 
-    val service = EntityService.client(session)
+    val service = session.entityService
     val query = EntityRequests.EntityQuery.newBuilder()
     query.addIncludeTypes("Point")  //.setPageSize(pageSize)
     //last.foreach(query.setLastUuid)
@@ -125,7 +127,7 @@ trait RestServices extends ReefAuthentication {
   }
 
   def getCommands = ReefClientActionAsync { (request, session) =>
-    val service = EntityService.client(session)
+    val service = session.entityService
     val query = EntityRequests.EntityQuery.newBuilder()
     query.addIncludeTypes("Command")  //.setPageSize(pageSize)
     //last.foreach(query.setLastUuid)

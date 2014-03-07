@@ -4,6 +4,8 @@ import org.totalgrid.msg.{Subscription, Session}
 import play.api.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
+import org.totalgrid.reef.client.service.EntityService
+import org.totalgrid.coral.models.CoralSession
 
 object SessionMock {
   val session = new SessionMock
@@ -13,13 +15,17 @@ object SessionMock {
   var response: Array[Byte] = null
   var subscription: Subscription[Array[Byte]] = null
 
+  val entityServiceMock = new EntityServiceMock
 }
 /**
  *
  * @author Flint O'Brien
  */
-class SessionMock extends Session {
+class SessionMock extends CoralSession(null)  {
   import SessionMock._
+
+  override lazy val entityService: EntityService =  entityServiceMock
+
 
   override def clearHeaders(): Unit = headerMap.clear
 
@@ -47,5 +53,6 @@ class SessionMock extends Session {
   override def subscribe(requestId: String, headers: Map[String, String], destination: Option[String], payload: Array[Byte]): Future[(Array[Byte], Subscription[Array[Byte]])] = {
     Future( ( response, subscription))
   }
+
 
 }

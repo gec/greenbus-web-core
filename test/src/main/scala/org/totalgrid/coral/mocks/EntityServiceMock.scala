@@ -2,8 +2,12 @@ package org.totalgrid.coral.mocks
 
 import org.totalgrid.reef.client.service.{ EntityService}
 import scala.concurrent.Future
+import scala.collection.JavaConversions._
+import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.Logger
-import org.totalgrid.reef.client.service.proto.Model.{Entity, ReefUUID}
+import org.totalgrid.reef.client.service.proto.Model.{EntityEdge, Entity, ReefUUID}
+import org.totalgrid.reef.client.service.proto.EntityRequests._
+import org.totalgrid.msg.Subscription
 
 object EntityServiceMock {
 
@@ -20,10 +24,11 @@ object EntityServiceMock {
 
   def makeUuid( uuid: String) = ReefUUID.newBuilder.setValue( uuid ).build();
 
-  def makeEntity( uuid: String, name: String) = {
+  def makeEntity( uuid: String, name: String, typ: String) = {
     Entity.newBuilder
       .setName( name)
       .setUuid( makeUuid( uuid))
+      .addTypes( typ)
       .build
   }
   def makeEntity( uuid: ReefUUID, name: String) = {
@@ -33,75 +38,61 @@ object EntityServiceMock {
       .build
   }
 }
+
+
 /**
  *
  * @author Flint O'Brien
  */
-class EntityServiceMock /*TODO: extends EntityService */ {
+class EntityServiceMock extends EntityService {
   import EntityServiceMock._
 
+  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery, headers: Map[String, String]): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = null
 
+  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = null
 
+  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = null
 
-//  def getEntities(): Promise[List[Entity]] = new PromiseMock[List[Entity]]( entities)
-//
-//  def getEntityByUuid(uuid: ReefUUID): Promise[Entity] = new PromiseMock[Entity]( makeEntity( uuid, "entity1"))
-//
-//  def getEntityByName(name: String): Promise[Entity] = new PromiseMock[Entity]( makeEntity( uuid1, name))
-//
-//  def getEntitiesByUuids(uuids: List[ReefUUID]): Promise[List[Entity]] = new PromiseMock[List[Entity]]( entities)
-//
-//  def getEntitiesByNames(names: List[String]): Promise[List[Entity]] = new PromiseMock[List[Entity]]( names.map( n => makeEntity( uuid1, n)))
-//
-//  def findEntityByName(name: String): Promise[Option[Entity]] = new PromiseMock[Option[Entity]]( Some( makeEntity( uuid1, name)))
-//
-//  def getEntitiesWithType(typeName: String): Promise[List[Entity]] = null
-//
-//  def getEntitiesWithTypes(types: List[String]): Promise[List[Entity]] = null
-//
-//  def getEntityRelatedChildrenOfType(parent: ReefUUID, relationship: String, typeName: String): Promise[List[Entity]] = null
-//
-//  def getEntityImmediateChildren(parent: ReefUUID, relationship: String): Promise[List[Entity]] = null
-//
-//  def getEntityImmediateChildren(parent: ReefUUID, relationship: String, constrainingTypes: List[String]): Promise[List[Entity]] = null
-//
-//  def getEntityChildren(parent: ReefUUID, relationship: String, depth: Int): Promise[Entity] = null
-//
-//  def getEntityChildren(parent: ReefUUID, relationship: String, depth: Int, constrainingTypes: List[String]): Promise[Entity] = null
-//
-//  def getEntityChildrenFromTypeRoots(parentType: String, relationship: String, depth: Int, constrainingTypes: List[String]): Promise[List[Entity]] = null
-//
-//  def getEntityRelationsFromTypeRoots(parentType: String, relations: List[EntityRelation]): Promise[List[Entity]] = null
-//
-//  def getEntityRelations(parent: ReefUUID, relations: List[EntityRelation]): Promise[List[Entity]] = null
-//
-//  def getEntityRelationsForParents(parentUuids: List[ReefUUID], relations: List[EntityRelation]): Promise[List[Entity]] = null
-//
-//  def getEntityRelationsForParentsByName(parentNames: List[String], relations: List[EntityRelation]): Promise[List[Entity]] = null
-//
-//  def searchForEntityTree(entityTree: Entity): Promise[Entity] = null
-//
-//  def searchForEntities(entityTree: Entity): Promise[List[Entity]] = null
-//
-//  def getEntityEdges(): Promise[List[EntityEdge]] = null
-//
-//  def getEntityEdgesWithType(relationship: String): Promise[List[EntityEdge]] = null
-//
-//  def getEntityEdgesIncludingIndirect(): Promise[List[EntityEdge]] = null
-//
-//  def getEntityAttributes(uuid: ReefUUID): Promise[EntityAttributes] = null
-//
-//  def removeEntityAttribute(uuid: ReefUUID, attrName: String): Promise[EntityAttributes] = null
-//
-//  def clearEntityAttributes(uuid: ReefUUID): Promise[Option[EntityAttributes]] = null
-//
-//  def setEntityAttribute(uuid: ReefUUID, name: String, value: Boolean): Promise[EntityAttributes] = null
-//
-//  def setEntityAttribute(uuid: ReefUUID, name: String, value: Long): Promise[EntityAttributes] = null
-//
-//  def setEntityAttribute(uuid: ReefUUID, name: String, value: Double): Promise[EntityAttributes] = null
-//
-//  def setEntityAttribute(uuid: ReefUUID, name: String, value: String): Promise[EntityAttributes] = null
-//
-//  def setEntityAttribute(uuid: ReefUUID, name: String, value: Array[Byte]): Promise[EntityAttributes] = null
+  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = null
+
+  override def putEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = null
+
+  override def putEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = null
+
+  override def edgeQuery(query: EntityEdgeQuery, headers: Map[String, String]): Future[Seq[EntityEdge]] = null
+
+  override def edgeQuery(query: EntityEdgeQuery): Future[Seq[EntityEdge]] = null
+
+  override def delete(entityUuids: Seq[ReefUUID], headers: Map[String, String]): Future[Seq[Entity]] = null
+
+  override def delete(entityUuids: Seq[ReefUUID]): Future[Seq[Entity]] = null
+
+  override def put(entities: Seq[Entity], headers: Map[String, String]): Future[Seq[Entity]] = null
+
+  override def put(entities: Seq[Entity]): Future[Seq[Entity]] = null
+
+  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery, headers: Map[String, String]): Future[Seq[Entity]] = null
+
+  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery): Future[Seq[Entity]] = null
+
+  override def subscribe(query: EntitySubscriptionQuery, headers: Map[String, String]): Future[(Seq[Entity], Subscription[EntityNotification])] = null
+
+  override def subscribe(query: EntitySubscriptionQuery): Future[(Seq[Entity], Subscription[EntityNotification])] = null
+
+  override def entityQuery(query: EntityQuery, headers: Map[String, String]): Future[Seq[Entity]] = entityQuery( query)
+
+  override def entityQuery(query: EntityQuery): Future[Seq[Entity]] = {
+    if( query.hasAll && query.getAll)
+      Future( entities)
+    else {
+      Future( query.getIncludeTypesList.toList.map( t => makeEntity( "uuid", "name", t)) )
+    }
+  }
+
+  override def get(keys: EntityKeySet, headers: Map[String, String]): Future[Seq[Entity]] = get( keys)
+
+  override def get(keys: EntityKeySet): Future[Seq[Entity]] = {
+    // Assume it's always getByUuid for now.
+    Future( keys.getUuidsList.toList.map( uuid => makeEntity( uuid.getValue, "name", "type")))
+  }
 }

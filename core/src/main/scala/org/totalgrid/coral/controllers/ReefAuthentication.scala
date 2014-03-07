@@ -23,7 +23,6 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import scala.concurrent.Future
-import org.totalgrid.msg
 
 //import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
@@ -46,7 +45,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   type LoginData = LoginLogoutMessages.LoginRequest
   type AuthenticationFailure = AuthenticationMessages.AuthenticationFailure
   type ServiceClientFailure = AuthenticationMessages.ServiceClientFailure
-  type ServiceClient = msg.Session
+  type ServiceClient = CoralSession
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -71,7 +70,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
     Logger.debug( "ReefAuthentication.getService begin")
     (connectionManager ? SessionRequest( authToken, validationTiming)).map {
-      case session: msg.Session =>
+      case session: CoralSession =>
         Logger.debug( "ReefAuthentication.getService Right( session)")
         Right( session)
       case failure: AuthenticationMessages.ServiceClientFailure => Left( failure)
