@@ -79,9 +79,9 @@ define([
           when('/chart', {templateUrl: 'partials/chart.html', controller: 'ChartControl'}).
           when('/esses', {templateUrl: 'partials/esses.html', controller: 'EssesControl'}).
           when('/entities', {templateUrl: 'partials/entities.html', controller: 'EntityControl'}).
-          when('/entities/:name', {templateUrl: 'partials/entitydetail.html', controller: 'EntityDetailControl'}).
+          when('/entities/:uuid/:name', {templateUrl: 'partials/entitydetail.html', controller: 'EntityDetailControl'}).
           when('/points', {templateUrl: 'partials/points.html', controller: 'PointControl'}).
-          when('/points/:name', {templateUrl: 'partials/pointdetail.html', controller: 'PointDetailControl'}).
+          when('/points/:uuid/:name', {templateUrl: 'partials/pointdetail.html', controller: 'PointDetailControl'}).
           when('/commands', {templateUrl: 'partials/commands.html', controller: 'CommandControl'}).
           when('/commands/:name', {templateUrl: 'partials/commanddetail.html', controller: 'CommandDetailControl'}).
           when('/endpointconnections', {templateUrl: 'partials/endpoints.html', controller: 'EndpointControl'}).

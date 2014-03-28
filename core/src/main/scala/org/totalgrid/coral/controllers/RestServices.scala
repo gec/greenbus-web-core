@@ -75,7 +75,12 @@ trait RestServices extends ReefAuthentication {
     val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
     val query = EntityKeySet.newBuilder().addUuids(reefUuid)
 
-    service.get( query.build).map{ result => Ok( Json.toJson(result)) }
+    service.get( query.build).map{ result =>
+      if( result.nonEmpty)
+        Ok( Json.toJson(result.head))
+      else
+        NotFound( JSON_EMPTY_OBJECT)
+    }
   }
 
   def getPoints = ReefClientActionAsync { (request, session) =>

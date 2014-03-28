@@ -88,16 +88,17 @@ return angular.module( 'controllers', ['authentication.service'] )
 })
 
 .controller( 'EntityDetailControl', function( $rootScope, $scope, $routeParams, reef) {
-    var entName = $routeParams.name;
+    var uuid = $routeParams.uuid,
+        name = $routeParams.name;
 
     $rootScope.currentMenuItem = "entities";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Entities", url: "#/entities"},
-        { name: entName }
+        { name: name }
     ];
 
-    reef.get( '/entities/' + entName, "entity", $scope);
+    reef.get( '/entities/' + uuid, "entity", $scope);
 })
 
 .controller( 'PointControl', function( $rootScope, $scope, reef) {
@@ -111,16 +112,17 @@ return angular.module( 'controllers', ['authentication.service'] )
 })
 
 .controller( 'PointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
-    var pointName = $routeParams.name;
+    var uuid = $routeParams.uuid,
+        name = $routeParams.name;
 
     $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Points", url: "#/points"},
-        { name: pointName }
+        { name: name }
     ];
 
-    reef.get( '/points/' + pointName, "point", $scope);
+    reef.get( '/points/' + uuid, "point", $scope);
 })
 
 .controller( 'CommandControl', function( $rootScope, $scope, reef) {

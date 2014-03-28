@@ -17,7 +17,7 @@
             </thead>
             <tbody>
                 <tr ng-repeat="point in points">
-                    <td><a href="#/points/{{point.uuid | encodeURI}}">{{point.name}}</a></td>
+                    <td><a href="#/points/{{point.uuid | encodeURI}}/{{point.name | encodeURI}}">{{point.name}}</a></td>
                     <td>{{point.valueType}}</td>
                     <td>{{point.unit}}</td>
                     <td>{{point.endpoint}}</td>
