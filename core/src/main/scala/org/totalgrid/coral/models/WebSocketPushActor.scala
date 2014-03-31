@@ -22,10 +22,11 @@ import play.api._
 import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
+import play.api.libs.concurrent.Execution.Implicits._
 import akka.actor._
 import akka.util.Timeout
 import org.totalgrid.reef.client._
-import org.totalgrid.reef.client.service.proto.Measurements.Measurement
+import org.totalgrid.reef.client.service.proto.Measurements.{MeasurementNotification, Measurement}
 import org.totalgrid.reef.client.service.proto.Events.Event
 import com.google.protobuf.GeneratedMessage
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
@@ -33,6 +34,7 @@ import org.totalgrid.msg.{Subscription, SubscriptionResult, SubscriptionBinding,
 import org.totalgrid.reef.client.service.MeasurementService
 import scala.concurrent.Await
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
+import org.totalgrid.reef.client.service.proto.Measurements
 
 ///import scala.collection.JavaConversions._
 import scala.concurrent.duration._
@@ -61,8 +63,8 @@ object WebSocketPushActor {
   trait Subscribe {
     val id: String
   }
-//  case class SubscribeToMeasurementsByNames( override val id: String, names: Seq[String]) extends Subscribe
-  case class SubscribeToMeasurementHistoryByUuid( override val id: String, pointUuid: String, since: Long, limit: Int) extends Subscribe
+  case class SubscribeToMeasurements( override val id: String, pointIds: Seq[String]) extends Subscribe
+  case class SubscribeToMeasurementHistory( override val id: String, pointUuid: String, since: Long, limit: Int) extends Subscribe
   case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
   //case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
   case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
@@ -75,17 +77,17 @@ object WebSocketPushActor {
   case class UnknownMessage( messageName: String)
   case object Quit
 
-//  implicit val subscribeToMeasurementsByNamesReads = (
-//    (__ \ "subscriptionId").read[String] and
-//      (__ \ "names").read[Seq[String]]
-//    )(SubscribeToMeasurementsByNames)
-//
+  implicit val subscribeToMeasurementsReads = (
+    (__ \ "subscriptionId").read[String] and
+      (__ \ "pointIds").read[Seq[String]]
+    )(SubscribeToMeasurements)
+
   implicit val subscribeToMeasurementHistoryByUuidReads = (
     (__ \ "subscriptionId").read[String] and
-    (__ \ "pointUuid").read[String] and
+    (__ \ "pointId").read[String] and
     (__ \ "since").read[Long] and
       (__ \ "limit").read[Int]
-    )(SubscribeToMeasurementHistoryByUuid)
+    )(SubscribeToMeasurementHistory)
 
   implicit val subscribeToActiveAlarmsReads = (
     (__ \ "subscriptionId").read[String] and
@@ -131,11 +133,11 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       // TODO: session is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef session.
     }
 
-//    case subscribe: SubscribeToMeasurementsByNames =>
-//      subscribeToMeasurementsByPointNames( subscribe)
+    case subscribe: SubscribeToMeasurements =>
+      subscribeToMeasurements( subscribe)
 
-    case subscribe: SubscribeToMeasurementHistoryByUuid =>
-      subscribeToMeasurementsHistoryByUuid( subscribe)
+    case subscribe: SubscribeToMeasurementHistory =>
+      subscribeToMeasurementsHistory( subscribe)
 
     case subscribe: SubscribeToActiveAlarms =>
       subscribeToActiveAlarms( subscribe)
@@ -206,20 +208,42 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     subscription
   }
 
-//  def subscribeToMeasurementsByPointNames( subscribe: SubscribeToMeasurementsByNames) = {
-//    if( session.isDefined) {
-//      Logger.debug( "WebSocketPushActor.subscribeToMeasurementsByNames " + subscribe.id)
-//      val result = session.get.subscribeToMeasurementsByNames( subscribe.names.toList).await
+  def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
+    if( session.isDefined) {
+      val service = MeasurementService.client( session.get)
+      Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id)
+
+      val reefUuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+      val result = service.subscribeWithCurrentValue( reefUuids)
+//      val result = session.get.subscribeToMeasurements( subscribe.pointIds.toList).await
+
+      // result: Future[(
+      //    Seq[ org.totalgrid.reef.client.service.proto.Measurements.PointMeasurementValue],
+      //    Subscription[ org.totalgrid.reef.client.service.proto.Measurements.MeasurementNotification]
+      // )]
+
+      result onSuccess {
+        case (measurements, subscription) =>
+          pushChannel.push( pointMeasurementsPushWrites.writes( subscribe.id, measurements))
+          subscription.start { m =>
+            pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
+          }
+          subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+      }
+      result onFailure {
+        case f => Logger.error( "WebSocketPushActor.subscribeToMeasurements.onFailure " + f)
+        //TODO: report error to client
+      }
 //      val subscription = subscriptionHandler[Measurement]( result, subscribe.id, measurementPushWrites)
 //      subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
-//    } else {
-//      Logger.error( "WebSocketPushActor.subscribeToMeasurementsByNames " + subscribe.id + ", No Reef service available.")
-//      pushError( subscribe, "No Reef service available.")
-//    }
-//
-//  }
+    } else {
+      Logger.error( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id + ", No Reef service available.")
+      pushError( subscribe, "No Reef service available.")
+    }
 
-  def subscribeToMeasurementsHistoryByUuid( subscribe: SubscribeToMeasurementHistoryByUuid) = {
+  }
+
+  def subscribeToMeasurementsHistory( subscribe: SubscribeToMeasurementHistory) = {
     if( session.isDefined) {
       val service = MeasurementService.client( session.get)
       Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryByUuid " + subscribe.id)

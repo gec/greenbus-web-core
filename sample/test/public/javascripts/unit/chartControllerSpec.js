@@ -59,7 +59,7 @@ define([
                     success: null,
                     error: null
                 },
-                subscribeToMeasurementHistoryByUuid: function( scope, pointUuid, since, limit, success, error) {
+                subscribeToMeasurementHistory: function( scope, pointUuid, since, limit, success, error) {
                     this.subscribeParams.scope = scope
                     this.subscribeParams.pointUuid = pointUuid
                     this.subscribeParams.since = since
@@ -73,7 +73,7 @@ define([
             spyOn( $window.document, "getElementById").andCallThrough()
             $provide.value( "$window", $window)
 
-            spyOn( reef, "subscribeToMeasurementHistoryByUuid").andCallThrough()
+            spyOn( reef, "subscribeToMeasurementHistory").andCallThrough()
             $provide.value( "reef", reef)
 
             $window.document.documentElement.clientWidth = 200
@@ -99,8 +99,8 @@ define([
             expect( scope.chart.name).toBe( "point1")
             expect( scope.loading).toBe( true)
 
-            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
-            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+            expect( reef.subscribeToMeasurementHistory.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistory).toHaveBeenCalledWith(
                 jasmine.any(Object),
                 point1.uuid,
                 jasmine.any(Number),
@@ -119,7 +119,7 @@ define([
         })
 
         it( 'should resize chart on window resize', function() {
-            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistory.calls.length).toEqual(1)
             // After timeout, call onResize and set chart size to window.
             timeoutMock.flush()
             expect( scope.loading).toBe( false)
@@ -140,8 +140,8 @@ define([
             timeoutMock.flush()
             expect( scope.loading).toBe( false)
 
-            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
-            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+            expect( reef.subscribeToMeasurementHistory.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistory).toHaveBeenCalledWith(
                 jasmine.any(Object),
                 point1.uuid,
                 jasmine.any(Number),
@@ -151,10 +151,10 @@ define([
             )
 
 
-            reef.subscribeToMeasurementHistoryByUuid.reset()
+            reef.subscribeToMeasurementHistory.reset()
             scope.onDropPoint( point2.uuid)
-            expect( reef.subscribeToMeasurementHistoryByUuid.calls.length).toEqual(1)
-            expect( reef.subscribeToMeasurementHistoryByUuid).toHaveBeenCalledWith(
+            expect( reef.subscribeToMeasurementHistory.calls.length).toEqual(1)
+            expect( reef.subscribeToMeasurementHistory).toHaveBeenCalledWith(
                 jasmine.any(Object),
                 point2.uuid,
                 jasmine.any(Number),

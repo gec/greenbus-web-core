@@ -22,7 +22,7 @@ import play.api.libs.json._
 import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
-import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValues, PointMeasurementValue, Quality, Measurement}
+import org.totalgrid.reef.client.service.proto.Measurements._
 
 //import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
 //import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
@@ -119,7 +119,7 @@ object JsonFormatters {
     def writes( o: Agent): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "permissions" -> o.getPermissionSetsList.toList
       )
   }
@@ -145,7 +145,7 @@ object JsonFormatters {
     def writes( o: PermissionSet): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "permissions" -> o.getPermissionsList.toList
       )
   }
@@ -169,7 +169,7 @@ object JsonFormatters {
 //    def writes( o: ApplicationConfig): JsValue =
 //      Json.obj(
 //        "name" -> o.getInstanceName,
-//        "uuid" -> o.getUuid.getValue,
+//        "id" -> o.getUuid.getValue,
 //        "version" -> o.getVersion,
 //        "timesOutAt" -> o.getTimesOutAt,
 //        "online" -> o.getOnline,
@@ -182,7 +182,7 @@ object JsonFormatters {
     def writes( o: Entity): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "types" -> o.getTypesList.toList
       )
   }
@@ -191,7 +191,7 @@ object JsonFormatters {
     def writes( o: Command): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "commandType" -> o.getType.name,
         "displayName" -> o.getDisplayName,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
@@ -202,7 +202,7 @@ object JsonFormatters {
 //    def writes( o: CommChannel): JsValue =
 //      Json.obj(
 //        "name" -> o.getName,
-//        "uuid" -> o.getUuid.getValue,
+//        "id" -> o.getUuid.getValue,
 //        "state" -> o.getState.toString
 //      )
 //  }
@@ -211,7 +211,7 @@ object JsonFormatters {
     def writes( o: Endpoint): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "protocol" -> o.getProtocol//,
 //        "autoAssigned" -> o.getAutoAssigned,
 //        "channel" -> o.getChannel
@@ -268,24 +268,66 @@ object JsonFormatters {
   implicit val measurementsWrites = new Writes[PointMeasurementValues] {
     def writes( o: PointMeasurementValues): JsValue = {
       Json.obj(
-        "pointUuid" -> o.getPoint.getValue,
+        "point" -> Json.obj(
+          "id" -> o.getPoint.getValue
+        ),
         "measurements" -> o.getValueList.toList
       )
     }
   }
-  lazy val measurementsPushWrites = new PushWrites( "measurements", measurementsWrites)
+  lazy val measurementsPushWrites = new PushWrites( "pointWithMeasurements", measurementsWrites)
 
   /**
-   * Seq of PointMeasurementValue. Each measurement is for a different point
+   * One point and one measurement.
    */
   implicit val pointMeasurementWrites = new Writes[PointMeasurementValue] {
     def writes( o: PointMeasurementValue): JsValue = {
       Json.obj(
-        "pointUuid" -> o.getPoint.getValue,
-        "measurement" -> o.getValue
+        "point" -> Json.obj(
+          "id" -> o.getPoint.getValue
+        ),
+        "measurement" -> o.getValue              // one measurement
       )
     }
   }
+  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementWrites)
+//  val pointMeasurementArrayWrapperWrites = new Writes[PointMeasurementValue] {
+//    def writes( o: PointMeasurementValue): JsValue = {
+//      // Array of one measurement
+//      Json.arr( pointMeasurementWrites.writes( o))
+//    }
+//  }
+//  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementArrayWrapperWrites)
+
+  /**
+   * Seq of PointMeasurementValue. Each measurement can be a different point
+   */
+  implicit val pointMeasurementsWrites = new Writes[Seq[PointMeasurementValue]] {
+    def writes( o: Seq[PointMeasurementValue]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val pointMeasurementsPushWrites = new PushWrites( "measurements", pointMeasurementsWrites)
+
+
+  /**
+   * One point and one measurement.
+   */
+  implicit val pointMeasurementNotificationWrites = new Writes[MeasurementNotification] {
+    def writes( o: MeasurementNotification): JsValue = {
+      Json.arr(
+        Json.obj(
+          "point" -> Json.obj(
+            "id" -> o.getPointUuid.getValue,
+            "name" -> o.getPointName
+          ),
+          "measurement" -> o.getValue              // one measurement
+        )
+      )
+    }
+  }
+  lazy val pointMeasurementNotificationPushWrites = new PushWrites( "measurements", pointMeasurementNotificationWrites)
+
 
   implicit val eventWrites = new Writes[Event] {
     def writes( o: Event): JsValue = {
@@ -319,7 +361,7 @@ object JsonFormatters {
     def writes( o: Point): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "valueType" -> o.getType.name,
         "unit" -> o.getUnit,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
@@ -330,7 +372,7 @@ object JsonFormatters {
     def writes( o: PointWithTypes): JsValue =
       Json.obj(
         "name" -> o.point.getName,
-        "uuid" -> o.point.getUuid.getValue,
+        "id" -> o.point.getUuid.getValue,
         "valueType" -> o.point.getType.name,     // ANALOG, COUNTER, STATUS
         "unit" -> o.point.getUnit,
         "endpoint" -> o.point.getEndpointUuid.getValue,  // TODO: get EndpointName
@@ -342,7 +384,7 @@ object JsonFormatters {
     def writes( o: EquipmentWithPointsWithTypes): JsValue = {
       Json.obj(
         "name" -> o.equipment.getName,
-        "uuid" -> o.equipment.getUuid.getValue,
+        "id" -> o.equipment.getUuid.getValue,
         "types" -> o.equipment.getTypesList.toList,
         "points" -> o.pointsWithTypes
       )

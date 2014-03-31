@@ -24,7 +24,7 @@
     <!--</div>-->
 
     <div>
-        <table class="table table-condensed">
+        <table class="table table-condensed" ng-show="points.length > 0">
             <thead>
                 <tr>
                     <th colspan="2" style="padding-bottom: 12px;">
@@ -43,7 +43,7 @@
                     <th>Quality</th>
                     <th>Time</th>
                     <th>type</th>
-                    <th>UUID</th>
+                    <th>ID</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,7 +57,7 @@
                         <!--</div>-->
                     </td>
                     <td>
-                        <div class="coral-icon-text draggable" draggable ident="point.uuid">
+                        <div class="coral-icon-text draggable" draggable ident="point.id">
                             <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
                             {{$parent.point.name}}
                         </div>
@@ -68,7 +68,7 @@
                     <td>{{point.currentMeasurement.shortQuality}}</td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                     <td>{{ point.valueType }}</td>
-                    <td>{{ point.uuid }}</td>
+                    <td>{{ point.id }}</td>
                 </tr>
             </tbody>
         </table>
@@ -89,7 +89,7 @@
                 </div>
                 <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
                     <li class="coral-legend" ng-repeat="point in chart.points">
-                        <div class="coral-icon-text draggable" draggable ident="point.uuid" source="chart" on-drag-success="onDragSuccess">
+                        <div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">
                             <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}}</span>
                             <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.chart, $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
                         </div>

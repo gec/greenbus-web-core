@@ -178,24 +178,24 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
     }
 
-    self.subscribeToMeasurementsByNames = function ( $scope, names, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
+    self.subscribeToMeasurements = function ( $scope, pointIds, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurements " );
 
         var json = {
-            subscribeToMeasurementsByNames: {
-                "names": names
+            subscribeToMeasurements: {
+                "pointIds": pointIds
             }
         }
         return subscription.subscribe( json, $scope, successListener, errorListener)
     }
 
 
-    self.subscribeToMeasurementHistoryByUuid = function ( $scope, pointUuid, since, limit, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
+    self.subscribeToMeasurementHistory = function ( $scope, pointId, since, limit, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurementHistory " );
 
         var json = {
-            subscribeToMeasurementHistoryByUuid: {
-                "pointUuid": pointUuid,
+            subscribeToMeasurementHistory: {
+                "pointId": pointId,
                 "since": since,
                 "limit": limit
             }
@@ -217,10 +217,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
 
     self.SubscribeToRecentEvents = function ( $scope, limit, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
+        console.log( "reef.subscribeToMeasurements " );
 
         var json = {
-            subscribeToMeasurementsByNames: {
+            subscribeToMeasurements: {
                 "limit": limit
             }
         }
