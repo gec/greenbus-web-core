@@ -265,7 +265,7 @@ object JsonFormatters {
   /**
    * One point with many values
    */
-  implicit val measurementsWrites = new Writes[PointMeasurementValues] {
+  implicit val pointWithMeasurementsWrites = new Writes[PointMeasurementValues] {
     def writes( o: PointMeasurementValues): JsValue = {
       Json.obj(
         "point" -> Json.obj(
@@ -275,7 +275,7 @@ object JsonFormatters {
       )
     }
   }
-  lazy val measurementsPushWrites = new PushWrites( "pointWithMeasurements", measurementsWrites)
+  lazy val pointWithMeasurementsPushWrites = new PushWrites( "pointWithMeasurements", pointWithMeasurementsWrites)
 
   /**
    * One point and one measurement.
@@ -290,14 +290,14 @@ object JsonFormatters {
       )
     }
   }
-  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementWrites)
-//  val pointMeasurementArrayWrapperWrites = new Writes[PointMeasurementValue] {
-//    def writes( o: PointMeasurementValue): JsValue = {
-//      // Array of one measurement
-//      Json.arr( pointMeasurementWrites.writes( o))
-//    }
-//  }
-//  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementArrayWrapperWrites)
+
+  val pointMeasurementArrayWrapperWrites = new Writes[PointMeasurementValue] {
+    def writes( o: PointMeasurementValue): JsValue = {
+      // Array of one measurement
+      Json.arr( pointMeasurementWrites.writes( o))
+    }
+  }
+  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementArrayWrapperWrites)
 
   /**
    * Seq of PointMeasurementValue. Each measurement can be a different point
@@ -311,7 +311,7 @@ object JsonFormatters {
 
 
   /**
-   * One point and one measurement.
+   * Push array with one point and one measurement.
    */
   implicit val pointMeasurementNotificationWrites = new Writes[MeasurementNotification] {
     def writes( o: MeasurementNotification): JsValue = {

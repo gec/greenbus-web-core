@@ -295,11 +295,43 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
+    function onChartPointWithMeasurements( chart, point, pointWithMeasurements) {
+        var pointId = pointWithMeasurements.point.id,
+            measurements = pointWithMeasurements.measurements
+
+        console.log( "onPointWithMeasurements point.name " + point.name + " measurements.length=" + measurements.length)
+        measurements.forEach( function( m) {
+            onChartMeasurement( point, m)
+        })
+        chart.traits.update( "trend")
+    }
+
+    function onChartMeasurements( chart, point, pointMeasurements) {
+        console.log( "onChartMeasurements point.name " + point.name + " measurements.length=" + pointMeasurements.length)
+        pointMeasurements.forEach( function( m) {
+            onChartMeasurement( point, m.measurement)
+        })
+        chart.traits.update( "trend")
+    }
+
+    function onChartMeasurement( point, measurement) {
+
+        var value = parseFloat( measurement.value)
+        if( ! isNaN( value)) {
+            measurement.value = value
+            measurement.time = new Date( measurement.time)
+            //console.log( "onChartMeasurement measurements " + point.name + " " + measurement.time + " " + measurement.value)
+            point.measurements.push( measurement)
+        } else {
+            console.error( "onChartMeasurement " + point.name + " time=" + measurement.time + " value='" + measurement.value + "' -- value is not a number.")
+        }
+    }
+
     function pointAlreadyHasSubscription( point) { return point.hasOwnProperty( 'subscriptionId') }
 
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
-            since = now - 1000 * 60 * 60 * 24 * 31,
+            since = now - 1000 * 60 * 60,  // 1 Hour
             limit = 500
 
         // if point
@@ -307,29 +339,13 @@ return angular.module( 'controllers', ['authentication.service'] )
             return
 
         point.subscriptionId = reef.subscribeToMeasurementHistory( $scope, point.id, since, limit,
-            function( subscriptionId, type, measurement) {
-                if( type === "measurements") {
-                    console.log( "subscribeToMeasurementHistory on measurements with length=" + measurement.length)
-                    measurement.forEach( function( m) {
-                        var value = parseFloat( m.value)
-                        if( ! isNaN( value)) {
-                            m.value = value
-                            m.time = new Date( m.time)
-                            //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
-                            point.measurements.push( m)
-                        } else {
-                            console.error( "subscribeToMeasurementHistory " + m.name + " time=" + m.time + " value='" + m.value + "' -- value is not a number.")
-                        }
-                    })
-                    chart.traits.update( "trend")
+            function( subscriptionId, type, data) {
 
-                } else {
-                    // one measurement
-                    measurement.value = parseFloat( measurement.value)
-                    measurement.time = new Date( measurement.time)
-                    console.log( "subscribeToMeasurementHistory " + measurement.name + " " + measurement.time + " " + measurement.value)
-                    point.measurements.push( measurement)
-                    chart.traits.update( "trend")
+                switch( type) {
+                    case 'pointWithMeasurements': onChartPointWithMeasurements( chart, point, data); break;
+                    case 'measurements': onChartMeasurements( chart, point, data); break;
+                    default:
+                        console.error( "MeasurementController.subscribeToMeasurementHistory unknown type: '" + type + "'")
                 }
             },
             function( error, message) {

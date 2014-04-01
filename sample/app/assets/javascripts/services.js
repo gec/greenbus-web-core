@@ -190,13 +190,13 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
     }
 
 
-    self.subscribeToMeasurementHistory = function ( $scope, pointId, since, limit, successListener, errorListener) {
+    self.subscribeToMeasurementHistory = function ( $scope, pointId, timeFrom, limit, successListener, errorListener) {
         console.log( "reef.subscribeToMeasurementHistory " );
 
         var json = {
             subscribeToMeasurementHistory: {
                 "pointId": pointId,
-                "since": since,
+                "timeFrom": timeFrom,
                 "limit": limit
             }
         }
