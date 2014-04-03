@@ -58,8 +58,8 @@
                     </td>
                     <td>
                         <div class="coral-icon-text draggable" draggable ident="point.id">
-                            <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
-                            {{$parent.point.name}}
+                            <img class="coral-icon" src="{{ point.valueType | pointTypeImage: point.unit }}" width="14px" height="14px" title="{{ point.valueType | pointTypeText: point.unit }}"/>
+                            {{point.name}}
                         </div>
                     </td>
                     <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
@@ -90,14 +90,14 @@
                 <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
                     <li class="coral-legend" ng-repeat="point in chart.points">
                         <div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">
-                            <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}}</span>
-                            <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.chart, $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
+                            <span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>
+                            <a class="coral-remove" href="" ng-click="removePoint( chart, point)"><span class="glyphicon glyphicon-remove"></span></a>
                         </div>
                     </li>
                 </ul>
                 <div class="coral-win-container">
                     <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
-                        <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 150px"></div>
+                        <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
                     </div>
                 </div>
             </div>

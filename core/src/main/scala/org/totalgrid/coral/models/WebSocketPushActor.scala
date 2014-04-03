@@ -36,6 +36,7 @@ import scala.concurrent.Await
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 import org.totalgrid.reef.client.service.proto.Measurements
 import scala.collection.mutable.ListBuffer
+import org.totalgrid.coral.util.Timer
 
 ///import scala.collection.JavaConversions._
 import scala.concurrent.duration._
@@ -255,21 +256,27 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   def subscribeToMeasurementsHistory( subscribe: SubscribeToMeasurementHistory) = {
+    val timer = new Timer( "subscribeToMeasurementsHistory")
     val service = MeasurementService.client( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.id)
     val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+    timer.delta( "initialized service and uuid")
 
     val result = service.subscribeWithCurrentValue( Seq( uuid))
     result onSuccess {
       case (measurements, subscription) =>
+        timer.delta( "onSuccess 1")
+        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.id + ", measurements.length" + measurements.length)
         subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
         if( measurements.nonEmpty)
-          subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, uuid, measurements.head)
-        else
+          subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, uuid, measurements.head, timer)
+        else {
           // Point has never had a measurement. Start subscription for new measurements.
           subscription.start { m =>
             pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
           }
+          timer.end( "no current measurement, just subscription")
+        }
     }
     result onFailure {
       case f =>
@@ -285,7 +292,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
                                            service: MeasurementService,
                                            subscription: Subscription[MeasurementNotification],
                                            uuid: ReefUUID,
-                                           currentMeasurement: PointMeasurementValue) = {
+                                           currentMeasurement: PointMeasurementValue,
+                                           timer: Timer) = {
 
     val currentMeasurementTime = currentMeasurement.getValue.getTime
 
@@ -300,25 +308,33 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
         .build
       // problem with limit reached on messages having the same millisecond.
 
+      Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2 " + subscribe.id)
 
+      timer.delta( "Part2 service.getHistory call")
       val result = service.getHistory( query)
       result onSuccess {
         case pointMeasurements =>
+          timer.delta( "Part2 service.getHistory onSuccess")
+          Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.id)
           // History will include the current measurement we already received.
           // How will we know if the limit is reach. Currently, just seeing the returned number == limit
           pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pointMeasurements))
           subscription.start { m =>
             pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
           }
+          timer.end( "service.getHistory onSuccess end")
       }
       result onFailure {
         case f =>
+          timer.delta( "Part2 service.getHistory onFailure")
           Logger.error( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.onFailure " + f)
           pushError( subscribe, "Failure: " + f)
+          timer.end( "Part2 service.getHistory onFailure")
       }
       
     } else {
 
+      timer.delta( "Part2 there could NOT be historical measurements in query time window")
       // Current measurement is older than the time window of measurement history query so
       // no need to get history.
       // Just send current point with measurement.
@@ -326,6 +342,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       subscription.start { m =>
         pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
       }
+      timer.end( "Part2 there could NOT be historical measurements in query time window")
     }
 
   }

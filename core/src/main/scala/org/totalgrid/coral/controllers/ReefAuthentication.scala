@@ -68,7 +68,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
-    Logger.debug( "ReefAuthentication.getService begin")
+    Logger.debug( "ReefAuthentication.getService begin validationTiming: " + validationTiming)
     (connectionManager ? SessionRequest( authToken, validationTiming)).map {
       case session: CoralSession =>
         Logger.debug( "ReefAuthentication.getService Right( session)")
@@ -116,7 +116,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
         case Some( ( token, serviceClient)) =>
-          Logger.debug( "ReefClientAction " + request + " authenticated")
+          Logger.debug( "ReefClientAction " + request + " PROVISIONAL authentication")
           try {
             action( request, serviceClient)
           } catch {
@@ -138,7 +138,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
-          Logger.debug( "ReefClientAction " + request + " authenticated")
+          Logger.debug( "ReefClientActionAsync " + request + " PROVISIONAL authentication")
           action( request, serviceClient).map {
             case r => r
             case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
