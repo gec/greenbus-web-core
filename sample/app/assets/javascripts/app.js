@@ -53,7 +53,8 @@ define([
     'directives',
     'services',
     'coral/eventService',
-    'coral/navigation'
+    'coral/navigation',
+    'coral/measService'
 
 ], function( angular, authentication) {
 'use strict';
@@ -69,7 +70,8 @@ define([
             'controllers',
             'chartController',
             'coral.event',
-            'coral.navigation'
+            'coral.navigation',
+            'coral.meas'
         ]).
       config(['$routeProvider', function($routeProvider) {
         "use strict";

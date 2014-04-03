@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien, Daniel Evans
  */
 define([
     'authentication/service',
@@ -148,7 +150,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( '/commands/' + commandName, "command", $scope);
 })
 
-.controller( 'MeasurementControl', function( $rootScope, $scope, $window, $filter, reef) {
+.controller( 'MeasurementControl', function( $rootScope, $scope, $window, $filter, reef, meas) {
     $scope.points = []
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
@@ -295,115 +297,26 @@ return angular.module( 'controllers', ['authentication.service'] )
         }
     }
 
-    /**
-     * Manage one subscription for a single point which may be displayed on multiple charts.
-     * Update the charts associated with this point when new measurements come in.
-     *
-     * @param point
-     * @constructor
-     */
-    function MeasurementHistory( point)  {
-        var self = this
-        self.point = point
-        self.subscriptionId = null
-        self.charts = [] // charts that display this point
-
-        self.subscribe = function( chart) {
-
-            self.charts.push( chart)
-            if( self.subscriptionId)
-                return
-
-            var now = new Date().getTime(),
-                timeFrom = now - 1000 * 60 * 60,  // 1 Hour
-                limit = 500
-
-            self.subscriptionId = reef.subscribeToMeasurementHistory( $scope, self.point.id, timeFrom, limit,
-                function( subscriptionId, type, data) {
-
-                    switch( type) {
-                        case 'pointWithMeasurements': self.onPointWithMeasurements( data); break;
-                        case 'measurements': self.onMeasurements( data); break;
-                        default:
-                            console.error( "MeasurementController.subscribeToMeasurementHistory unknown type: '" + type + "'")
-                    }
-                },
-                function( error, message) {
-                    console.error( "subscribeToMeasurementHistory " + error + ", " + message)
-                }
-            )
-        }
-
-        self.unsubscribe = function( chart) {
-            removeChart( chart)
-
-            if( self.charts.length === 0 && self.subscriptionId) {
-                try {
-                    reef.unsubscribe( self.subscriptionId);
-                } catch( ex) {
-                    console.error( "Unsubscribe measurement history for " + self.point.name + " exception " + ex)
-                }
-                self.subscriptionId = null;
-            }
-
-        }
-
-        self.onPointWithMeasurements = function( pointWithMeasurements) {
-            var measurements = pointWithMeasurements.measurements
-
-            console.log( "onPointWithMeasurements point.name " + self.point.name + " measurements.length=" + measurements.length)
-            measurements.forEach( function( m) {
-                onMeasurement( m)
-            })
-            updateCharts()
-        }
-
-        self.onMeasurements = function( pointMeasurements) {
-            console.log( "onMeasurements point.name " + self.point.name + " measurements.length=" + pointMeasurements.length)
-            pointMeasurements.forEach( function( m) {
-                onMeasurement( m.measurement)
-            })
-            updateCharts()
-        }
-
-        function onMeasurement( measurement) {
-
-            var value = parseFloat( measurement.value)
-            if( ! isNaN( value)) {
-                measurement.value = value
-                measurement.time = new Date( measurement.time)
-                //console.log( "onMeasurement measurements " + self.point.name + " " + measurement.time + " " + measurement.value)
-                self.point.measurements.push( measurement)
-            } else {
-                console.error( "onMeasurement " + self.point.name + " time=" + measurement.time + " value='" + measurement.value + "' -- value is not a number.")
-            }
-        }
-
-        function updateCharts() {
-            self.charts.forEach( function( chart) {
-                chart.traits.update( "trend")
-            })
-        }
-
-        function removeChart( chart) {
-            var i = self.charts.indexOf( chart)
-            if( i >= 0)
-                self.charts.splice(i, 1);
-        }
-
-    }
 
     function subscribeToMeasurementHistory( chart, point) {
+        var now = new Date().getTime(),
+            timeFrom = now - 1000 * 60 * 60,  // 1 Hour
+            limit = 500,
+            notify = function() { chart.traits.update( "trend")}
 
-        if( ! point.hasOwnProperty( 'measurementHistory'))
-            point.measurementHistory = new MeasurementHistory( point)
+            point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
 
-        point.measurementHistory.subscribe( chart)
+//        if( ! point.hasOwnProperty( 'measurementHistory'))
+//            point.measurementHistory = new MeasurementHistory( point)
+//
+//        point.measurementHistory.subscribe( chart)
     }
 
     function unsubscribeToMeasurementHistory( chart, point) {
-        if( point.hasOwnProperty( 'measurementHistory'))
-            point.measurementHistory.unsubscribe( chart)
+        meas.unsubscribeToMeasurementHistory( point, chart)
+
+//        if( point.hasOwnProperty( 'measurementHistory'))
+//            point.measurementHistory.unsubscribe( chart)
     }
 
     $scope.chartAdd = function( index) {

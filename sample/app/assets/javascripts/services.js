@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien
  */
 define([
     'authentication/service',
@@ -184,20 +186,6 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
         var json = {
             subscribeToMeasurements: {
                 "pointIds": pointIds
-            }
-        }
-        return subscription.subscribe( json, $scope, successListener, errorListener)
-    }
-
-
-    self.subscribeToMeasurementHistory = function ( $scope, pointId, timeFrom, limit, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementHistory " );
-
-        var json = {
-            subscribeToMeasurementHistory: {
-                "pointId": pointId,
-                "timeFrom": timeFrom,
-                "limit": limit
             }
         }
         return subscription.subscribe( json, $scope, successListener, errorListener)
