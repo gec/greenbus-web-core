@@ -90,11 +90,9 @@ angular.module('ReefAdmin.directives', []).
                 var el = elem.context
                 el.draggable = true
 
-                console.debug( "draggable.addEventListener.dragstart " + scope.ident)
                 el.addEventListener(
                     'dragstart',
                     function(e) {
-                        console.debug( "dragstart " + scope.ident)
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('Text', scope.ident);
                         this.classList.add('drag');
