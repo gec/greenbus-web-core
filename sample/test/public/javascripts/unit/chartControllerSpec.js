@@ -59,6 +59,12 @@ define([
                     success: null,
                     error: null
                 },
+                getParams: {
+                    url: null,
+                    name: null,
+                    scope: null,
+                    notifySuccess: null
+                },
                 subscribeToMeasurementHistory: function( scope, pointUuid, since, limit, success, error) {
                     this.subscribeParams.scope = scope
                     this.subscribeParams.pointUuid = pointUuid
@@ -67,6 +73,12 @@ define([
                     this.subscribeParams.success = success
                     this.subscribeParams.error = error
                     return "someSubscriptionId"
+                },
+                get: function( url, name, $scope, notifySuccess) {
+                    this.getParams.url = url
+                    this.getParams.name = name
+                    this.getParams.scope = scope
+                    this.getParams.notifySuccess = notifySuccess
                 }
             }
         beforeEach( module(function($provide) {
@@ -74,6 +86,7 @@ define([
             $provide.value( "$window", $window)
 
             spyOn( reef, "subscribeToMeasurementHistory").andCallThrough()
+            spyOn( reef, "get").andCallThrough()
             $provide.value( "reef", reef)
 
             $window.document.documentElement.clientWidth = 200
@@ -153,6 +166,11 @@ define([
 
             reef.subscribeToMeasurementHistory.reset()
             scope.onDropPoint( point2.uuid)
+            expect( reef.get.calls.length).toEqual(1)
+            scope.chart.selection = {
+                call: function( imp) {}
+            }
+            reef.getParams.notifySuccess( point2)
             expect( reef.subscribeToMeasurementHistory.calls.length).toEqual(1)
             expect( reef.subscribeToMeasurementHistory).toHaveBeenCalledWith(
                 jasmine.any(Object),

@@ -34,7 +34,7 @@ define( 'coral/MeasurementHistory',
         this.subscription = subscription
         this.point = point
         this.subscriptionId = null
-        this.subscribers = [] // subscribers that display this point
+        this.subscribers = [] // {subscriber:, notify:} -- subscribers that display this point
         this.measurements = []
     }
 
@@ -85,6 +85,7 @@ define( 'coral/MeasurementHistory',
                 console.error( "Unsubscribe measurement history for " + this.point.name + " exception " + ex)
             }
             this.subscriptionId = null;
+            this.measurements = []
         }
 
     }

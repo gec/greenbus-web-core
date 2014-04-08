@@ -189,10 +189,10 @@ return angular.module( 'chartController', ['authentication.service'] )
         if( pointAlreadyHasSubscription( point))
             return
 
-        point.subscriptionId = reef.subscribeToMeasurementHistoryByUuid( $scope, point.uuid, since, limit,
+        point.subscriptionId = reef.subscribeToMeasurementHistory( $scope, point.uuid, since, limit,
             function( subscriptionId, type, measurement) {
                 if( type === "measurements") {
-                    console.log( "subscribeToMeasurementHistoryByUuid on measurements with length=" + measurement.length)
+                    console.log( "subscribeToMeasurementHistory on measurements with length=" + measurement.length)
                     measurement.forEach( function( m) {
                         var value = parseFloat( m.value)
                         if( ! isNaN( value)) {
@@ -201,7 +201,7 @@ return angular.module( 'chartController', ['authentication.service'] )
                             //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
                             point.measurements.push( m)
                         } else {
-                            console.error( "subscribeToMeasurementHistoryByUuid " + m.name + " time=" + m.time + " value='" + m.value + "' -- value is not a number.")
+                            console.error( "subscribeToMeasurementHistory " + m.name + " time=" + m.time + " value='" + m.value + "' -- value is not a number.")
                         }
                     })
                     chart.traits.update( "trend")

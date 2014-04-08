@@ -31,11 +31,11 @@ define([
      * Each point may have multiple subscriptions
      *
      * @param subscription
+     * @param pointMeasurements - Map of point.id to MeasurementHistory
      * @constructor
      */
-    var MeasService = function( subscription) {
-        var self = this,
-            pointMeasurements = {}    // MeasurementHistory objects by pointId
+    var MeasService = function( subscription, pointMeasurements) {
+        var self = this
 
         /**
          *
@@ -51,8 +51,10 @@ define([
             console.log( "meas.subscribeToMeasurementHistory " );
 
             var measurementHistory = pointMeasurements[ point.id]
-            if( ! measurementHistory)
+            if( ! measurementHistory) {
                 measurementHistory = new MeasurementHistory( subscription, point)
+                pointMeasurements[ point.id] = measurementHistory
+            }
 
             return measurementHistory.subscribe( scope, timeFrom, limit, subscriber, notify)
         }
@@ -68,14 +70,18 @@ define([
             var measurementHistory = pointMeasurements[ point.id]
             if( measurementHistory)
                 measurementHistory.unsubscribe( subscriber)
+            else
+                console.error( "ERROR: meas.unsubscribe point.id: " + point.id + " was never subscribed.")
         }
 
     }
 
     return angular.module('coral.meas', ["coral.subscription"]).
-
-    factory('meas', function( subscription){
-        return new MeasService( subscription);
-    })
+        factory('pointMeasurements', function(){
+            return {};
+        } ).
+        factory('meas', function( subscription, pointMeasurements){
+            return new MeasService( subscription, pointMeasurements);
+        })
 
 });// end RequireJS define
