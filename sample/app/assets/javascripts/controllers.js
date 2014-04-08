@@ -20,7 +20,8 @@
  */
 define([
     'authentication/service',
-    'services'
+    'services',
+    'coral/measService'
 ], function( authentication) {
 'use strict';
 
@@ -304,19 +305,11 @@ return angular.module( 'controllers', ['authentication.service'] )
             limit = 500,
             notify = function() { chart.traits.update( "trend")}
 
-            point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
-
-//        if( ! point.hasOwnProperty( 'measurementHistory'))
-//            point.measurementHistory = new MeasurementHistory( point)
-//
-//        point.measurementHistory.subscribe( chart)
+        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
     }
 
     function unsubscribeToMeasurementHistory( chart, point) {
         meas.unsubscribeToMeasurementHistory( point, chart)
-
-//        if( point.hasOwnProperty( 'measurementHistory'))
-//            point.measurementHistory.unsubscribe( chart)
     }
 
     $scope.chartAdd = function( index) {

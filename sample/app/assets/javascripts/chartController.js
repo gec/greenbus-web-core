@@ -19,11 +19,12 @@
 define([
     'authentication/service',
     'services',
+    'coral/measService',
     'd3-traits'
 ], function( authentication) {
 'use strict';
 
-return angular.module( 'chartController', ['authentication.service'] )
+return angular.module( 'chartController', ['authentication.service', 'coral.meas'] )
 
 .controller( 'ReefStatusControl', function( $rootScope, $scope, $timeout, reef) {
 
@@ -37,7 +38,7 @@ return angular.module( 'chartController', ['authentication.service'] )
     });
 })
 
-.controller( 'ChartController', function( $scope, $timeout, $window, $filter, reef) {
+.controller( 'ChartController', function( $scope, $timeout, $window, $filter, reef, meas) {
     var chartSource = $window.opener.coralChart,
         documentElement = $window.document.documentElement,
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
@@ -182,52 +183,15 @@ return angular.module( 'chartController', ['authentication.service'] )
 
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
-            since = now - 1000 * 60 * 60 * 24 * 31,
-            limit = 500
+            timeFrom = now - 1000 * 60 * 60,  // 1 Hour
+            limit = 500,
+            notify = function() { chart.traits.update( "trend")}
 
-        // if point
-        if( pointAlreadyHasSubscription( point))
-            return
-
-        point.subscriptionId = reef.subscribeToMeasurementHistory( $scope, point.uuid, since, limit,
-            function( subscriptionId, type, measurement) {
-                if( type === "measurements") {
-                    console.log( "subscribeToMeasurementHistory on measurements with length=" + measurement.length)
-                    measurement.forEach( function( m) {
-                        var value = parseFloat( m.value)
-                        if( ! isNaN( value)) {
-                            m.value = value
-                            m.time = new Date( m.time)
-                            //console.log( "subscribeToMeasurementHistory measurements " + m.name + " " + m.time + " " + m.value)
-                            point.measurements.push( m)
-                        } else {
-                            console.error( "subscribeToMeasurementHistory " + m.name + " time=" + m.time + " value='" + m.value + "' -- value is not a number.")
-                        }
-                    })
-                    chart.traits.update( "trend")
-
-                } else {
-                    // one measurement
-                    measurement.value = parseFloat( measurement.value)
-                    measurement.time = new Date( measurement.time)
-                    console.log( "subscribeToMeasurementHistory " + measurement.name + " " + measurement.time + " " + measurement.value)
-                    point.measurements.push( measurement)
-                    chart.traits.update( "trend")
-                }
-            },
-            function( error, message) {
-                console.error( "subscribeToMeasurementHistory " + error + ", " + message)
-            }
-        )
+        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
     }
 
-    function unsubscribeToMeasurementHistory( point) {
-        try {
-            reef.unsubscribe( point.subscriptionId);
-        } catch( ex) {
-            console.error( "Unsubscribe measurement history for " + point.name + " exception " + ex)
-        }
-        delete point.subscriptionId;
+    function unsubscribeToMeasurementHistory( chart, point) {
+        meas.unsubscribeToMeasurementHistory( point, chart)
     }
 
     function getPointSuccess( json) {
