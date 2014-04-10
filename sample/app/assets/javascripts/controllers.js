@@ -34,20 +34,6 @@ return angular.module( 'controllers', ['authentication.service'] )
 
 .controller( 'MenuControl', function( $rootScope, $scope, $timeout, reef, $http) {
 
-    $scope.topicTree  = [
-        {
-            label: 'All Equipment',
-            children: [],
-            data: {
-                regex: '^[^/]+',
-                count: 0,
-                newMessageCount: 1,
-                depth: 0
-            }
-        }
-    ]
-
-
     $scope.isActive = function(menuItem) {
         return {
             active: menuItem && menuItem == $scope.currentMenuItem

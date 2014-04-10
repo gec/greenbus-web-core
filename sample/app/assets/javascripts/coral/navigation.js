@@ -53,6 +53,14 @@ define([
             </li>\
         </ul>'
 
+    var navTreeTemplate =
+        '<abn-tree tree-data="navTree"\
+        icon-expand       = "fa fa-caret-right"\
+        icon-collapse     = "fa fa-caret-down"\
+        initial-selection = "Equipment"\
+        on-select         = "menuSelect(branch)">\
+    </abn-tree>'
+
     function navBarTopController( $scope, $attrs, $location, $cookies, coralRest) {
         $scope.loading = true
         $scope.applicationMenuItems = []
@@ -98,8 +106,55 @@ define([
     function navListLink(scope, element, $attrs) {
     }
 
+    function navTreeController( $scope, $attrs, $location, $cookies, coralRest) {
+        $scope.navTree = [
+            {
+                label: 'All Equipment',
+                children: [],
+                data: {
+                    regex: '^[^/]+',
+                    count: 0,
+                    newMessageCount: 1,
+                    depth: 0
+                }
+            }
+        ]
+
+        $scope.menuSelect = function( branch) {
+            console.log( "navTreeController.menuSelect " + branch.label)
+        }
+
+        function entityToTreeNode( entity) {
+            return {
+                label: entity.name,
+                children: entityChildrenToTreeNode( entity)
+            }
+        }
+        function entityChildrenToTreeNode( entityChildren) {
+            var ra = []
+            entityChildren.forEach( function( e) {
+                ra.push( entityToTreeNode( e))
+            })
+            return ra
+        }
+        function getSuccess( data) {
+            data.forEach( function(node) {
+                if( node.url.indexOf( "#/") !== 0) {
+                    coralRest.get( node.url, null, $scope, function( equipment) {
+                        node.chilren = entityChildrenToTreeNode( equipment)
+                    })
+                }
+            })
+        }
+
+        return coralRest.get( $attrs.href, "navTree", $scope, getSuccess)
+    }
+    // The linking function will add behavior to the template
+    function navTreeLink(scope, element, $attrs) {
+    }
+
     return angular.module('coral.navigation', ["ui.bootstrap", "coral.rest"]).
-        // <nav-bar-top url="/menus/root"
+        // <nav-bar-top url="/menus/admin"
         directive('navBarTop', function(){
             return {
                 restrict: 'E', // Element name
@@ -112,7 +167,7 @@ define([
                 link: navBarTopLink
             }
         }).
-        // <nav-list href="/coral/menus/root">
+        // <nav-list href="/coral/menus/admin">
         directive('navList', function(){
             return {
                 restrict: 'E', // Element name
@@ -123,6 +178,19 @@ define([
                 template: navListTemplate,
                 controller: navListController,
                 list: navListLink
+            }
+        } ).
+        // <nav-tree href="/coral/menus/analysis">
+        directive('navTree', function(){
+            return {
+                restrict: 'E', // Element name
+                // This HTML will replace the alarmBanner directive.
+                //replace: true,
+                //transclude: true,
+                scope: true,
+                //template: navTreeTemplate,
+                controller: navTreeController,
+                list: navTreeLink
             }
         } ).
         // If badge count is 0, return empty string.

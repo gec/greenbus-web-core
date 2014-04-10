@@ -84,33 +84,44 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Ok( Json.toJson( navMenu))
   }
 
+  def coralMenusAdmin = {
+    List[NavigationElement](
+      NavigationHeader( "Model"),
+      NavigationItem( "Entities", "entities", "#/entities", selected=true),
+      NavigationItem( "Points", "points", "#/points"),
+      NavigationItem( "Commands", "commands", "#/commands"),
+      NavigationHeader( "Data"),
+      NavigationItem( "CES", "esses", "#/esses"),
+      NavigationItem( "Measurements", "measurements", "#/measurements"),
+      NavigationItem( "Events", "events", "#/events"),
+      NavigationItem( "Alarms", "alarms", "#/alarms"),
+      NavigationHeader( "Components"),
+      NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
+      NavigationItem( "Applications", "applications", "#/applications"),
+      NavigationHeader( "Auth"),
+      NavigationItem( "Agents", "agents", "#/agents"),
+      NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+    )
+  }
+  def coralMenusAnalysis = {
+    List[NavigationElement](
+      NavigationItem( "Dashboard", "dashboard", "#/dashbaord"),
+      NavigationItem( "Equipment", "equipment", "model/equipment?depth=3", selected=true),
+      NavigationItem( "Endpoints", "endpoints", "#/endpoints"),
+      NavigationItem( "Events & Alarms", "eventsAlarms", "#/eventsAlarms")
+    )
+  }
   def getCoralMenus( name: String) = ReefClientAction { (request, client) =>
 
-    val navMenu = if( name.equals( "root")) {
-
-      List[NavigationElement](
-        NavigationHeader( "Model"),
-        NavigationItem( "Entities", "entities", "#/entities", selected=true),
-        NavigationItem( "Points", "points", "#/points"),
-        NavigationItem( "Commands", "commands", "#/commands"),
-        NavigationHeader( "Data"),
-        NavigationItem( "CES", "esses", "#/esses"),
-        NavigationItem( "Measurements", "measurements", "#/measurements"),
-        NavigationItem( "Events", "events", "#/events"),
-        NavigationItem( "Alarms", "alarms", "#/alarms"),
-        NavigationHeader( "Components"),
-        NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
-        NavigationItem( "Applications", "applications", "#/applications"),
-        NavigationHeader( "Auth"),
-        NavigationItem( "Agents", "agents", "#/agents"),
-        NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
-      )
-    } else {
-
-      List[NavigationElement](
-        NavigationHeader( "Unknown menu '" + name + "'")
-      )
+    val navMenu = name match {
+      case "admin" => coralMenusAdmin
+      case "analysis" => coralMenusAnalysis
+      case _ =>
+        List[NavigationElement](
+          NavigationHeader( "Unknown menu '" + name + "'")
+        )
     }
+
 
     Ok( Json.toJson( navMenu))
   }

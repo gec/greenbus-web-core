@@ -17,14 +17,16 @@
     <div class="row-fluid" style="margin-top: 60px;">
         <div class="span2">
             <div class="well" style="background-color-: transparent">
-                <abn-tree tree-data="topicTree"
-                icon-expand       = "fa fa-caret-right"
-                icon-collapse     = "fa fa-caret-down"
-                initial-selection = "All Equipment"
-                on-select         = "topicMenuSelect(branch)"></abn-tree>
+                <nav-tree href="/coral/menus/analysis">
+                    <abn-tree tree-data="navTree"
+                    icon-expand       = "fa fa-caret-right"
+                    icon-collapse     = "fa fa-caret-down"
+                    initial-selection = "All Equipment"
+                    on-select         = "menuSelect(branch)"></abn-tree>
+                </nav-tree>
             </div>
             <div class="well sidebar-nav" ng-show="currentMenuItem != 'loading'">
-                <nav-list href="/coral/menus/root"></nav-list>
+                <nav-list href="/coral/menus/admin"></nav-list>
             </div>
         </div>
         <div class="span10">
