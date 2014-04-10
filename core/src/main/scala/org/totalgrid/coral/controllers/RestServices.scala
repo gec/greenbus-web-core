@@ -26,8 +26,8 @@ import play.api.libs.json._
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Model.{ ReefUUID, Entity}
 import org.totalgrid.reef.client.service.{EventService, MeasurementService, FrontEndService, EntityService}
-import org.totalgrid.reef.client.service.EntityService.Descriptors.EntityQuery
 import org.totalgrid.reef.client.service.proto.{EventRequests, EntityRequests}
+import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityQuery, EntityEdgeQuery}
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -58,10 +58,80 @@ trait RestServices extends ReefAuthentication {
   val JSON_EMPTY_ARRAY = Json.toJson( Seq[JsValue]())
   val JSON_EMPTY_OBJECT = Json.toJson( Json.obj())
 
+  def getEquipmentRoots( rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+    import org.totalgrid.coral.models.EntityWithChildren._
+
+    def ensureEquipmentType( types: List[String]) = {
+      if( ! types.exists( t => t == "Equipment"))
+        "Equipment" :: types
+      else
+        types
+    }
+
+    val service = session.entityService
+    val query = EntityQuery.newBuilder()
+    query
+      .addAllIncludeTypes( ensureEquipmentType( rootTypes.union( childTypes))) // TODO: childTypes should be specified later
+      .setPageSize( limit)
+
+    service.entityQuery( query.build).flatMap{
+      entities =>
+        val query2 = EntityEdgeQuery.newBuilder()
+        query2
+          .addAllParents( entities.map( _.getUuid))
+          .addRelationships( "owns")
+          .setDepthLimit( depth)
+          .setPageSize( limit * 2)
+
+        service.edgeQuery( query2.build).map{ edges =>
+          val idToEntityWithChildrenMap = toIdToEntityWithChildrenMap( entities)
+
+          edges.foreach{ edge =>
+            val parentId = edge.getParent.getValue
+            val childId = edge.getChild.getValue
+            val childOption = idToEntityWithChildrenMap get childId
+            val parentOption = idToEntityWithChildrenMap get parentId
+
+            (parentOption, childOption) match {
+              case (Some(parent), Some(child)) =>
+                parent.addChild( child)
+                child.isOrphan = false
+              case (Some(parent), None) =>
+                val typ = parent.entity.getTypesList.headOption.getOrElse( "NO TYPE")
+                Logger.debug( s"getEquipmentRoots.edges.foreach parent (${parent.entity.getName}, ${parent.entity.getUuid.getValue}, $typ) with unknown child")
+              case (None, Some(child)) =>
+                val typ = child.entity.getTypesList.headOption.getOrElse( "NO TYPE")
+                Logger.debug( s"getEquipmentRoots.edges.foreach child (${child.entity.getName}, ${child.entity.getUuid.getValue}, $typ) with unknown parent")
+              case (None, None) =>
+                Logger.error( s"getEquipmentRoots.edges.foreach unknown child with unknown parent")
+            }
+
+          }
+
+          val roots = findRoots( idToEntityWithChildrenMap)
+          Ok( Json.toJson(roots))
+        }
+
+    }
+  }
+
+  def getEquipment( uuid: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+    val service = session.entityService
+    val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
+    val query = EntityKeySet.newBuilder().addUuids(reefUuid)
+
+    service.get( query.build).map{ result =>
+      if( result.nonEmpty)
+        Ok( Json.toJson(result.head))
+      else
+        NotFound( JSON_EMPTY_OBJECT)
+    }
+  }
+
   def getEntities( types: List[String]) = ReefClientActionAsync { (request, session) =>
 
     val service = session.entityService
-    val query = EntityRequests.EntityQuery.newBuilder()
+    val query = EntityQuery.newBuilder()
 
     types.length match {
       case 0 => query.setAll(true)  //.setPageSize(pageSize)

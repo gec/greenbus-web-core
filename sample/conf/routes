@@ -4,6 +4,7 @@
 
 # Home page
 GET        /                                   controllers.Application.index
+GET        /analyst/                           controllers.Application.analyst
 GET        /chart                              controllers.Application.chart
 
 GET        /login                              controllers.Application.getLoginOrAlreadyLoggedIn
@@ -18,6 +19,9 @@ GET        /coral/menus/:name                  controllers.Application.getCoralM
 
 GET        /entities                           controllers.Application.getEntities( types: List[String])
 GET        /entities/:uuid                     controllers.Application.getEntity( uuid: String)
+
+GET        /model/equipment                    controllers.Application.getEquipmentRoots( rootTypes: List[String], childTypes: List[String], depth: Int = 1, limit: Int = 200)
+GET        /model/equipment/:uuid              controllers.Application.getEquipment( uuid: String, childTypes: List[String], depth: Int = 1, limit: Int = 200)
 
 GET        /points/:uuid                       controllers.Application.getPoint( uuid: String)
 GET        /points                             controllers.Application.getPoints

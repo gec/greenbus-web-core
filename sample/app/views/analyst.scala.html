@@ -1,0 +1,65 @@
+@(title: String)
+
+@main(title, routes.Assets.at("javascripts/analyst")) {
+<div class="statusBanner">
+    <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
+        <div class="statusBlock">
+            <div class="statusBox">
+                <div class=statusText><strong>Not connected. </strong> {{status.description}}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<nav-bar-top href="/menus/root"></nav-bar-top>
+
+<div class="container-fluid" ng-controller="MenuControl">
+    <div class="row-fluid" style="margin-top: 60px;">
+        <div class="span2">
+            <div class="well" style="background-color-: transparent">
+                <abn-tree tree-data="topicTree"
+                icon-expand       = "fa fa-caret-right"
+                icon-collapse     = "fa fa-caret-down"
+                initial-selection = "All Equipment"
+                on-select         = "topicMenuSelect(branch)"></abn-tree>
+            </div>
+            <div class="well sidebar-nav" ng-show="currentMenuItem != 'loading'">
+                <nav-list href="/coral/menus/root"></nav-list>
+            </div>
+        </div>
+        <div class="span10">
+            <div class="row-fluid">
+                <div class="span10">
+                    <ul class="breadcrumb" ng-show="currentMenuItem != 'loading'">
+                        <li ng-repeat="crumb in breadcrumbs" ng-class="{ active: !crumb.url }">
+                            <span ng-hide="crumb.url">{{crumb.name}}</span>
+                            <a ng-show="crumb.url" href="{{crumb.url}}">{{crumb.name}}</a>
+                            <span ng-show="crumb.url" class="divider">/</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="row-fluid">
+                <div class="span10">
+
+                    <div ng-view></div>
+                </div>
+            </div>
+        </div>
+            <!--
+        <div class="span10 navbar-fixed-bottom" style="margin-left: 17.02127659574468%; padding-left: 1.068%; background-color: lightgray">
+            <alarm-banner limit="3"></alarm-banner>
+        </div>
+        -->
+    </div>
+
+    <hr>
+
+    <footer>
+        <p>&copy; Green Energy Corp 2013</p>
+    </footer>
+
+</div>
+
+}

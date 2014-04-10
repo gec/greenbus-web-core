@@ -19,6 +19,8 @@
 package org.totalgrid.coral.models
 
 import play.api.libs.json._
+import play.api.libs.json.Writes._
+import play.api.libs.functional.syntax._
 import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
@@ -391,5 +393,19 @@ object JsonFormatters {
     }
   }
   lazy val equipmentWithPointsWithTypesPushWrites = new PushWrites( "equipmentWithPointsWithTypes", equipmentWithPointsWithTypesWrites)
+
+
+//  implicit val entityWithChildrenWrites = new Writes[EntityWithChildren] {
+//    def writes( o: EntityWithChildren): JsValue =
+//      Json.obj(
+//        "entity" -> o.entity,
+//        "children" -> o.children
+//      )
+//  }
+
+  implicit lazy val entityWithChildrenWrites: Writes[EntityWithChildren] = (
+    (__ \ "entity").write[Entity] and
+      (__ \ "children").lazyWrite(Writes.seq[EntityWithChildren](entityWithChildrenWrites))
+  ) (unlift(EntityWithChildren.unapply))
 
 }

@@ -21,7 +21,7 @@
             </ul>
             <div id="chart-container" class="coral-win-container" style="height: 100%">
                 <div class="coral-loading-overlay" ng-show="loading">
-                    <div ng-include src="'partials/loadingprogress.html'"></div>
+                    <div ng-include src="'/partials/loadingprogress.html'"></div>
                 </div>
                 <div class="coral-win-content" ng-hide="loading" droppable target="chart" on-drop="onDropPoint">
                     <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 100%"></div>

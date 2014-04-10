@@ -47,6 +47,11 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Ok(views.html.index("Coral Sample"))
   }
 
+  def analyst = AuthenticatedPageAction { (request, session) =>
+    Logger.debug( "Application.analyst")
+    Ok(views.html.analyst("Coral Sample"))
+  }
+
   def chart = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.chart")
     Ok(views.html.chart("Coral Sample"))
@@ -58,7 +63,8 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     val navMenu = if( name.equals( "root")) {
 
       val applicationsMenu = List[NavigationElement](
-        NavigationItem( "Home", "home", "#/")
+        NavigationItem( "Home", "home", "#/"),
+        NavigationItem( "Analyst", "analyst", "/analyst/#/")
       )
       val sessionMenu = List[NavigationElement](
         NavigationItem( "Logout", "logout", "#/logout")

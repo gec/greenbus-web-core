@@ -124,6 +124,16 @@ define([
                 controller: navListController,
                 list: navListLink
             }
-        });
+        } ).
+        // If badge count is 0, return empty string.
+        filter('badgeCount', function() {
+            return function ( count ) {
+                if ( count > 0 )
+                    return count
+                else
+                    return ""
+            }
+        })
+    ;
 
 });// end RequireJS define
