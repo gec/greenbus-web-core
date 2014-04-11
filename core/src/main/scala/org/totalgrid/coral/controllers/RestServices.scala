@@ -61,6 +61,18 @@ trait RestServices extends ReefAuthentication {
   def getEquipmentRoots( rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     import org.totalgrid.coral.models.EntityWithChildren._
 
+    // Rewrite this:
+    // 1. Get type "Root". Microgrid1: MicroGrid, Root
+    // 2. Get child edges - EntityEdgeQuery.addAllParents
+    // 3. Get children
+    // 4. If depth < maxDepth then goto 2
+
+    // Microgrid1 - MicroGrid, Root
+    //   MG1 - Equipment, EquipmentGroup
+    //     MG1.Gen1	- Equipment, Generator
+    //     MG1.Main	- Substation, Grid, Equipment
+    //     ...
+
     def ensureEquipmentType( types: List[String]) = {
       if( ! types.exists( t => t == "Equipment"))
         "Equipment" :: types
@@ -79,10 +91,10 @@ trait RestServices extends ReefAuthentication {
         entities.foreach( e => Logger.debug( s"EntityQuery entity: ${e.getName} ${e.getTypesList.toList.mkString("|")}"))
         val query2 = EntityEdgeQuery.newBuilder()
         query2
-          .addAllParents( entities.map( _.getUuid))
+          .addAllChildren( entities.map( _.getUuid))
           .addRelationships( "owns")
-          .setDepthLimit( depth)
-          .setPageSize( limit * 2)
+          .setDepthLimit( 1)  // just the immediate edge.
+          .setPageSize( limit * 2)   // twice the number of entities. TODO: MAX_INT
 
         service.edgeQuery( query2.build).map{ edges =>
           val idToEntityWithChildrenMap = toIdToEntityWithChildrenMap( entities)
