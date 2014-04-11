@@ -76,6 +76,7 @@ trait RestServices extends ReefAuthentication {
 
     service.entityQuery( query.build).flatMap{
       entities =>
+        entities.foreach( e => Logger.debug( s"EntityQuery entity: ${e.getName} ${e.getTypesList.toList.mkString("|")}"))
         val query2 = EntityEdgeQuery.newBuilder()
         query2
           .addAllParents( entities.map( _.getUuid))
@@ -94,6 +95,7 @@ trait RestServices extends ReefAuthentication {
 
             (parentOption, childOption) match {
               case (Some(parent), Some(child)) =>
+                Logger.debug( s"getEquipmentRoots.edges.foreach parent (${parent.entity.getName}, ${parent.entity.getUuid.getValue}) with child ${child.entity.getUuid.getValue})")
                 parent.addChild( child)
                 child.isOrphan = false
               case (Some(parent), None) =>

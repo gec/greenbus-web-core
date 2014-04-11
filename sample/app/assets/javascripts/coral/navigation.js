@@ -124,16 +124,16 @@ define([
             console.log( "navTreeController.menuSelect " + branch.label)
         }
 
-        function entityToTreeNode( entity) {
+        function entityToTreeNode( entityWithChildren) {
             return {
-                label: entity.name,
-                children: entityChildrenToTreeNode( entity)
+                label: entityWithChildren.entity.name,
+                children: entityChildrenToTreeNode( entityWithChildren.children)
             }
         }
-        function entityChildrenToTreeNode( entityChildren) {
+        function entityChildrenToTreeNode( entityWithChildrenList) {
             var ra = []
-            entityChildren.forEach( function( e) {
-                ra.push( entityToTreeNode( e))
+            entityWithChildrenList.forEach( function( entityWithChildren) {
+                ra.push( entityToTreeNode( entityWithChildren))
             })
             return ra
         }
@@ -141,7 +141,7 @@ define([
             data.forEach( function(node) {
                 if( node.url.indexOf( "#/") !== 0) {
                     coralRest.get( node.url, null, $scope, function( equipment) {
-                        node.chilren = entityChildrenToTreeNode( equipment)
+                        node.children = entityChildrenToTreeNode( equipment)
                     })
                 }
             })

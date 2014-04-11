@@ -106,7 +106,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   def coralMenusAnalysis = {
     List[NavigationElement](
       NavigationItem( "Dashboard", "dashboard", "#/dashbaord"),
-      NavigationItem( "Equipment", "equipment", "model/equipment?depth=3", selected=true),
+      NavigationItem( "Equipment", "equipment", "/model/equipment?depth=3", selected=true),
       NavigationItem( "Endpoints", "endpoints", "#/endpoints"),
       NavigationItem( "Events & Alarms", "eventsAlarms", "#/eventsAlarms")
     )
