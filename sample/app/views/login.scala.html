@@ -4,8 +4,8 @@
 
 
 <div class="container-fluid" ng-controller="LoginController">
-    <div class="row-fluid">
-        <div class="span12">
+    <div class="row">
+        <div class="col-md-12">
             <!-- <div ng-view></div> -->
 
             <div id="loginModal" class="modal hide fade">
@@ -15,13 +15,13 @@
                 <div class="modal-body" style="padding-left: 120px">
                         <!--<form><fieldset>-->
                     <label></label>
-                    <input id="userName" type="text" class="span8" ng-model="userName" placeholder="user name">
+                    <input id="userName" type="text" class="col-md-8" ng-model="userName" placeholder="user name">
                     <label></label>
-                    <input id="password" type="password" class="span8" ng-model="password" placeholder="password">
+                    <input id="password" type="password" class="col-md-8" ng-model="password" placeholder="password">
                         <!--</fieldset></form>-->
                 </div>
                 <div class="modal-footer">
-                    <div class="alert alert-error" ng-show="!!error" style="text-align: center">
+                    <div class="alert alert-danger" ng-show="!!error" style="text-align: center">
                         <strong>Oh my! </strong> {{error}}
                     </div>
                     <a ng-click="login()" class="btn btn-primary">Sign in</a>
