@@ -4,7 +4,7 @@
 
 # Home page
 GET        /                                   controllers.Application.index
-GET        /analyst/                           controllers.Application.analyst
+GET        /apps/analyst/                           controllers.Application.analyst
 GET        /chart                              controllers.Application.chart
 
 GET        /login                              controllers.Application.getLoginOrAlreadyLoggedIn

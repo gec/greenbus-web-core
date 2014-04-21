@@ -59,12 +59,13 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 
 
   def getMenus( name: String) = ReefClientAction { (request, client) =>
+    Logger.debug( s"/menus/$name")
 
     val navMenu = if( name.equals( "root")) {
 
       val applicationsMenu = List[NavigationElement](
         NavigationItem( "Home", "home", "#/"),
-        NavigationItem( "Analyst", "analyst", "/analyst/#/")
+        NavigationItem( "Analyst", "analyst", "/apps/analyst/#/")
       )
       val sessionMenu = List[NavigationElement](
         NavigationItem( "Logout", "logout", "#/logout")
@@ -112,6 +113,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     )
   }
   def getCoralMenus( name: String) = ReefClientAction { (request, client) =>
+    Logger.debug( s"/coral/menus/$name")
 
     val navMenu = name match {
       case "admin" => coralMenusAdmin

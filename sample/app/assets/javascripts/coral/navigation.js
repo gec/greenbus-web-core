@@ -23,17 +23,25 @@ define([
     'use strict';
 
     var navBarTopTemplate =
-        '<div class="navbar navbar-inverse navbar-fixed-top"> <div class="navbar-inner"> <div class="container-fluid"> \
-            <a class="brand" href="{{ application.url }}">{{ application.label }}</a> \
-            <div class="nav-collapse collapse"> \
-                \
-                <ul class="nav" ng-hide="loading"> \
-                    <li ng-repeat="item in applicationMenuItems" ng-class="getActiveClass( item)">\
+        '<div class="navbar navbar-inverse navbar-fixed-top" role="navigation"><div class="container">\
+            \
+            <div class="navbar-header">\
+                <button type="button" class="navbar-toggle" ng-click="isCollapsed = !isCollapsed">\
+                    <span class="sr-only">Toggle navigation</span>\
+                    <span class="icon-bar"></span>\
+                    <span class="icon-bar"></span>\
+                    <span class="icon-bar"></span>\
+                </button>\
+                <a class="navbar-brand" href="{{ application.url }}">{{ application.label }}</a>\
+            </div>\
+            \
+            <div class="collapse navbar-collapse" collapse="isCollapsed">\
+                <ul class="nav navbar-nav" ng-hide="loading">\
+                    <li  ng-repeat="item in applicationMenuItems" ng-class="getActiveClass( item)">\
                         <a href="{{ item.url }}">{{ item.label }}</a>\
-                    </li> \
-                </ul> \
-                \
-                <ul class="nav pull-right" ng-hide="loading"> \
+                    </li>\
+                </ul>\
+                <ul class="nav navbar-nav navbar-right" ng-hide="loading">\
                     <li class="dropdown"> \
                         <a class="dropdown-toggle">Logged in as {{ userName }} <b class="caret"></b></a> \
                         <ul class="dropdown-menu"> \
@@ -41,9 +49,9 @@ define([
                         </ul> \
                     </li> \
                 </ul>\
-                \
-            </div><!--/.nav-collapse --> \
-    </div> </div> </div>'
+            </div>\
+            \
+        </div> </div>'
 
     var navListTemplate =
         '<ul class="nav nav-list">\

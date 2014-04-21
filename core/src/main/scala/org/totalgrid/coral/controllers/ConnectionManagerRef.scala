@@ -25,7 +25,7 @@ import scala.language.postfixOps
 
 object ConnectionManagerRef {
 
-  implicit val timeout = Timeout(2 seconds)
+  implicit val timeout = Timeout(5 seconds)
 
 }
 /**
