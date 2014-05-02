@@ -32,20 +32,20 @@ define([
                     <span class="icon-bar"></span>\
                     <span class="icon-bar"></span>\
                 </button>\
-                <a class="navbar-brand" href="{{ application.url }}">{{ application.label }}</a>\
+                <a class="navbar-brand" href="{{ application.route }}">{{ application.label }}</a>\
             </div>\
             \
             <div class="collapse navbar-collapse" collapse="isCollapsed">\
                 <ul class="nav navbar-nav" ng-hide="loading">\
                     <li  ng-repeat="item in applicationMenuItems" ng-class="getActiveClass( item)">\
-                        <a href="{{ item.url }}">{{ item.label }}</a>\
+                        <a href="{{ item.route }}">{{ item.label }}</a>\
                     </li>\
                 </ul>\
                 <ul class="nav navbar-nav navbar-right" ng-hide="loading">\
                     <li class="dropdown"> \
                         <a class="dropdown-toggle">Logged in as {{ userName }} <b class="caret"></b></a> \
                         <ul class="dropdown-menu"> \
-                            <li ng-repeat="item in sessionMenuItems"><a href="{{ item.url }}">{{ item.label }}</a></li> \
+                            <li ng-repeat="item in sessionMenuItems"><a href="{{ item.route }}">{{ item.label }}</a></li> \
                         </ul> \
                     </li> \
                 </ul>\
@@ -56,7 +56,7 @@ define([
     var navListTemplate =
         '<ul class="nav nav-list">\
             <li ng-repeat="item in navItems" ng-class="getClass(item)" ng-switch="item.type">\
-                <a ng-switch-when="item" href="{{ item.url }}">{{ item.label }}</a>\
+                <a ng-switch-when="item" href="{{ item.route }}">{{ item.label }}</a>\
                 <span ng-switch-when="header">{{ item.label }}</span>\
             </li>\
         </ul>'
@@ -75,12 +75,12 @@ define([
         $scope.sessionMenuItems = []
         $scope.application = {
             label: "loading...",
-            url: ""
+            route: ""
         }
         $scope.userName = $cookies.userName
 
         $scope.getActiveClass = function( item) {
-            return ( item.url === $location.path()) ? "active" : ""
+            return ( item.route === $location.path()) ? "active" : ""
         }
 
         function onSuccess( json) {
@@ -127,31 +127,109 @@ define([
                 }
             }
         ]
+        var sample = [
+            {
+                "entity": {
+                    "name": "Some Microgrid",
+                    "id": "b9e6eac2-be4d-41cf-b82a-423d90515f64",
+                    "types": ["Root", "MicroGrid"]
+                },
+                "children": [
+                    {
+                        "entity": {
+                            "name": "MG1",
+                            "id": "03c2db16-0f78-4800-adfc-9dff9d4598da",
+                            "types": ["Equipment", "EquipmentGroup"]
+                        },
+                        "children": []
+                    }
+            ]}
+        ]
 
         $scope.menuSelect = function( branch) {
-            console.log( "navTreeController.menuSelect " + branch.label)
+            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.route)
+            $location.url( branch.route + "?sourceUrl=" + encodeURIComponent(branch.sourceUrl))
         }
 
         function entityToTreeNode( entityWithChildren) {
+            // Could be a simple entity.
+            var entity = entityWithChildren.entity || entityWithChildren
+
             return {
-                label: entityWithChildren.entity.name,
-                children: entityChildrenToTreeNode( entityWithChildren.children)
+                label: entity.name,
+                data: {
+                    id: entity.id,
+                    types: entity.types
+                },
+                children: entityWithChildren.children ? entityChildrenToTreeNodes( entityWithChildren.children) : []
             }
         }
-        function entityChildrenToTreeNode( entityWithChildrenList) {
+        function entityChildrenToTreeNodes( entityWithChildrenList) {
             var ra = []
             entityWithChildrenList.forEach( function( entityWithChildren) {
                 ra.push( entityToTreeNode( entityWithChildren))
             })
             return ra
         }
-        function getSuccess( data) {
-            data.forEach( function(node) {
-                if( node.url.indexOf( "#/") !== 0) {
-                    coralRest.get( node.url, null, $scope, function( equipment) {
-                        node.children = entityChildrenToTreeNode( equipment)
-                    })
+
+        function loadTreeNodesFromSource( data, index, node) {
+            coralRest.get( node.sourceUrl, null, $scope, function( equipment) {
+                var treeNodes = entityChildrenToTreeNodes( equipment)
+                switch( node.insertLocation) {
+                    case "CHILDREN":
+                        // Insert the resultant children before any existing static children.
+                        node.children = treeNodes.concat( node.children)
+                        break;
+                    case "REPLACE":
+                        insertTreeNodesAtIndex( data, index, treeNodes)
+                        break;
+                    default:
+                        console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + node.lifespan)
                 }
+            })
+
+        }
+        function insertTreeNodesAtIndex( data, index, treeNodes) {
+            var i,
+                oldChildren = data[index].children
+            data.splice( index, 1)
+            for( i=treeNodes.length-1; i >= 0; i-- ) {
+                var node = treeNodes[i]
+                data.splice( index, 0, node)
+                if( oldChildren && oldChildren.length > 0) {
+                    var i2
+                    for( i2 = 0; i2 < oldChildren.length; i2++) {
+                        var child = angular.copy( oldChildren[i2])
+                        node.children.push( child)
+                        if( child.sourceUrl) {
+                            if( child.sourceUrl.indexOf( '$parent'))
+                                child.sourceUrl = child.sourceUrl.replace( '$parent', node.data.id)
+                            loadTreeNodesFromSource( node.children, node.children.length-1, child)
+                        }
+                    }
+                }
+            }
+        }
+        function getSuccess( data) {
+            data.forEach( function(node, index) {
+                if( node.sourceUrl)
+                    loadTreeNodesFromSource( data, index, node)
+//                {
+//                    coralRest.get( node.sourceUrl, null, $scope, function( equipment) {
+//                        var treeNodes = entityChildrenToTreeNodes( equipment)
+//                        switch( node.insertLocation) {
+//                            case "CHILDREN":
+//                                // Insert the resultant children before any existing static children.
+//                                node.children = treeNodes.concat( node.children)
+//                                break;
+//                            case "REPLACE":
+//                                insertTreeNodesAtIndex( data, index, treeNodes)
+//                                break;
+//                            default:
+//                                console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + node.lifespan)
+//                        }
+//                    })
+//                }
             })
         }
 
@@ -162,7 +240,7 @@ define([
     }
 
     return angular.module('coral.navigation', ["ui.bootstrap", "coral.rest"]).
-        // <nav-bar-top url="/menus/admin"
+        // <nav-bar-top route="/menus/admin"
         directive('navBarTop', function(){
             return {
                 restrict: 'E', // Element name

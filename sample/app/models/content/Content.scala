@@ -58,12 +58,26 @@ case class TableColumn( label: String, field: String)
 case class TableView( dataSource: DataSource, columns: List[TableColumn], override val selectEvent: String, override val title: Option[String] = None) extends View
 
 
+/**
+ * For NavigationItemSource, where will the results be inserted?
+ */
+object InsertLocation extends Enumeration {
+  type InsertLocation = Value
+  val REPLACE = Value   // Result items will replace NavigationItem
+  val CHILDREN = Value  // Result items will be inserted as children of NavigationItem.
+}
+import InsertLocation._
 
+sealed trait ItemLoadable {
+  def sourceUrl: String
+  def insertLocation: InsertLocation
+}
 
 sealed trait NavigationElement
 sealed trait NavigationDivider extends NavigationElement
 case object NavigationDivider extends NavigationDivider
 case class NavigationHeader( label: String) extends NavigationElement
-case class NavigationItem( label: String, id: String, url: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+case class NavigationItem( label: String, id: String, route: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+case class NavigationItemSource( label: String, id: String, route: String, val sourceUrl: String, val insertLocation: InsertLocation, selected: Boolean = false, val children: List[NavigationElement] = List()) extends NavigationElement with ItemLoadable
 
 }

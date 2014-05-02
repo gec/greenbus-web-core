@@ -24,19 +24,19 @@ import play.api.mvc._
 import play.api.Logger
 import play.api.libs.json._
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Model.{ ReefUUID, Entity}
+import org.totalgrid.reef.client.service.proto.Model.{EntityEdge, ReefUUID, Entity}
 import org.totalgrid.reef.client.service.{EventService, MeasurementService, FrontEndService, EntityService}
 import org.totalgrid.reef.client.service.proto.{EventRequests, EntityRequests}
-import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityQuery, EntityEdgeQuery}
+import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityRelationshipFlatQuery, EntityQuery, EntityEdgeQuery, EntityKeySet}
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import org.totalgrid.reef.client.service.proto.EntityRequests.EntityKeySet
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmQuery, EventQuery}
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointQuery
 import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 import scala.concurrent.ExecutionContext.Implicits._
+import org.totalgrid.coral.models.EntityWithChildren
 
 
 // for postfix 'seconds'
@@ -58,7 +58,152 @@ trait RestServices extends ReefAuthentication {
   val JSON_EMPTY_ARRAY = Json.toJson( Seq[JsValue]())
   val JSON_EMPTY_OBJECT = Json.toJson( Json.obj())
 
-  def getEquipmentRoots( rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def ensureType( typ: String, types: List[String]) = {
+    if( ! types.exists( t => t == typ))
+      typ :: types
+    else
+      types
+  }
+
+  def getEntitiesByReefUuid( service: EntityService, reefUuids: Seq[ReefUUID]) = {
+    val keyset = EntityKeySet.newBuilder()
+      .addAllUuids( reefUuids)
+    service.get( keyset.build())
+  }
+
+  def logTree( prefix: String, nodes: Seq[EntityWithChildren], depth: Int) {
+    val spaces = " " * depth
+    val depthPlus1 = depth + 1
+    nodes.foreach{ ewc =>
+      Logger.debug( s"$prefix $spaces ${ewc.entity.getName}")
+      logTree( prefix, ewc.children, depthPlus1)
+    }
+
+  }
+
+  def getChildTreeBreadthFirst( service: EntityService, rootEntitiesWithChildren: Seq[EntityWithChildren], parentEntitiesWithChildrenMap: Map[String,EntityWithChildren], currentDepth: Int, maxDepth: Int): Future[Seq[EntityWithChildren]] = {
+    Logger.debug( s"getChildTreeBreadthFirst begin currentDepth/maxDepth $currentDepth / $maxDepth")
+
+    def makeChildReefUuidToParentMap( edges: Seq[EntityEdge]) = {
+      edges.foldLeft(Map[ReefUUID, EntityWithChildren]()) { (map, edge) =>
+        parentEntitiesWithChildrenMap.get( edge.getParent.getValue) match {
+          case Some( parent) =>
+            map + (edge.getChild -> parent )
+          case None =>
+            Logger.error( s"getChildTreeBreadthFirst.toChildReefUuidToParentMap Internal error parentEntitiesWithChildrenMap.get( parentUuid = ${edge.getParent.getValue}) should not return none")
+            map
+        }
+      }
+    }
+
+    val query = EntityEdgeQuery.newBuilder()
+    parentEntitiesWithChildrenMap.values.foreach{ ewc => query.addParents( ewc.entity.getUuid)}
+    query
+      .addRelationships( "owns")
+      .setDepthLimit( 1)  // just the immediate edge.
+      .setPageSize( Int.MaxValue)
+
+    service.edgeQuery( query.build).flatMap{ edges =>
+      val childReefUuidToParentMap = makeChildReefUuidToParentMap( edges)
+      val childReefUuids = edges.map( _.getChild)
+
+      getEntitiesByReefUuid( service, childReefUuids).flatMap{ children =>
+
+        val justEquipmentChildren = children.filter( c => c.getTypesList.contains( "Equipment"))  // TODO: need a query filtered by types.
+        val childrenAsEntityWithChildren = justEquipmentChildren.map{ new EntityWithChildren( _) }
+        Logger.debug( s"getEntitiesByReefUuid currentDepth=$currentDepth children.length=${children.length}, justEquipmentChildren.length=${justEquipmentChildren.length}")
+
+        Logger.debug( "================= childrenAsEntityWithChildren begin")
+        childrenAsEntityWithChildren.foreach{ child =>
+          childReefUuidToParentMap.get( child.entity.getUuid) match {
+            case Some( parent) =>
+              Logger.debug( s"parent.addChild ${parent.entity.getName} addChild ${child.entity.getName}")
+              parent.addChild( child)
+            case None => Logger.error( s"Internal error getChildren child (${child.entity.getName}, ${child.entity.getUuid.getValue}) should have parent, but none found")
+          }
+        }
+        Logger.debug( "================= childrenAsEntityWithChildren end")
+
+        if( currentDepth < maxDepth) {
+          val entitiesWithChildrenMap = childrenAsEntityWithChildren.foldLeft(Map[String, EntityWithChildren]()) { (map, ewc) => map + (ewc.entity.getUuid.getValue -> ewc ) }
+          Logger.debug( s"deeper -------------- currentDepth/maxDepth $currentDepth / $maxDepth")
+          entitiesWithChildrenMap.foreach{ case (uuid, ewc) => Logger.debug( s"$uuid -> ${ewc.entity.getName}")}
+          getChildTreeBreadthFirst( service, rootEntitiesWithChildren, entitiesWithChildrenMap, currentDepth+1, maxDepth).map { rootEntities =>
+            logTree( "getChildTreeBreadthFirst  deeper ", rootEntitiesWithChildren, 1)
+            rootEntitiesWithChildren
+          }
+        } else {
+          logTree( "getChildTreeBreadthFirst !deeper ", rootEntitiesWithChildren, 1)
+          Future.successful( rootEntitiesWithChildren)
+        }
+      }
+
+    }
+
+  }
+
+  /**
+   *
+   * @param modelId
+   * @param rootTypes
+   * @param childTypes
+   * @param depth Default 1.
+   * @param limit
+   * @return
+   */
+  def getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+    import org.totalgrid.coral.models.EntityWithChildren._
+
+    Logger.debug( s"getEquipmentRoots begin depth=$depth")
+
+
+    // Algorithm:
+    // 1. Get type "Root". Microgrid1: MicroGrid, Root
+    // 2. Get child edges - EntityEdgeQuery.addAllParents
+    // 3. Get children
+    // 4. If depth < maxDepth then goto 2
+
+    // Microgrid1 - MicroGrid, Root
+    //   MG1 - Equipment, EquipmentGroup
+    //     MG1.Gen1	- Equipment, Generator
+    //     MG1.Main	- Substation, Grid, Equipment
+    //     ...
+
+    val service = session.entityService
+    val query = EntityQuery.newBuilder()
+    query
+      .addAllIncludeTypes( rootTypes)
+      .setPageSize( limit)
+
+    service.entityQuery( query.build).flatMap{ entities =>
+      val idToEntityWithChildrenMap = toIdToEntityWithChildrenMap( entities)
+      val rootEntitiesWithChildren = idToEntityWithChildrenMap.values.toSeq
+
+      val f = getChildTreeBreadthFirst( service, rootEntitiesWithChildren, idToEntityWithChildrenMap, 1, depth)
+      f.map { rootEntities =>
+        logTree( "Final1 ", rootEntities, 1)
+        logTree( "Final2 ", rootEntitiesWithChildren, 1)
+        Ok( Json.toJson( rootEntitiesWithChildren))
+      }
+
+//      f.onSuccess {
+//          Ok( Json.toJson( idToEntityWithChildrenMap.values.toSeq))
+//      }
+//
+//      f.onFailure {
+//          Ok( Json.toJson( idToEntityWithChildrenMap.values.toSeq))
+//      }
+
+//      getChildTreeBreadthFirst( service, idToEntityWithChildrenMap, 1, depth).onComplete {
+//        case Success(_) =>
+//          Ok( Json.toJson( idToEntityWithChildrenMap.values.toSeq))
+//        case Failure =>
+//          Ok( Json.toJson( idToEntityWithChildrenMap.values.toSeq))
+//      }
+
+    }
+  }
+  def getEquipmentRootsQueryAllAtOnce( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     import org.totalgrid.coral.models.EntityWithChildren._
 
     // Rewrite this:
@@ -73,17 +218,11 @@ trait RestServices extends ReefAuthentication {
     //     MG1.Main	- Substation, Grid, Equipment
     //     ...
 
-    def ensureEquipmentType( types: List[String]) = {
-      if( ! types.exists( t => t == "Equipment"))
-        "Equipment" :: types
-      else
-        types
-    }
 
     val service = session.entityService
     val query = EntityQuery.newBuilder()
     query
-      .addAllIncludeTypes( ensureEquipmentType( rootTypes.union( childTypes))) // TODO: childTypes should be specified later
+      .addAllIncludeTypes( ensureType( "Equipment", rootTypes.union( childTypes))) // TODO: childTypes should be specified later
       .setPageSize( limit)
 
     service.entityQuery( query.build).flatMap{
@@ -129,9 +268,18 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getEquipment( uuid: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  /**
+   *
+   * @param modelId
+   * @param entityId Entity UUID
+   * @param childTypes
+   * @param depth 1 - no children. 0 - flat list of all children at all depths.
+   * @param limit
+   * @return
+   */
+  def getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     val service = session.entityService
-    val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
+    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
     val query = EntityKeySet.newBuilder().addUuids(reefUuid)
 
     service.get( query.build).map{ result =>
@@ -139,6 +287,133 @@ trait RestServices extends ReefAuthentication {
         Ok( Json.toJson(result.head))
       else
         NotFound( JSON_EMPTY_OBJECT)
+    }
+  }
+
+  /**
+   *
+   * @param modelId
+   * @param entityId Entity UUID
+   * @param childTypes
+   * @param depth 1 - no children. 0 - flat list of all children at all depths.
+   * @param limit
+   * @return
+   */
+  def getEquipmentChildren( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+    Logger.debug( s"getEquipmentChildren begin depth=$depth")
+
+    val service = session.entityService
+    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+    val query = EntityRelationshipFlatQuery.newBuilder()
+      .addStartUuids(reefUuid)
+      .setRelationship("owns")
+      .setDescendantOf(true)
+      .addAllDescendantTypes( childTypes)
+      .setPageSize(limit)
+      .setDepthLimit( if( depth > 0) depth else Int.MaxValue )
+
+    service.relationshipFlatQuery( query.build).map{ result =>
+      Ok( Json.toJson(result))
+    }
+  }
+
+  def getPointsByTypeForEquipmentsQuery( service: EntityService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], limit: Int) = {
+    Logger.debug( s"getPointsByTypeForEquipmentsQuery begin")
+
+    val query = EntityRelationshipFlatQuery.newBuilder()
+      .addAllStartUuids(equipmentReefUuids)
+      .setRelationship("owns")
+      .setDescendantOf(true)
+      .addAllDescendantTypes( pointTypes)
+      .setPageSize(limit)
+      .setDepthLimit( 1)  // default is infinite
+
+    service.relationshipFlatQuery( query.build)
+  }
+  def getEdgesForParentsAndChildrenQuery( service: EntityService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], limit: Int) = {
+    val query = EntityEdgeQuery.newBuilder()
+      .addAllParents( parentReefUuids)
+      .addAllChildren( childReefUuids)
+      .addRelationships("owns")
+      .setPageSize(limit)
+      .setDepthLimit( 1)  // default is infinite
+
+    service.edgeQuery( query.build)
+
+  }
+
+  def getPointsByTypeQuery( service: EntityService, pointTypes: List[String], limit: Int) = {
+
+    val query = EntityRequests.EntityQuery.newBuilder()
+      .setPageSize(limit)
+    if( pointTypes.isEmpty)
+      query.addIncludeTypes( "Point")
+    else
+      query.addAllIncludeTypes( pointTypes)
+        .addMatchTypes( "Point")
+
+    service.entityQuery( query.build).flatMap {
+      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
+      case pointEnts =>
+        val frontEndService = FrontEndService.client( session)
+        val reefUuids = pointEnts.map(_.getUuid)
+        val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
+
+        frontEndService.getPoints( keys).map{ result => Ok( Json.toJson( result)) }
+    }
+  }
+
+  def getPoints( modelId: String, equipmentIds: Seq[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
+    Logger.debug( s"getPointsByTypeForEquipments begin")
+
+    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[Entity]) = {
+
+      val pointIdPointMap = points.foldLeft( Map[ReefUUID, Entity]()) { (map, point) => map + (point.getUuid -> point) }
+
+      edges.foldLeft(Map[ReefUUID, List[Entity]]()) { (map, edge) =>
+        val parentId = edge.getParent
+        map.get( parentId) match {
+          case Some( childList) =>
+            pointIdPointMap.get( edge.getChild) match {
+              case Some( point) =>
+                map + (parentId -> (point :: childList))
+              case None =>
+                Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
+                map
+            }
+          case None =>
+            map + (parentId -> List[Entity]())
+        }
+      }
+
+    }
+
+    val service = session.entityService
+
+    if( equipmentIds.isEmpty) {
+
+      getPointsByTypeQuery( service, pointTypes, limit)
+
+    } else {
+
+      val equipmentReefUuids = equipmentIds.map( ReefUUID.newBuilder().setValue( _).build())
+      getPointsByTypeForEquipmentsQuery( service, equipmentReefUuids, pointTypes, limit).flatMap { points =>
+
+        val pointsReefUuids = points.map( _.getUuid)
+        getEdgesForParentsAndChildrenQuery( service, equipmentReefUuids, pointsReefUuids, limit).map { edges =>
+          val equipmentToPointMap = makeEquipmentPointsMap( edges, points)
+          //        val jsArray = JsArray()
+          //        val json = equipmentToPointMap.foreach{ case (eqId, points) =>
+          //          jsArray :+
+          //          Json.obj(
+          //             "id" -> eqId.getValue,
+          //             "points" -> points
+          //          )
+          //        }
+
+          Ok( Json.toJson(equipmentToPointMap))
+        }
+      }
     }
   }
 
@@ -169,24 +444,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getPoints = ReefClientActionAsync { (request, session) =>
-    val service = session.entityService
-    val query = EntityRequests.EntityQuery.newBuilder()
-    query.addIncludeTypes("Point")  //.setPageSize(pageSize)
-    //last.foreach(query.setLastUuid)
-
-    service.entityQuery( query.build).flatMap {
-      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
-      case pointEnts =>
-        val frontEndService = FrontEndService.client( session)
-        val reefUuids = pointEnts.map(_.getUuid)
-        val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
-
-        frontEndService.getPoints( keys).map{ result => Ok( Json.toJson( result)) }
-    }
-  }
-
-  def getPoint( uuid: String) = ReefClientActionAsync { (request, session) =>
+  def getPoint( modelId: String, uuid: String) = ReefClientActionAsync { (request, session) =>
     val service = FrontEndService.client( session)
     val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
     val keys = EntityKeySet.newBuilder().addUuids( reefUuid).build()

@@ -112,7 +112,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         { name: "Points" }
     ];
 
-    reef.get( "/points", "points", $scope);
+    reef.get( "/models/1/points", "points", $scope);
 })
 
 .controller( 'PointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
@@ -126,7 +126,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         { name: name }
     ];
 
-    reef.get( '/points/' + id, "point", $scope);
+    reef.get( '/models/1/points/' + id, "point", $scope);
 })
 
 .controller( 'CommandControl', function( $rootScope, $scope, reef) {
@@ -448,7 +448,7 @@ return angular.module( 'controllers', ['authentication.service'] )
         return 0;
     }
 
-    reef.get( "/points", "points", $scope, function() {
+    reef.get( "/models/1/points", "points", $scope, function() {
         var pointIds = [],
             currentMeasurement = {
                 value: "-",
@@ -474,15 +474,17 @@ return angular.module( 'controllers', ['authentication.service'] )
 /**
  * Energy Storage Systems Control
  */
-.controller( 'EssesControl', function( $rootScope, $scope, $filter, reef) {
-    $scope.esses = []     // our mappings of data from the server
+.controller( 'CesesControl', function( $rootScope, $scope, $filter, reef, $location) {
+    $scope.ceses = []     // our mappings of data from the server
     $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
     $scope.searchText = ""
     $scope.sortColumn = "name"
     $scope.reverse = false
-    var pointNameMap = {}
+    var pointNameMap = {},
+        searchArgs = $location.search(),
+        sourceUrl = searchArgs.sourceUrl || null
 
-    $rootScope.currentMenuItem = "esses";
+    $rootScope.currentMenuItem = "ceses";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "CES" }
@@ -523,7 +525,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     $scope.findPoint = function( id) {
-        $scope.esses.forEach( function( point) {
+        $scope.ceses.forEach( function( point) {
             if( id == point.id)
                 return point
         })
@@ -580,14 +582,14 @@ return angular.module( 'controllers', ['authentication.service'] )
         var value = processValue( info, measurement)
         if( info.type == "Standby") {
             if( value === "OffAvailable" || value === "true")
-                $scope.esses[ info.essIndex].standbyOrOnline = "Standby"
+                $scope.ceses[ info.essIndex].standbyOrOnline = "Standby"
             else
-                $scope.esses[ info.essIndex].standbyOrOnline = "Online"
+                $scope.ceses[ info.essIndex].standbyOrOnline = "Online"
         } else if( info.type == "%SOC") {
-            $scope.esses[ info.essIndex].percentSocMax100 = Math.min( value, 100)
+            $scope.ceses[ info.essIndex].percentSocMax100 = Math.min( value, 100)
         }
-        $scope.esses[ info.essIndex][info.type] = value
-        $scope.esses[ info.essIndex].state = getState( $scope.esses[ info.essIndex])
+        $scope.ceses[ info.essIndex][info.type] = value
+        $scope.ceses[ info.essIndex].state = getState( $scope.ceses[ info.essIndex])
     }
 
     $scope.onError = function( error, message) {
@@ -629,7 +631,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             pointIds = []
 
         $scope.equipment.forEach( function( eq) {
-            essIndex = $scope.esses.length
+            essIndex = $scope.ceses.length
             eq.points.forEach( function( point) {
                 pointIds.push( point.id)
                 if( ! point.valueType || ! point.unit)
@@ -640,7 +642,28 @@ return angular.module( 'controllers', ['authentication.service'] )
                     "unit": point.unit
                 }
             })
-            $scope.esses.push( makeEss( eq))
+            $scope.ceses.push( makeEss( eq))
+        })
+        reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
+    }
+    // Called after get sourceUrl is successful
+    $scope.getSourceUrlListener = function( ) {
+        var cesIndex,
+            pointIds = []
+
+        $scope.equipment.forEach( function( eq) {
+            cesIndex = $scope.ceses.length
+            eq.points.forEach( function( point) {
+                pointIds.push( point.id)
+                if( ! point.valueType || ! point.unit)
+                    console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
+                pointNameMap[ point.name] = {
+                    "essIndex": cesIndex,
+                    "type": getInterestingType( point.types),
+                    "unit": point.unit
+                }
+            })
+            $scope.ceses.push( makeEss( eq))
         })
         reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
     }
@@ -648,7 +671,8 @@ return angular.module( 'controllers', ['authentication.service'] )
     var eqTypes = makeQueryStringFromArray( "eqTypes", ["CES", "DESS"])
     var pointTypes = makeQueryStringFromArray( "pointTypes", ["%SOC", "Charging", "Standby", "Capacity"])
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
-    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
+//    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
+    reef.get( sourceUrl, "ceses", $scope, $scope.getSourceUrlListener);
 })
 
 .controller( 'EndpointControl', function( $rootScope, $scope, reef) {

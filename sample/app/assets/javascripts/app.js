@@ -82,7 +82,7 @@ define([
           when('/logout', {templateUrl: 'partials/login.html', controller: 'LogoutControl'}).
           when('/measurements', {templateUrl: 'partials/measurements.html', controller: 'MeasurementControl'}).
           when('/chart', {templateUrl: 'partials/chart.html', controller: 'ChartControl'}).
-          when('/esses', {templateUrl: 'partials/esses.html', controller: 'EssesControl'}).
+          when('/ceses', {templateUrl: 'partials/ceses.html', controller: 'EssesControl'}).
           when('/entities', {templateUrl: 'partials/entities.html', controller: 'EntityControl'}).
           when('/entities/:id/:name', {templateUrl: 'partials/entitydetail.html', controller: 'EntityDetailControl'}).
           when('/points', {templateUrl: 'partials/points.html', controller: 'PointControl'}).

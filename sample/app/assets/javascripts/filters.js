@@ -80,7 +80,7 @@ angular.module('ReefAdmin.filters', []).
             }
         };
     }).
-    filter('essBatteryStandby', function() {
+    filter('cesBatteryStandby', function() {
         return function(standby) {
             return ( standby === "OffAvailable" || standby === "true")
         };
@@ -90,7 +90,7 @@ angular.module('ReefAdmin.filters', []).
             return simpleStandby === "Standby" ? "label label-warning" : ""
         };
     }).
-    filter('essBatteryCharging', function() {
+    filter('cesBatteryCharging', function() {
         return function(standby, charging) {
             if( standby === "OffAvailable" || standby === "true")
                 return false
@@ -119,7 +119,7 @@ angular.module('ReefAdmin.filters', []).
             return state + " state";
         };
     }).
-    filter('essBatterySocChargedClass', function() {
+    filter('cesBatterySocChargedClass', function() {
         return function(soc, state) {
             var classes = ( soc > 10 ) ? "battery-soc charged" : "battery-soc charged alarmed"
             if( state === "standby" )
@@ -127,7 +127,7 @@ angular.module('ReefAdmin.filters', []).
             return classes
         };
     }).
-    filter('essBatterySocUnchargedClass', function() {
+    filter('cesBatterySocUnchargedClass', function() {
         return function(soc, state) {
             var classes = null
             if( soc === null || soc === "" )
