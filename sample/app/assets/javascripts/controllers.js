@@ -480,7 +480,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     $scope.searchText = ""
     $scope.sortColumn = "name"
     $scope.reverse = false
-    var pointNameMap = {},
+    var pointIdToInfoMap = {},
         searchArgs = $location.search(),
         sourceUrl = searchArgs.sourceUrl || null
 
@@ -542,10 +542,10 @@ return angular.module( 'controllers', ['authentication.service'] )
 
     function processValue( info, measurement) {
         var value = measurement.value
-        if( measurement.name.indexOf( "PowerHub") >= 0)
-            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
-        if( measurement.name.indexOf( "Sunverge") >= 0)
-            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
+//        if( measurement.name.indexOf( "PowerHub") >= 0)
+//            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
+//        if( measurement.name.indexOf( "Sunverge") >= 0)
+//            console.log( "measurement " + measurement.name + ", value:'"+measurement.value+"'" + " info.type: " + info.type)
 
         switch (info.type) {
             case "%SOC":
@@ -575,29 +575,46 @@ return angular.module( 'controllers', ['authentication.service'] )
 
     }
 
-    $scope.onMeasurement = function( subscriptionId, type, measurement) {
-        //console.log( "onMeasurement " + measurement.name + " '" + measurement.value + "'")
-        // Map the point.name to the standard types (i.e. capacity, standby, charging)
-        var info = pointNameMap[ measurement.name]
-        var value = processValue( info, measurement)
-        if( info.type == "Standby") {
-            if( value === "OffAvailable" || value === "true")
-                $scope.ceses[ info.essIndex].standbyOrOnline = "Standby"
-            else
-                $scope.ceses[ info.essIndex].standbyOrOnline = "Online"
-        } else if( info.type == "%SOC") {
-            $scope.ceses[ info.essIndex].percentSocMax100 = Math.min( value, 100)
+    function onOnePointMeasurement( pm) {
+        var info = pointIdToInfoMap[ pm.point.id]
+        if( info){
+            console.log( "onOnePointMeasurement " + pm.point.id + " '" + pm.measurement.value + "'")
+            // Map the point.name to the standard types (i.e. capacity, standby, charging)
+            var value = processValue( info, pm.measurement)
+            if( info.type == "Standby") {
+                if( value === "OffAvailable" || value === "true")
+                    $scope.ceses[ info.cesIndex].standbyOrOnline = "Standby"
+                else
+                    $scope.ceses[ info.cesIndex].standbyOrOnline = "Online"
+            } else if( info.type == "%SOC") {
+                $scope.ceses[ info.cesIndex].percentSocMax100 = Math.min( value, 100)
+            }
+            $scope.ceses[ info.cesIndex][info.type] = value
+            $scope.ceses[ info.cesIndex].state = getState( $scope.ceses[ info.cesIndex])
+
+        } else {
+            console.error( "onArrayOfPointMeasurement couldn't find point.id = " + pm.point.id)
         }
-        $scope.ceses[ info.essIndex][info.type] = value
-        $scope.ceses[ info.essIndex].state = getState( $scope.ceses[ info.essIndex])
+    }
+
+    $scope.onMeasurement = function( subscriptionId, type, arrayOfPointMeasurement) {
+
+        if( type === 'measurements') {
+            arrayOfPointMeasurement.forEach( function( pm) {
+                onOnePointMeasurement( pm)
+            })
+
+        } else {
+            console.error( "CesesController.onMeasurement unknown type: '" + type + "'")
+        }
     }
 
     $scope.onError = function( error, message) {
 
     }
 
-    //function makeEss( eq, capacityUnit) {
-    function makeEss( eq) {
+    //function makeCes( eq, capacityUnit) {
+    function makeCes( eq) {
         return {
             name: eq.name,
             Capacity: "",
@@ -612,8 +629,8 @@ return angular.module( 'controllers', ['authentication.service'] )
 
     var POINT_TYPES =  ["%SOC", "Charging", "Standby", "Capacity"]
     function getInterestingType( types) {
-
-        types.forEach( function( typ) {
+        for( var index = types.length-1; index >= 0; index--) {
+            var typ = types[index]
             switch( typ) {
                 case "%SOC":
                 case "Charging":
@@ -622,57 +639,107 @@ return angular.module( 'controllers', ['authentication.service'] )
                     return typ
                 default:
             }
-        })
+        }
         return null
     }
-    // Called after get /equipmentwithpointsbytype returns successful.
-    $scope.getSuccessListener = function( ) {
-        var essIndex,
-            pointIds = []
-
-        $scope.equipment.forEach( function( eq) {
-            essIndex = $scope.ceses.length
-            eq.points.forEach( function( point) {
-                pointIds.push( point.id)
-                if( ! point.valueType || ! point.unit)
-                    console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
-                pointNameMap[ point.name] = {
-                    "essIndex": essIndex,
-                    "type": getInterestingType( point.types),
-                    "unit": point.unit
-                }
-            })
-            $scope.ceses.push( makeEss( eq))
-        })
-        reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
+    function getPointByType( points, typ ) {
+        for( var index = points.length-1; index >= 0; index-- ) {
+            var point = points[index]
+            if( point.types.indexOf( typ) >= 0)
+                return point
+        }
+        return null
     }
+
     // Called after get sourceUrl is successful
-    $scope.getSourceUrlListener = function( ) {
-        var cesIndex,
-            pointIds = []
+    $scope.getEquipmentListener = function( ) {
+        var cesIndex, pointsUrl,
+            pointIds = [],
+            pointTypesQueryString = makeQueryStringFromArray( "pointTypes", POINT_TYPES),
+            equipmentIdMap = {},
+            equipmentIds = [],
+            equipmentIdsQueryString = ""
 
         $scope.equipment.forEach( function( eq) {
-            cesIndex = $scope.ceses.length
-            eq.points.forEach( function( point) {
-                pointIds.push( point.id)
-                if( ! point.valueType || ! point.unit)
-                    console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
-                pointNameMap[ point.name] = {
-                    "essIndex": cesIndex,
-                    "type": getInterestingType( point.types),
-                    "unit": point.unit
+            equipmentIdMap[eq.id] = eq
+            equipmentIds.push( eq.id)
+        })
+        equipmentIdsQueryString = makeQueryStringFromArray( "equipmentIds", equipmentIds)
+
+
+        pointsUrl = "/models/1/points?" + equipmentIdsQueryString // TODO: include when fixed! + "&" + pointTypesQueryString
+        reef.get( pointsUrl, "points", $scope, function( data) {
+            var sampleData = {
+                "e57170fd-2a13-4420-97ab-d1c0921cf60d": [
+                    {
+                        "name": "MG1.CES1.ModeStndby",
+                        "id": "fa9bd9a1-5ad1-4c20-b019-261cb69d0a39",
+                        "types": ["Point", "Standby"]
+                    },
+                    {
+                        "name": "MG1.CES1.CapacitykWh",
+                        "id": "585b3e36-1826-4d7b-b538-d2bb71451d76",
+                        "types": ["Capacity", "Point"]
+                    },
+                    {
+                        "name": "MG1.CES1.ChgDischgRate",
+                        "id": "ec7d6f06-e627-44d2-9bb9-530541fdcdfd",
+                        "types": ["Charging", "Point"]
+                    }
+            ]}
+
+            equipmentIds.forEach( function( eqId) {
+                var point,
+                    points = data[eqId],
+                    cesIndex = $scope.ceses.length
+
+                if( points) {
+                    POINT_TYPES.forEach( function( typ) {
+                        point = getPointByType( points, typ)
+                        if( point) {
+                            console.log( "point: name=" + point.name + ", types = " + point.types)
+                            pointIdToInfoMap[point.id] = {
+                                "cesIndex": cesIndex,
+                                "type": getInterestingType( point.types),
+                                "unit": point.unit
+                            }
+                            pointIds.push( point.id)
+                        } else {
+                            console.error( "controller.ceses GET /models/n/points entity[" + eqId + "] does not have point with type " + typ)
+                        }
+
+                    })
+                    $scope.ceses.push( makeCes( equipmentIdMap[eqId]))
+                } else {
+                    console.error( "controller.ceses GET /models/n/points did not return UUID=" + eqId)
                 }
             })
-            $scope.ceses.push( makeEss( eq))
+
+            reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
         })
-        reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
+
+//        $scope.equipment.forEach( function( eq) {
+//            cesIndex = $scope.ceses.length
+//            eq.points.forEach( function( point) {
+//                pointIds.push( point.id)
+//                if( ! point.valueType || ! point.unit)
+//                    console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
+//                pointIdToInfoMap[ point.id] = {
+//                    "cesIndex": cesIndex,
+//                    "type": getInterestingType( point.types),
+//                    "unit": point.unit
+//                }
+//            })
+//            $scope.ceses.push( makeCes( eq))
+//        })
+//        reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
     }
 
     var eqTypes = makeQueryStringFromArray( "eqTypes", ["CES", "DESS"])
-    var pointTypes = makeQueryStringFromArray( "pointTypes", ["%SOC", "Charging", "Standby", "Capacity"])
+    var pointTypes = makeQueryStringFromArray( "pointTypes", POINT_TYPES)
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
 //    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
-    reef.get( sourceUrl, "ceses", $scope, $scope.getSourceUrlListener);
+    reef.get( sourceUrl, "equipment", $scope, $scope.getEquipmentListener);
 })
 
 .controller( 'EndpointControl', function( $rootScope, $scope, reef) {

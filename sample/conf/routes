@@ -24,7 +24,7 @@ GET           /models/:modelId/equipment                           controllers.A
 GET           /models/:modelId/equipment/:entityId                 controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/equipment/:entityId/children        controllers.Application.getEquipmentChildren( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 
-GET           /models/:modelId/points                              controllers.Application.getPoints( modelId: String, equipmentIds: Seq[String], pointTypes: List[String], limit: Int ?= 200)
+GET           /models/:modelId/points                              controllers.Application.getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], limit: Int ?= 200)
 GET           /models/:modelId/points/:uuid                        controllers.Application.getPoint( modelId: String, uuid: String)
 
 GET           /measurements                                        controllers.Application.getMeasurements

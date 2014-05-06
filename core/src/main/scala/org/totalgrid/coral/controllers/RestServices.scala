@@ -342,7 +342,7 @@ trait RestServices extends ReefAuthentication {
 
   }
 
-  def getPointsByTypeQuery( service: EntityService, pointTypes: List[String], limit: Int) = {
+  def getPointsByTypeQuery( session: ServiceClient, service: EntityService, pointTypes: List[String], limit: Int) = {
 
     val query = EntityRequests.EntityQuery.newBuilder()
       .setPageSize(limit)
@@ -363,20 +363,20 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getPoints( modelId: String, equipmentIds: Seq[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
-    Logger.debug( s"getPointsByTypeForEquipments begin")
+  def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
+    Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[Entity]) = {
 
-      val pointIdPointMap = points.foldLeft( Map[ReefUUID, Entity]()) { (map, point) => map + (point.getUuid -> point) }
+      val pointIdPointMap = points.foldLeft( Map[String, Entity]()) { (map, point) => map + (point.getUuid.getValue -> point) }
 
-      edges.foldLeft(Map[ReefUUID, List[Entity]]()) { (map, edge) =>
-        val parentId = edge.getParent
+      edges.foldLeft(Map[String, List[Entity]]()) { (map, edge) =>
+        val parentId = edge.getParent.getValue
         map.get( parentId) match {
           case Some( childList) =>
-            pointIdPointMap.get( edge.getChild) match {
+            pointIdPointMap.get( edge.getChild.getValue) match {
               case Some( point) =>
-                map + (parentId -> (point :: childList))
+                map + (parentId -> (point :: childList) )
               case None =>
                 Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
                 map
@@ -392,7 +392,7 @@ trait RestServices extends ReefAuthentication {
 
     if( equipmentIds.isEmpty) {
 
-      getPointsByTypeQuery( service, pointTypes, limit)
+      getPointsByTypeQuery( session, service, pointTypes, limit)
 
     } else {
 
