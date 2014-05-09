@@ -12,7 +12,7 @@ import scala.concurrent.Future
 class CoralSession( session: msg.Session) extends msg.Session {
 //  self: msg.Session =>
 
-  lazy val entityService = EntityService.client( this)
+  def entityService = EntityService.client( this)
 
   override def subscribe(requestId: String, headers: Map[String, String], destination: Option[String], payload: Array[Byte]): Future[(Array[Byte], Subscription[Array[Byte]])] =
     session.subscribe(requestId, headers, destination, payload)

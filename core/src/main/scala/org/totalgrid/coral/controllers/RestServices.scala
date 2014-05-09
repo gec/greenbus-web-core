@@ -317,7 +317,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getPointsByTypeForEquipmentsQuery( service: EntityService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], limit: Int) = {
+  def getPointsByTypeForEquipmentsQuery( entityService: EntityService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], limit: Int) = {
     Logger.debug( s"getPointsByTypeForEquipmentsQuery begin")
 
     val query = EntityRelationshipFlatQuery.newBuilder()
@@ -328,7 +328,7 @@ trait RestServices extends ReefAuthentication {
       .setPageSize(limit)
       .setDepthLimit( 1)  // default is infinite
 
-    service.relationshipFlatQuery( query.build)
+    entityService.relationshipFlatQuery( query.build)
   }
   def getEdgesForParentsAndChildrenQuery( service: EntityService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], limit: Int) = {
     val query = EntityEdgeQuery.newBuilder()
@@ -342,7 +342,7 @@ trait RestServices extends ReefAuthentication {
 
   }
 
-  def getPointsByTypeQuery( session: ServiceClient, service: EntityService, pointTypes: List[String], limit: Int) = {
+  def getPointsByTypeQuery( frontEndService: FrontEndService, entityService: EntityService, pointTypes: List[String], limit: Int) = {
 
     val query = EntityRequests.EntityQuery.newBuilder()
       .setPageSize(limit)
@@ -352,10 +352,9 @@ trait RestServices extends ReefAuthentication {
       query.addAllIncludeTypes( pointTypes)
         .addMatchTypes( "Point")
 
-    service.entityQuery( query.build).flatMap {
+    entityService.entityQuery( query.build).flatMap {
       case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
       case pointEnts =>
-        val frontEndService = FrontEndService.client( session)
         val reefUuids = pointEnts.map(_.getUuid)
         val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
 
@@ -363,14 +362,19 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
+  def getPointsByIds( frontEndService: FrontEndService, pointIds: Seq[ReefUUID]) = {
+      val keys = EntityKeySet.newBuilder().addAllUuids(pointIds).build()
+      frontEndService.getPoints( keys)
+  }
+
   def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
-    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[Entity]) = {
+    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
 
-      val pointIdPointMap = points.foldLeft( Map[String, Entity]()) { (map, point) => map + (point.getUuid.getValue -> point) }
+      val pointIdPointMap = points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
 
-      edges.foldLeft(Map[String, List[Entity]]()) { (map, edge) =>
+      edges.foldLeft(Map[String, List[Point]]()) { (map, edge) =>
         val parentId = edge.getParent.getValue
         map.get( parentId) match {
           case Some( childList) =>
@@ -382,36 +386,42 @@ trait RestServices extends ReefAuthentication {
                 map
             }
           case None =>
-            map + (parentId -> List[Entity]())
+            map + (parentId -> List[Point]())
         }
       }
 
     }
 
-    val service = session.entityService
+    val entityService = session.entityService
+    val frontEndService = FrontEndService.client( session)
 
     if( equipmentIds.isEmpty) {
 
-      getPointsByTypeQuery( session, service, pointTypes, limit)
+      getPointsByTypeQuery( frontEndService, entityService, pointTypes, limit)
 
     } else {
 
       val equipmentReefUuids = equipmentIds.map( ReefUUID.newBuilder().setValue( _).build())
-      getPointsByTypeForEquipmentsQuery( service, equipmentReefUuids, pointTypes, limit).flatMap { points =>
+      getPointsByTypeForEquipmentsQuery( entityService, equipmentReefUuids, pointTypes, limit).flatMap { pointsAsEntities =>
 
-        val pointsReefUuids = points.map( _.getUuid)
-        getEdgesForParentsAndChildrenQuery( service, equipmentReefUuids, pointsReefUuids, limit).map { edges =>
-          val equipmentToPointMap = makeEquipmentPointsMap( edges, points)
-          //        val jsArray = JsArray()
-          //        val json = equipmentToPointMap.foreach{ case (eqId, points) =>
-          //          jsArray :+
-          //          Json.obj(
-          //             "id" -> eqId.getValue,
-          //             "points" -> points
-          //          )
-          //        }
+        val pointIds = pointsAsEntities.map( _.getUuid)
+        //TODO: Currently re-getting entities as Point. Need new API from Reef to directly get points under equipment.
+        getPointsByIds( frontEndService, pointIds).flatMap { points =>
 
-          Ok( Json.toJson(equipmentToPointMap))
+          //val pointsReefUuids = points.map( _.getUuid)
+          getEdgesForParentsAndChildrenQuery( entityService, equipmentReefUuids, pointIds, limit).map { edges =>
+            val equipmentToPointMap = makeEquipmentPointsMap( edges, points)
+            //        val jsArray = JsArray()
+            //        val json = equipmentToPointMap.foreach{ case (eqId, points) =>
+            //          jsArray :+
+            //          Json.obj(
+            //             "id" -> eqId.getValue,
+            //             "points" -> points
+            //          )
+            //        }
+
+            Ok( Json.toJson(equipmentToPointMap))
+          }
         }
       }
     }
@@ -604,7 +614,7 @@ trait RestServices extends ReefAuthentication {
     val points = pointService.getPointsByUuids( pointUuids).await
     val pointUuidToPointMap: Map[ReefUUID,Point] = points.map( point => (point.getUuid, point)).toMap
 
-    val equipmentsWithPoints = equipmentsWithPointEntities.map( pieceOfEqWithPointEntities => getEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities, pointUuidToPointMap))
+    val equipmentsWithPoints = equipmentsWithPointEntities.map( pieceOfEqWithPointEntities => makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities, pointUuidToPointMap))
 
     Logger.debug( "getEquipmentWithPointsByType equipmentsWithPoints.length: " + equipmentsWithPoints.length)
     //    for( ewp <- equipmentsWithPoints) {
@@ -631,16 +641,16 @@ trait RestServices extends ReefAuthentication {
     service.searchForEntities( entityQuery.build).await
   }
 */
-  private def getPointWithTypes( pointEntity: Entity, pointUuidToPointMap: Map[ReefUUID,Point]) = {
+  private def makePointWithTypes( pointEntity: Entity, pointUuidToPointMap: Map[ReefUUID,Point]) = {
     val point = pointUuidToPointMap.get( pointEntity.getUuid).getOrElse( throw new Exception( "Point not found from entity query, point.name: " + pointEntity.getName))
     val types = pointEntity.getTypesList.toList
     PointWithTypes( point, types)
   }
 
-  private def getEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ReefUUID,Point]): EquipmentWithPointsWithTypes = {
+  private def makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ReefUUID,Point]): EquipmentWithPointsWithTypes = {
 
     val pointEntities = pieceOfEqWithPointEntities.pointEntities
-    val pointsWithTypes = pointEntities.map( pointEntity => getPointWithTypes( pointEntity, pointUuidToPointMap))
+    val pointsWithTypes = pointEntities.map( pointEntity => makePointWithTypes( pointEntity, pointUuidToPointMap))
     EquipmentWithPointsWithTypes(pieceOfEqWithPointEntities.equipment, pointsWithTypes)
   }
 }
