@@ -37,6 +37,7 @@ import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointQuery
 import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 import scala.concurrent.ExecutionContext.Implicits._
 import org.totalgrid.coral.models.EntityWithChildren
+import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
 
 // for postfix 'seconds'

@@ -30,6 +30,7 @@ import org.totalgrid.reef.client.service.proto.Measurements._
 //import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import org.totalgrid.reef.client.service.proto.FrontEnd.{Point, Endpoint, Command}
+import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
 /**
  *

@@ -9,19 +9,41 @@ import org.totalgrid.reef.client.service.proto.FrontEnd._
 import org.totalgrid.reef.client.service.proto.FrontEndRequests._
 import org.totalgrid.msg.Subscription
 import org.totalgrid.reef.client.service.proto.Model.{Entity, ReefUUID}
-import org.totalgrid.coral.models.ReefExtensions.PointWithTypes
 import org.totalgrid.msg
 import org.totalgrid.coral.models.CoralSession
 import play.api.Logger
 
-trait FrontEndServicePF {
-  self: FrontEndService =>
+object FrontEndServicePF{
+
+  /**
+   * Point should always have Entity Types. The types are distinct form Point.type
+   *
+   * @param point
+   * @param types
+   */
+  case class PointWithTypes( point: Point, types: List[String])
 
   def makePointMapById( points: Seq[Point]) =
     points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
 
   def makeEntityMapById( entitys: Seq[Entity]) =
     entitys.foldLeft( Map[String, Entity]()) { (map, entity) => map + (entity.getUuid.getValue -> entity) }
+
+  def makePointWithTypes( point: Point, entityMap: Map[String,Entity]) = {
+    entityMap.get( point.getUuid.getValue) match {
+      case Some( entity) => PointWithTypes( point, entity.getTypesList.toList)
+      case None =>
+        Logger.error( s"makePointsWithTypes error no entity found for point name=${point.getName} uuid=${point.getUuid.getValue}")
+        PointWithTypes( point, List[String]())
+    }
+  }
+
+}
+
+
+trait FrontEndServicePF {
+  self: FrontEndService =>
+  import FrontEndServicePF._
 
   def getPointsWithTypes( request: EntityKeySet, headers: Map[String, String] = Map()): Future[Seq[PointWithTypes]] = {
     frontEndService.getPoints( request, headers).flatMap { points =>
@@ -33,14 +55,6 @@ trait FrontEndServicePF {
   }
 
 
-  private def makePointWithTypes( point: Point, entityMap: Map[String,Entity]) = {
-    entityMap.get( point.getUuid.getValue) match {
-      case Some( entity) => PointWithTypes( point, entity.getTypesList.toList)
-      case None =>
-        Logger.error( s"makePointsWithTypes error no entity found for point name=${point.getName} uuid=${point.getUuid.getValue}")
-        PointWithTypes( point, List[String]())
-    }
-  }
 }
 
 

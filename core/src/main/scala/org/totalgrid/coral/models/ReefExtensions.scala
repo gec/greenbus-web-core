@@ -19,23 +19,18 @@
 package org.totalgrid.coral.models
 
 import org.totalgrid.reef.client.service.proto.Model.Entity
-import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 
 /**
  *
- * This is for Reef types that are somehow incomplete for Coral's needs.
+ * ReefExtentions are added capabilities closely tied to Reef, but may not be general enough
+ * to become core Reef services.
+ *
+ * See {@link org.totalgrid.coral.reefpolyfill} for services that should be part of Reef.
  *
  * @author Flint O'Brien
  */
 object ReefExtensions {
-
-  /**
-   * Point with Entity Types. The types are distinct form Point.type
-   *
-   * @param point
-   * @param types
-   */
-  case class PointWithTypes( point: Point, types: List[String])
+  import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
   /**
    * An entity with a list of points that are PointsWithTypes
