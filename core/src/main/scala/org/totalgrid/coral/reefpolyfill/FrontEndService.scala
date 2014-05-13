@@ -13,15 +13,35 @@ import org.totalgrid.msg
 import org.totalgrid.coral.models.CoralSession
 import play.api.Logger
 
+/**
+ * Point should always have Entity Types. These types are distinct from Point.type
+ *
+ * @param point
+ * @param types
+ */
+class PointWithTypes( val point: Point, types: List[String]) {
+
+  def getTypes = types
+
+  def getAbnormal = point.getAbnormal
+  def getDefaultInstanceForType = point.getDefaultInstanceForType
+  def getEndpointUuid = point.getEndpointUuid
+  def getName = point.getName
+  def getSerializedSize = point.getSerializedSize
+  def getPointType = point.getType
+  def getUnit = point.getUnit
+  def getUuid = point.getUuid
+}
+
 object FrontEndServicePF{
 
   /**
-   * Point should always have Entity Types. The types are distinct form Point.type
+   * Point should always have Entity Types. These types are distinct from Point.type
    *
    * @param point
    * @param types
    */
-  case class PointWithTypes( point: Point, types: List[String])
+//  case class PointWithTypes( point: Point, types: List[String])
 
   def makePointMapById( points: Seq[Point]) =
     points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
@@ -31,10 +51,10 @@ object FrontEndServicePF{
 
   def makePointWithTypes( point: Point, entityMap: Map[String,Entity]) = {
     entityMap.get( point.getUuid.getValue) match {
-      case Some( entity) => PointWithTypes( point, entity.getTypesList.toList)
+      case Some( entity) => new PointWithTypes( point, entity.getTypesList.toList)
       case None =>
         Logger.error( s"makePointsWithTypes error no entity found for point name=${point.getName} uuid=${point.getUuid.getValue}")
-        PointWithTypes( point, List[String]())
+        new PointWithTypes( point, List[String]())
     }
   }
 

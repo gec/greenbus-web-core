@@ -1,8 +1,9 @@
 package org.totalgrid.coral.models
 
 import org.totalgrid.msg
-import org.totalgrid.reef.client.service.EntityService
+import org.totalgrid.reef.client.service
 import org.totalgrid.msg.{Subscription, Session}
+import org.totalgrid.coral.reefpolyfill.FrontEndService
 import scala.concurrent.Future
 
 /**
@@ -12,7 +13,8 @@ import scala.concurrent.Future
 class CoralSession( session: msg.Session) extends msg.Session {
 //  self: msg.Session =>
 
-  def entityService = EntityService.client( this)
+  def entityService = service.EntityService.client( this)
+  def frontEndService =  new FrontEndService( this, service.FrontEndService.client( this))
 
   override def subscribe(requestId: String, headers: Map[String, String], destination: Option[String], payload: Array[Byte]): Future[(Array[Byte], Subscription[Array[Byte]])] =
     session.subscribe(requestId, headers, destination, payload)

@@ -25,7 +25,7 @@ import play.api.Logger
 import play.api.libs.json._
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Model.{EntityEdge, ReefUUID, Entity}
-import org.totalgrid.reef.client.service.{EventService, MeasurementService, FrontEndService, EntityService}
+import org.totalgrid.reef.client.service.{EventService, MeasurementService,EntityService}
 import org.totalgrid.reef.client.service.proto.{EventRequests, EntityRequests}
 import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityRelationshipFlatQuery, EntityQuery, EntityEdgeQuery, EntityKeySet}
 import scala.concurrent.{Future, Await}
@@ -37,6 +37,7 @@ import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointQuery
 import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 import scala.concurrent.ExecutionContext.Implicits._
 import org.totalgrid.coral.models.EntityWithChildren
+import org.totalgrid.coral.reefpolyfill.{FrontEndService, PointWithTypes}
 import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
 
@@ -359,23 +360,23 @@ trait RestServices extends ReefAuthentication {
         val reefUuids = pointEnts.map(_.getUuid)
         val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
 
-        frontEndService.getPoints( keys).map{ result => Ok( Json.toJson( result)) }
+        frontEndService.getPointsWithTypes( keys).map{ result => Ok( Json.toJson( result)) }
     }
   }
 
   def getPointsByIds( frontEndService: FrontEndService, pointIds: Seq[ReefUUID]) = {
       val keys = EntityKeySet.newBuilder().addAllUuids(pointIds).build()
-      frontEndService.getPoints( keys)
+      frontEndService.getPointsWithTypes( keys)
   }
 
   def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
-    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
+    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[PointWithTypes]) = {
 
-      val pointIdPointMap = points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
+      val pointIdPointMap = points.foldLeft( Map[String, PointWithTypes]()) { (map, point) => map + (point.getUuid.getValue -> point) }
 
-      edges.foldLeft(Map[String, List[Point]]()) { (map, edge) =>
+      edges.foldLeft(Map[String, List[PointWithTypes]]()) { (map, edge) =>
         val parentId = edge.getParent.getValue
         map.get( parentId) match {
           case Some( childList) =>
@@ -387,14 +388,14 @@ trait RestServices extends ReefAuthentication {
                 map
             }
           case None =>
-            map + (parentId -> List[Point]())
+            map + (parentId -> List[PointWithTypes]())
         }
       }
 
     }
 
     val entityService = session.entityService
-    val frontEndService = FrontEndService.client( session)
+    val frontEndService = session.frontEndService
 
     if( equipmentIds.isEmpty) {
 
@@ -456,11 +457,11 @@ trait RestServices extends ReefAuthentication {
   }
 
   def getPoint( modelId: String, uuid: String) = ReefClientActionAsync { (request, session) =>
-    val service = FrontEndService.client( session)
+    val service = session.frontEndService
     val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
     val keys = EntityKeySet.newBuilder().addUuids( reefUuid).build()
 
-    service.getPoints( keys).map{
+    service.getPointsWithTypes( keys).map{
       case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a point object
       case points => Ok( Json.toJson( points(0)))
     }
@@ -495,7 +496,7 @@ trait RestServices extends ReefAuthentication {
     service.entityQuery( query.build).flatMap {
       case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY))
       case pointEnts =>
-        val frontEndService = FrontEndService.client( session)
+        val frontEndService = session.frontEndService
         val reefUuids = pointEnts.map(_.getUuid)
         val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
 
@@ -504,7 +505,7 @@ trait RestServices extends ReefAuthentication {
   }
 
   def getCommand( name: String) = ReefClientActionAsync { (request, session) =>
-    val service = FrontEndService.client( session)
+    val service = session.frontEndService
     val keys = EntityKeySet.newBuilder().addNames( name).build()
     service.getCommands( keys).map{
       case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a command object
@@ -538,7 +539,7 @@ trait RestServices extends ReefAuthentication {
     //val service = client.getService( classOf[EndpointService])
     //Ok( Json.toJson( service.getEndpointConnections().await))
 
-    val service = FrontEndService.client( session)
+    val service = session.frontEndService
     val query = EndpointQuery.newBuilder().setAll( true) //.setPageSize(pageSize)
     service.endpointQuery( query.build()).map{ result => Ok( Json.toJson(result)) }
   }
@@ -642,16 +643,16 @@ trait RestServices extends ReefAuthentication {
     service.searchForEntities( entityQuery.build).await
   }
 */
-  private def makePointWithTypes( pointEntity: Entity, pointUuidToPointMap: Map[ReefUUID,Point]) = {
-    val point = pointUuidToPointMap.get( pointEntity.getUuid).getOrElse( throw new Exception( "Point not found from entity query, point.name: " + pointEntity.getName))
-    val types = pointEntity.getTypesList.toList
-    PointWithTypes( point, types)
-  }
+//  private def makePointWithTypes( pointEntity: Entity, pointUuidToPointMap: Map[ReefUUID,Point]) = {
+//    val point = pointUuidToPointMap.get( pointEntity.getUuid).getOrElse( throw new Exception( "Point not found from entity query, point.name: " + pointEntity.getName))
+//    val types = pointEntity.getTypesList.toList
+//    PointWithTypes( point, types)
+//  }
 
-  private def makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ReefUUID,Point]): EquipmentWithPointsWithTypes = {
-
-    val pointEntities = pieceOfEqWithPointEntities.pointEntities
-    val pointsWithTypes = pointEntities.map( pointEntity => makePointWithTypes( pointEntity, pointUuidToPointMap))
-    EquipmentWithPointsWithTypes(pieceOfEqWithPointEntities.equipment, pointsWithTypes)
-  }
+//  private def makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ReefUUID,Point]): EquipmentWithPointsWithTypes = {
+//
+//    val pointEntities = pieceOfEqWithPointEntities.pointEntities
+//    val pointsWithTypes = pointEntities.map( pointEntity => makePointWithTypes( pointEntity, pointUuidToPointMap))
+//    EquipmentWithPointsWithTypes(pieceOfEqWithPointEntities.equipment, pointsWithTypes)
+//  }
 }

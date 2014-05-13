@@ -31,6 +31,7 @@ import org.totalgrid.reef.client.service.proto.Measurements._
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import org.totalgrid.reef.client.service.proto.FrontEnd.{Point, Endpoint, Command}
 import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
+import org.totalgrid.coral.reefpolyfill.PointWithTypes
 
 /**
  *
@@ -360,26 +361,26 @@ object JsonFormatters {
   }
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
 
-  implicit val pointWrites = new Writes[Point] {
-    def writes( o: Point): JsValue =
-      Json.obj(
-        "name" -> o.getName,
-        "id" -> o.getUuid.getValue,
-        "valueType" -> o.getType.name,
-        "unit" -> o.getUnit,
-        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
-      )
-  }
+//  implicit val pointWrites = new Writes[Point] {
+//    def writes( o: Point): JsValue =
+//      Json.obj(
+//        "name" -> o.getName,
+//        "id" -> o.getUuid.getValue,
+//        "valueType" -> o.getType.name,
+//        "unit" -> o.getUnit,
+//        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
+//      )
+//  }
 
   implicit val pointWithTypesWrites = new Writes[PointWithTypes] {
     def writes( o: PointWithTypes): JsValue =
       Json.obj(
-        "name" -> o.point.getName,
-        "id" -> o.point.getUuid.getValue,
-        "valueType" -> o.point.getType.name,     // ANALOG, COUNTER, STATUS
-        "unit" -> o.point.getUnit,
-        "endpoint" -> o.point.getEndpointUuid.getValue,  // TODO: get EndpointName
-        "types" -> o.types
+        "name" -> o.getName,
+        "id" -> o.getUuid.getValue,
+        "valueType" -> o.getPointType.name,     // ANALOG, COUNTER, STATUS
+        "unit" -> o.getUnit,
+        "endpoint" -> o.getEndpointUuid.getValue,  // TODO: get EndpointName
+        "types" -> o.getTypes
       )
   }
 

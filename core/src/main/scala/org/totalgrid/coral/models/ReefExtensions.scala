@@ -19,6 +19,7 @@
 package org.totalgrid.coral.models
 
 import org.totalgrid.reef.client.service.proto.Model.Entity
+import org.totalgrid.coral.reefpolyfill.PointWithTypes
 
 /**
  *
@@ -30,7 +31,6 @@ import org.totalgrid.reef.client.service.proto.Model.Entity
  * @author Flint O'Brien
  */
 object ReefExtensions {
-  import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
   /**
    * An entity with a list of points that are PointsWithTypes
