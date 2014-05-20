@@ -244,13 +244,14 @@ class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: 
 
   private def logout( authToken: String) = {
     val future = sessionFromAuthToken( authToken, PROVISIONAL, "logout")
+    val theSender = sender
 
     future onSuccess{
       case Right( session) =>
         val service = serviceFactory.loginService( session)
         service.logout( LoginRequests.LogoutRequest.newBuilder().setToken( authToken).build())
       case Left(status) =>
-        sender ! ServiceClientFailure( status)
+        theSender ! ServiceClientFailure( status)
     }
     future onFailure {
       // POVISIONAL, so should be asking to get a timeout
@@ -274,23 +275,24 @@ class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: 
     val timer = new Timer( "ReefConnectionManager.sessionRequest validationTiming: " + validationTiming, Timer.DEBUG)
 
     val future = sessionFromAuthToken( authToken, validationTiming, "sessionRequest")
+    val theSender = sender
 
     future onSuccess {
       case Right( session) =>
         timer.end( "sender ! session")
-        sender ! session
+        theSender ! session
       case Left( status) =>
         timer.end( s"Left( status) status: $status")
-        sender ! ServiceClientFailure( status)
+        theSender ! ServiceClientFailure( status)
     }
 
     future onFailure {
       case ex: AskTimeoutException =>
         Logger.error( "ReefConnectionManager.sessionRequest " + ex)
-        sender ! ServiceClientFailure( REQUEST_TIMEOUT)
+        theSender ! ServiceClientFailure( REQUEST_TIMEOUT)
       case ex: AnyRef =>
         Logger.error( "ReefConnectionManager.sessionRequest Unknown " + ex)
-        sender ! ServiceClientFailure( REEF_FAILURE)
+        theSender ! ServiceClientFailure( REEF_FAILURE)
     }
 
   }
@@ -308,23 +310,24 @@ class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: 
     val timer = new Timer( "ReefConnectionManager.webSocketOpen validationTiming: " + validationTiming, Timer.DEBUG)
 
     val future = sessionFromAuthToken( authToken, validationTiming, "webSocketOpen")
+    val theSender = sender
 
     future onSuccess {
       case Right( session) =>
-        sender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, session)
+        theSender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, session)
         timer.end( s"webSocketOpen sender ! session: $authToken")
       case Left( status) =>
         timer.end( s"Left( status) status: $status")
-        sender ! WebSocketError( status)
+        theSender ! WebSocketError( status)
     }
 
     future onFailure {
       case ex: AskTimeoutException =>
         Logger.error( "ReefConnectionManager.sessionRequest " + ex)
-        sender ! ServiceClientFailure( REQUEST_TIMEOUT)
+        theSender ! ServiceClientFailure( REQUEST_TIMEOUT)
       case ex: AnyRef =>
         Logger.error( "ReefConnectionManager.sessionRequest Unknown " + ex)
-        sender ! ServiceClientFailure( REEF_FAILURE)
+        theSender ! ServiceClientFailure( REEF_FAILURE)
     }
 
   }

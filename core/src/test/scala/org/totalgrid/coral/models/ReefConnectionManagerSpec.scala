@@ -65,7 +65,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
     serviceFactory.reefConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns reefConnection
 
-    "recieve a session request and return a new session" in new AkkaTestkitSpecs2Support {
+    "receive a session request and return a new session" in new AkkaTestkitSpecs2Support {
       within(FiniteDuration(5, SECONDS)) {
 
         //val csvFileListener = TestProbe()

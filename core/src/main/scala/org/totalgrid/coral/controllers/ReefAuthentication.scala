@@ -72,7 +72,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
-    val timer = new Timer( "TIMER: ReefAuthentication.getService validationTiming: " + validationTiming)
+    val timer = new Timer( "TIMER: ReefAuthentication.getService validationTiming: " + validationTiming + " ============================")
     //Logger.debug( "ReefAuthentication.getService begin validationTiming: " + validationTiming)
 
     try {
