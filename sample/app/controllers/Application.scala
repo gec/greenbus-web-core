@@ -30,6 +30,7 @@ import play.api.libs.functional.syntax._
 import models.content._
 import play.api.libs.json.JsArray
 import scala.Some
+import org.totalgrid.coral.models.ReefServiceFactory
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 
@@ -40,8 +41,11 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   //implicit val timeout = Timeout(2 seconds)
 
   // reefConnectionManager is assigned by Global.
-  var reefConnectionManager: ActorRef = null
+  var reefConnectionManager: ActorRef = _
   def connectionManager: ActorRef = reefConnectionManager
+  var reefServiceFactory: ReefServiceFactory = _
+  def serviceFactory: ReefServiceFactory = reefServiceFactory
+
 
   def index = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.index")

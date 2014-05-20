@@ -30,9 +30,12 @@ object ConnectionStatus extends Enumeration {
   val AMQP_DOWN = Value( "AMQP_DOWN", "Reef client is not able to access AMQP.", false, Results.ServiceUnavailable)
   val CONFIGURATION_FILE_FAILURE = Value( "CONFIGURATION_FILE_FAILURE", "Reef client is not able to load configuration file.", false, Results.ServiceUnavailable)
   val AUTHENTICATION_FAILURE = Value( "AUTHENTICATION_FAILURE", "Reef client failed authentication with Reef server.", false, Results.Unauthorized)
+
+  // Not strictly Connection Status, but useful request statuses nonetheless.
   val INVALID_REQUEST = Value( "INVALID_REQUEST", "The request from the browser client was invalid.", false, Results.BadRequest)
   val REEF_FAILURE = Value( "REEF_FAILURE", "Reef client cannot access Reef server. Possible causes are the configuration file is in error or Reef server is not running.", false, Results.ServiceUnavailable)
   val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToken not recognized by application server.", false, Results.Unauthorized)
+  val REQUEST_TIMEOUT = Value( "REEF_REQUEST_TIMEOUT", "Reef client request timed out waiting on reply from Reef server. Possible causes are degraded network to Reef, AMQP down, or Reef server down.", false, Results.ServiceUnavailable)
 
   class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean, val httpResults: Results.Status) extends Val(nextId, name) with Pushable[ConnectionStatusVal] {
     // This is not required for Scala 2.10

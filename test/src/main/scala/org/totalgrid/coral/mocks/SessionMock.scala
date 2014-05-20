@@ -5,7 +5,6 @@ import play.api.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
 import org.totalgrid.reef.client.service.EntityService
-import org.totalgrid.coral.models.CoralSession
 
 object SessionMock {
   val session = new SessionMock
@@ -21,11 +20,8 @@ object SessionMock {
  *
  * @author Flint O'Brien
  */
-class SessionMock extends CoralSession(null)  {
+class SessionMock extends Session  {
   import SessionMock._
-
-  override lazy val entityService: EntityService =  entityServiceMock
-
 
   override def clearHeaders(): Unit = headerMap.clear
 
@@ -38,7 +34,7 @@ class SessionMock extends CoralSession(null)  {
   override def headers: Map[String, String] = headerMap.toMap
 
 
-  override def spawn(): Session = session
+  override def spawn(): Session = this
 
   ///////////////////
   //

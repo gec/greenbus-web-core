@@ -35,6 +35,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, Props}
 import org.totalgrid.coral.mocks.ReefConnectionManagerMock
 import controllers.Application
+import org.totalgrid.msg
+import org.totalgrid.coral.models.ReefServiceFactory
+import org.specs2.mock.Mockito
+import org.totalgrid.reef.client.service.EntityService
+import org.totalgrid.reef.client.service.proto.EntityRequests
+import org.totalgrid.reef.client.service.proto.Model.{ReefUUID, Entity}
 
 object GlobalMock extends GlobalSettings {
 
@@ -46,6 +52,7 @@ object GlobalMock extends GlobalSettings {
 
     reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
     Application.reefConnectionManager = reefConnectionManager
+
   }
 }
 
@@ -54,7 +61,7 @@ object GlobalMock extends GlobalSettings {
  * You can mock out a whole application including requests, plugins etc.
  * For more information, consult the wiki.
  */
-class ApplicationSpec extends Specification {
+class ApplicationSpec extends Specification with Mockito {
   val cookieName = "coralAuthToken"
   val authTokenGood = "goodAuthToken"
   val authTokenBad = "badAuthToken"
@@ -62,6 +69,16 @@ class ApplicationSpec extends Specification {
     .withCookies( Cookie(cookieName, authTokenGood))
 
   lazy val globalMock = Some(GlobalMock)
+
+  def makeUuid( uuid: String) = ReefUUID.newBuilder.setValue( uuid ).build();
+
+  def makeEntity( uuid: String, name: String) = {
+    Entity.newBuilder
+      .setName( name)
+      .setUuid( makeUuid(uuid))
+      .build
+  }
+
 
   "Application" should {
     
@@ -135,6 +152,16 @@ class ApplicationSpec extends Specification {
     "GET /entities with valid authToken" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
+        val entities = Seq[Entity]( makeEntity("uuid1", "entity1"))
+        val entityService = mock[EntityService]
+        entityService.entityQuery( any[EntityRequests.EntityQuery]) returns Future.successful( entities)
+        //entityService.get( any[EntityRequests.EntityKeySet]) returns
+
+        val serviceFactory = mock[ReefServiceFactory]
+        serviceFactory.entityService( any[msg.Session]) returns entityService
+
+        Application.reefServiceFactory = serviceFactory
+
         val resultAsync = route(
           FakeRequest(GET, "/entities")
             .withCookies( Cookie(cookieName, authTokenGood))
@@ -145,7 +172,7 @@ class ApplicationSpec extends Specification {
         val json = Json.parse( contentAsString(resultAsync)).as[JsArray]
         json.value.length == 1 must beTrue
         (json(0) \ "name").as[String] mustEqual "entity1"
-        (json(0) \ "uuid").as[String] mustEqual "uuid1"
+        (json(0) \ "id").as[String] mustEqual "uuid1"
 
       }
     }

@@ -2,52 +2,47 @@ package org.totalgrid.coral.util
 
 import play.api.Logger
 
-object TimerLogger extends Enumeration {
-  type TimerLogger = Value
+object Timer {
 
-  val TRACE = Value
-  val DEBUG = Value
+  sealed trait LogType
+  case object INFO extends LogType
+  case object DEBUG extends LogType
+  case object TRACE extends LogType
 }
-import org.totalgrid.coral.util.TimerLogger._
 
 /**
  *
  * @author Flint O'Brien
  */
-class Timer( var name: String, loggerType: TimerLogger = TimerLogger.TRACE) {
+class Timer( var name: String, loggerType: Timer.LogType = Timer.TRACE) {
+  import Timer._
+
+  val log = loggerType match {
+    case INFO => (message: String) => Logger.info( message)
+    case DEBUG => (message: String) => Logger.debug( message)
+    case TRACE => (message: String) => Logger.trace( message)
+  }
+  log( "Timer." + name + " start")
 
   var timeStart = System.currentTimeMillis
   var timeLast = timeStart
-  loggerType match {
-    case TRACE => Logger.trace( name + " start")
-    case DEBUG => Logger.debug( name + " start")
-  }
 
   def restart( newName: String) = {
     name = newName
-    loggerType match {
-      case TRACE => Logger.trace( name + " restart")
-      case DEBUG => Logger.debug( name + " restart")
-    }
+    log( f"Timer.$name restart")
     timeStart = System.currentTimeMillis
     timeLast = timeStart
   }
+
   def delta( message: String) = {
     val now  = System.currentTimeMillis
-    val s = f"Timer.$name elapsed:${now-timeStart}%4d  delta:${now-timeLast}%4d $message"
-    loggerType match {
-      case TRACE => Logger.trace( s)
-      case DEBUG => Logger.debug( s)
-    }
+    log( f"Timer.$name elapsed:${now-timeStart}%4d  delta:${now-timeLast}%4d $message")
     timeLast = now
   }
+
   def end( message: String) = {
     val now  = System.currentTimeMillis
-    val s = f"Timer.$name   total:${now-timeStart}%4d  delta:${now-timeLast}%4d $message"
-    loggerType match {
-      case TRACE => Logger.trace( s)
-      case DEBUG => Logger.debug( s)
-    }
+    log( f"Timer.$name   total:${now-timeStart}%4d  delta:${now-timeLast}%4d $message")
     timeLast = now
   }
 }

@@ -49,8 +49,9 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
  * @author Flint O'Brien
  */
 object Global extends GlobalSettings {
+  import ReefConnectionManager.ServiceFactoryDefault
 
-  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ClientPushActorFactory)), "ReefConnectionManager")
+  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ServiceFactoryDefault, ClientPushActorFactory)), "ReefConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)
@@ -58,6 +59,7 @@ object Global extends GlobalSettings {
     Logger.info( "Application starting...")
     Logger.info( "Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
+    Application.reefServiceFactory = ReefServiceFactoryDefault
     Logger.info( "Application started")
 
     /*

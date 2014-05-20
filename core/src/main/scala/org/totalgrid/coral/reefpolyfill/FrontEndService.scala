@@ -10,8 +10,8 @@ import org.totalgrid.reef.client.service.proto.FrontEndRequests._
 import org.totalgrid.msg.Subscription
 import org.totalgrid.reef.client.service.proto.Model.{Entity, ReefUUID}
 import org.totalgrid.msg
-import org.totalgrid.coral.models.CoralSession
 import play.api.Logger
+import org.totalgrid.reef.client.service.EntityService
 
 /**
  * Point should always have Entity Types. These types are distinct from Point.type
@@ -67,7 +67,7 @@ trait FrontEndServicePF {
 
   def getPointsWithTypes( request: EntityKeySet, headers: Map[String, String] = Map()): Future[Seq[PointWithTypes]] = {
     frontEndService.getPoints( request, headers).flatMap { points =>
-        session.entityService.get( request).map { entities =>
+        entityService.get( request).map { entities =>
         val entityMap = makeEntityMapById( entities)
         points.map( point => makePointWithTypes( point, entityMap) )
       }
@@ -82,7 +82,7 @@ trait FrontEndServicePF {
  *
  * @author Flint O'Brien
  */
-class FrontEndService( protected val session: CoralSession, protected val frontEndService: service.FrontEndService) extends service.FrontEndService with FrontEndServicePF {
+class FrontEndService( protected val frontEndService: service.FrontEndService, protected val entityService: EntityService) extends service.FrontEndService with FrontEndServicePF {
 
   override def getPoints(request: EntityKeySet): Future[Seq[Point]] = frontEndService.getPoints( request)
 

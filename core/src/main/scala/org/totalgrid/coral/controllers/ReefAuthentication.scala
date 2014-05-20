@@ -23,14 +23,18 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import scala.concurrent.Future
+import org.totalgrid.coral.util.Timer
+import org.totalgrid.msg
+import scala.util.{Success,Failure}
 
 //import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
-import akka.pattern.ask
-import org.totalgrid.reef.client.ReefConnection
+import akka.pattern.{AskTimeoutException, ask}
 import org.totalgrid.coral.models._
 import akka.util.Timeout
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import org.totalgrid.reef.client.exception._
+
 
 trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   self: Controller =>
@@ -45,7 +49,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   type LoginData = LoginLogoutMessages.LoginRequest
   type AuthenticationFailure = AuthenticationMessages.AuthenticationFailure
   type ServiceClientFailure = AuthenticationMessages.ServiceClientFailure
-  type ServiceClient = CoralSession
+  type ServiceClient = msg.Session
   def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
@@ -68,18 +72,47 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
-    Logger.debug( "ReefAuthentication.getService begin validationTiming: " + validationTiming)
-    (connectionManager ? SessionRequest( authToken, validationTiming)).map {
-      case session: CoralSession =>
-        Logger.debug( "ReefAuthentication.getService Right( session)")
-        Right( session)
-      case failure: AuthenticationMessages.ServiceClientFailure => Left( failure)
-      case unknownMessage: AnyRef => {
-        Logger.error( "ReefAuthentication.getService AnyRef unknown message " + unknownMessage)
-        Left( ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+    val timer = new Timer( "TIMER: ReefAuthentication.getService validationTiming: " + validationTiming)
+    //Logger.debug( "ReefAuthentication.getService begin validationTiming: " + validationTiming)
+
+    try {
+
+      connectionManager.ask( SessionRequest( authToken, validationTiming)).map {
+        case session: msg.Session =>
+//          Logger.debug( "ReefAuthentication.getService Right( session)")
+          timer.end( "onSuccess  Right( session)")
+          Right( session)
+        case failure: AuthenticationMessages.ServiceClientFailure =>
+          timer.end( "onSuccess  ServiceClientFailure " + failure)
+          Left( failure)
+        case unknownMessage: AnyRef => {
+//          Logger.error( "ReefAuthentication.getService AnyRef unknown message " + unknownMessage)
+          timer.end( "onSuccess  AnyRef unknown message" + unknownMessage)
+          Left( ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+        }
+
+      } recover {
+        case ex: AskTimeoutException =>
+          Logger.error( "ReefAuthentication.getService " + ex)
+          timer.end( "recover " + ex)
+          Left( ServiceClientFailure( ConnectionStatus.REQUEST_TIMEOUT))
+        case ex: UnauthorizedException =>
+          timer.end( "recover UnauthorizedException " + ex)
+          Left( ServiceClientFailure( ConnectionStatus.AUTHENTICATION_FAILURE))
+        case ex: ReefServiceException =>
+          timer.end( "recover ReefServiceException " + ex)
+          Left( ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+        case ex: AnyRef =>
+          timer.end( "recover Unknonwn Exception " + ex)
+          Left( ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
       }
 
+    } catch {
+      case ex: AnyRef =>
+        timer.end( "catch Unknonwn Exception " + ex)
+        throw ex
     }
+
   }
 
   /**
@@ -98,8 +131,8 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
             action( request, serviceClient)
               .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
           } catch {
-            case ex: org.totalgrid.reef.client.exception.UnauthorizedException => redirectToLogin( request, AuthenticationFailure(AUTHENTICATION_FAILURE))
-            case ex: org.totalgrid.reef.client.exception.ReefServiceException => redirectToLogin( request, AuthenticationFailure(REEF_FAILURE))
+            case ex: UnauthorizedException => redirectToLogin( request, AuthenticationFailure(AUTHENTICATION_FAILURE))
+            case ex: ReefServiceException => redirectToLogin( request, AuthenticationFailure(REEF_FAILURE))
           }
         case None =>
           // No authToken found or invalid authToken
@@ -120,8 +153,8 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
           try {
             action( request, serviceClient)
           } catch {
-            case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
-            case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailure( request, AuthenticationFailure( REEF_FAILURE))
+            case ex: UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
+            case ex: ReefServiceException => authenticationFailure( request, AuthenticationFailure( REEF_FAILURE))
           }
         case None =>
           // No authToken found or invalid authToken
@@ -139,11 +172,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
           Logger.debug( "ReefClientActionAsync " + request + " PROVISIONAL authentication")
-          action( request, serviceClient).map {
-            case r => r
-            case ex: org.totalgrid.reef.client.exception.UnauthorizedException => authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
-            case ex: org.totalgrid.reef.client.exception.ReefServiceException => authenticationFailure( request, AuthenticationFailure( REEF_FAILURE))
-          }
+          action( request, serviceClient)
         case None =>
           // No authToken found or invalid authToken
           Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")

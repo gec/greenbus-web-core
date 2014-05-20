@@ -20,6 +20,7 @@ package org.totalgrid.coral.models
 
 import play.api.Logger
 import play.api.libs.json._
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import akka.actor.{ActorRef, ActorContext, Actor}
 import akka.util.Timeout
 import scala.concurrent.duration._
@@ -27,18 +28,19 @@ import scala.language.postfixOps
 import java.io.IOException
 import org.totalgrid.reef.client.ReefConnection
 import play.api.libs.iteratee.{Enumerator, Iteratee}
-import org.totalgrid.msg.amqp.AmqpSettings
+import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
 import org.totalgrid.msg.amqp.util.LoadingException
 import org.totalgrid.msg.qpid.QpidBroker
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
 import org.totalgrid.msg.Session
-import java.util.concurrent.TimeoutException
 import org.totalgrid.reef.client.service.{EntityService, LoginService}
 import org.totalgrid.reef.client.service.proto.LoginRequests
 import org.totalgrid.reef.client.service.proto.EntityRequests.EntityKeySet
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+import org.totalgrid.reef.client.exception._
 import java.util.UUID
 import org.totalgrid.coral.util.Timer
+import akka.pattern.AskTimeoutException
 
 
 object ReefConnectionManager {
@@ -61,7 +63,25 @@ object ReefConnectionManager {
   implicit val serviceClientFailureWrites = new Writes[ServiceClientFailure] {
     def writes( o: ServiceClientFailure): JsValue = Json.obj( "error" -> o.status)
   }
+
+  trait ServiceFactory {
+    def entityService( session: Session): EntityService
+    def loginService( session: Session): LoginService
+    def amqpSettingsLoad(file : String): AmqpSettings
+    def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection
+  }
+
+  object ServiceFactoryDefault extends ServiceFactory {
+    override def entityService( session: Session): EntityService = EntityService.client( session)
+    override def loginService( session: Session): LoginService = LoginService.client( session)
+    override def amqpSettingsLoad(file: String): AmqpSettings = AmqpSettings.load( file)
+    override def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection =
+      ReefConnection.connect( settings, broker, timeoutMs)
+  }
 }
+import ReefConnectionManager._
+
+
 
 /**
  * Factory for creating actors that depend on the ReefClientActor (to manage the Reef client connection).
@@ -76,7 +96,7 @@ trait WebSocketPushActorFactory {
  *
  * @author Flint O'Brien
  */
-class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) extends Actor {
+class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: WebSocketPushActorFactory) extends Actor {
   import ReefConnectionManager._
   import ConnectionStatus._
   import ValidationTiming._
@@ -86,12 +106,14 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
 
   var connectionStatus: ConnectionStatus = INITIALIZING
   var connection: Option[ReefConnection] = None
+  var cachedSession: Option[Session] = None
   //var authTokenToSession = Map.empty[ String, Session]
 
   override def preStart = {
-    val (status, conn) = initializeConnectionToAmqp( REEF_CONFIG_FILENAME)
+    val (status, newConnection, newSession) = initializeConnectionToAmqp( REEF_CONFIG_FILENAME)
     connectionStatus = status
-    connection = conn
+    connection = newConnection
+    cachedSession = newSession
   }
 
   def receive = {
@@ -128,6 +150,85 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
     }
   }
 
+  def connectionAvailable( functionName: String): Boolean = {
+    if( connectionStatus != AMQP_UP) {
+      Logger.debug( s"ReefConnectionManager.$functionName AMQP is not UP. Status:: $connectionStatus")
+      return false
+    }
+
+    if( !connection.isDefined) {
+      Logger.debug( s"ReefConnectionManager.$functionName AMQP is UP but connection not defined")
+      return false
+    }
+
+    if( !cachedSession.isDefined) {
+      Logger.debug( s"ReefConnectionManager.$functionName AMQP is UP but session not defined")
+      return false
+    }
+
+    true
+  }
+
+  private def sessionFromAuthToken( authToken: String, validationTiming: ValidationTiming, functionName: String): Future[Either[ConnectionStatus,Session]] = {
+    if( ! connectionAvailable( functionName)) {
+      return Future.successful( Left( AMQP_DOWN))
+    }
+
+    val newSession = cachedSession.get.spawn
+    newSession.addHeader( ReefConnection.tokenHeader, authToken)
+
+    validationTiming match {
+
+      case PROVISIONAL =>
+        Future.successful( Right( newSession))
+
+      case PREVALIDATED =>
+        //TODO: use new validate method
+        val service = serviceFactory.entityService( newSession)
+        val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
+
+        service.get(EntityKeySet.newBuilder().addUuids( uuid).build).map { entities =>
+
+          Right( newSession)
+
+        } recover {
+
+          case ex: UnauthorizedException => {
+            Logger.debug( s"ReefConnectionManager.sessionFromAuthToken($functionName)  " + authToken + "): UnauthorizedException " + ex)
+            Left( AUTHENTICATION_FAILURE)
+          }
+          case ex: ReefServiceException => {
+            Logger.error( s"ReefConnectionManager.sessionFromAuthToken ($functionName) " + authToken + "): ReefServiceException " + ex)
+            Left( REEF_FAILURE)
+          }
+          case ex: Throwable => {
+            Logger.error( s"ReefConnectionManager.sessionFromAuthToken ($functionName) " + authToken + "): Throwable " + ex)
+            Left( REEF_FAILURE)
+          }
+        }
+    }
+
+  }
+
+
+  /**
+   * This will throw an exception if the authToken used to create the client is invalid.
+   * @param session
+   * @param validationTiming
+   * @return
+   */
+  private def maybePrevalidateAuthToken( session: Session, validationTiming: ValidationTiming) = {
+    if( validationTiming == PREVALIDATED) {
+      Logger.info( "ReefConnectionManager: maybePrevalidateAuthToken validationTiming == PREVALIDATED")
+      val service = serviceFactory.entityService( session)
+      //TODO: use new validate method
+      val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
+      // TODO: use a future
+      val e = service.get(EntityKeySet.newBuilder().addUuids( uuid).build)
+    }
+  }
+
+
   /**
    * Was caching (authToken -> service).
    * @param authToken
@@ -142,23 +243,22 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
 
 
   private def logout( authToken: String) = {
-    if( connectionStatus != AMQP_UP || !connection.isDefined) {
+    val future = sessionFromAuthToken( authToken, PROVISIONAL, "logout")
 
-      Logger.debug( "ReefConnectionManager.logout AMQP is not UP or connection not defined: " + connectionStatus)
-      sender ! ServiceClientFailure( connectionStatus)
-
-    } else {
-
-      val session = sessionFromAuthToken( authToken)
-      val service = LoginService.client( session)
-      service.logout( LoginRequests.LogoutRequest.newBuilder().setToken( authToken).build())
+    future onSuccess{
+      case Right( session) =>
+        val service = serviceFactory.loginService( session)
+        service.logout( LoginRequests.LogoutRequest.newBuilder().setToken( authToken).build())
+      case Left(status) =>
+        sender ! ServiceClientFailure( status)
     }
-  }
-
-  private def sessionFromAuthToken( authToken: String): CoralSession = {
-    val session = new CoralSession( connection.get.session.spawn)
-    session.addHeader( ReefConnection.tokenHeader, authToken)
-    session
+    future onFailure {
+      // POVISIONAL, so should be asking to get a timeout
+      case ex: AskTimeoutException =>
+        Logger.error( "ReefConnectionManager.logout " + ex)
+      case ex: AnyRef =>
+        Logger.error( "ReefConnectionManager.logout Unknown " + ex)
+    }
   }
 
 
@@ -171,43 +271,26 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
    */
   private def sessionRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
 
-    if( connectionStatus != AMQP_UP || !connection.isDefined) {
-      Logger.debug( "ReefConnectionManager.sessionRequest AMQP is not UP or connection not defined: " + connectionStatus)
-      sender ! ServiceClientFailure( connectionStatus)
-      return
+    val timer = new Timer( "ReefConnectionManager.sessionRequest validationTiming: " + validationTiming, Timer.DEBUG)
+
+    val future = sessionFromAuthToken( authToken, validationTiming, "sessionRequest")
+
+    future onSuccess {
+      case Right( session) =>
+        timer.end( "sender ! session")
+        sender ! session
+      case Left( status) =>
+        timer.end( s"Left( status) status: $status")
+        sender ! ServiceClientFailure( status)
     }
-    Logger.debug( "ReefConnectionManager.sessionRequest AMQP is UP and connection is defined. validationTiming: " + validationTiming)
 
-    /* Was caching (authToken -> service).
-  authTokenToServiceMap.get( authToken) match {
-    case Some( service) =>
-      Logger.debug( "ReefConnectionManager.serviceClientRequest with " + authToken)
-      sender ! service
-    case _ =>
-      Logger.debug( "ReefConnectionManager.serviceClientRequest unrecognized authToken: " + authToken)
-      sender ! ServiceFailure( AUTHTOKEN_UNRECOGNIZED)
-  }
-  */
-
-    try {
-      val session = sessionFromAuthToken( authToken)
-      maybePrevalidateAuthToken( session, validationTiming)
-      Logger.debug( "ReefConnectionManager.sessionRequest sender ! session before")
-      sender ! session
-      Logger.debug( "ReefConnectionManager.sessionRequest sender ! session after")
-    }  catch {
-      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        Logger.debug( "ReefConnectionManager.serviceClientRequest( " + authToken + "): UnauthorizedException " + ex)
-        sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
-      }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Logger.error( "ReefConnectionManager.serviceClientRequest( " + authToken + "): ReefServiceException " + ex)
+    future onFailure {
+      case ex: AskTimeoutException =>
+        Logger.error( "ReefConnectionManager.sessionRequest " + ex)
+        sender ! ServiceClientFailure( REQUEST_TIMEOUT)
+      case ex: AnyRef =>
+        Logger.error( "ReefConnectionManager.sessionRequest Unknown " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
-      }
-      case ex: Throwable => {
-        Logger.error( "ReefConnectionManager.serviceClientRequest( " + authToken + "): Throwable " + ex)
-        sender ! ServiceClientFailure( REEF_FAILURE)
-      }
     }
 
   }
@@ -222,95 +305,67 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
    *
    */
   private def webSocketOpen( authToken: String, validationTiming: ValidationTiming): Unit = {
-    Logger.debug( "webSocketOpen: " + authToken)
-    if( connectionStatus != AMQP_UP || !connection.isDefined) {
-      Logger.debug( "ReefConnectionManager.webSocketOpen AMQP is not UP or connection not defined: " + connectionStatus)
-      sender ! WebSocketError( connectionStatus)
-      return
+    val timer = new Timer( "ReefConnectionManager.webSocketOpen validationTiming: " + validationTiming, Timer.DEBUG)
+
+    val future = sessionFromAuthToken( authToken, validationTiming, "webSocketOpen")
+
+    future onSuccess {
+      case Right( session) =>
+        sender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, session)
+        timer.end( s"webSocketOpen sender ! session: $authToken")
+      case Left( status) =>
+        timer.end( s"Left( status) status: $status")
+        sender ! WebSocketError( status)
     }
 
-    try {
-      val session = sessionFromAuthToken( authToken)
-      maybePrevalidateAuthToken( session, validationTiming)
-      sender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, session)
-      Logger.debug( "webSocketOpen. sender ! makeChildActor: " + authToken)
-    }  catch {
-      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-        Logger.debug( "ReefConnectionManager.webSocketOpen( " + authToken + "): UnauthorizedException " + ex)
-        sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
-      }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-        Logger.error( "ReefConnectionManager.webSocketOpen( " + authToken + "): ReefServiceException " + ex)
+    future onFailure {
+      case ex: AskTimeoutException =>
+        Logger.error( "ReefConnectionManager.sessionRequest " + ex)
+        sender ! ServiceClientFailure( REQUEST_TIMEOUT)
+      case ex: AnyRef =>
+        Logger.error( "ReefConnectionManager.sessionRequest Unknown " + ex)
         sender ! ServiceClientFailure( REEF_FAILURE)
-      }
-      case ex: Throwable => {
-        Logger.error( "ReefConnectionManager.webSocketOpen( " + authToken + "): Throwable " + ex)
-        sender ! ServiceClientFailure( REEF_FAILURE)
-      }
     }
+
   }
 
-  /**
-   * This will throw an exception if the authToken used to create the client is invalid.
-   * @param session
-   * @param validationTiming
-   * @return
-   */
-  private def maybePrevalidateAuthToken( session: Session, validationTiming: ValidationTiming) = {
-    if( validationTiming == PREVALIDATED) {
-      Logger.info( "ReefConnectionManager: maybePrevalidateAuthToken validationTiming == PREVALIDATED")
-      val service = EntityService.client( session)
-//TODO: use new validate method      val uuid = ReefUUID.newBuilder().setValue( "Just checking if this session is authorized.")
-      val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
-      // TODO: use a future
-      val e = Await.result( service.get(EntityKeySet.newBuilder().addUuids( uuid).build), 5000.milliseconds)
-    }
-  }
+  private def initializeConnectionToAmqp( configFilePath: String) : (ConnectionStatus, Option[ReefConnection], Option[Session]) = {
 
-  private def initializeConnectionToAmqp( configFilePath: String) : (ConnectionStatus, Option[ReefConnection]) = {
-
-    var status = INITIALIZING
-
-    Logger.info( "Loading config file " + configFilePath)
-    val timer = new Timer( "initializeConnectionToAmqp")
+    val timer = new Timer( "initializeConnectionToAmqp", Timer.INFO)
+    timer.delta( "Loading AMQP config file " + configFilePath)
 
     val settings = try {
-      AmqpSettings.load(configFilePath)
+      serviceFactory.amqpSettingsLoad(configFilePath)
     } catch {
       case ex: LoadingException => {
         Logger.error( "Error loading reef configuration file '" + configFilePath + "'. Exception: " + ex)
-        return ( CONFIGURATION_FILE_FAILURE, None )
+        return ( CONFIGURATION_FILE_FAILURE, None, None )
       }
     }
-    timer.delta( "AmqpSettings loaded")
+    timer.delta( "AMQP Settings loaded. Getting Reef ReefConnection...")
 
-    val connection : Option[ReefConnection] = try {
-      Logger.info( "Getting Reef ReefConnection...")
-      val connection = ReefConnection.connect(settings, QpidBroker, 5000)
-      timer.end( "Reef connection successful")
-      Logger.info( "Reef connection successful")
+    try {
+      val connection = serviceFactory.reefConnect(settings, QpidBroker, 5000)
+      timer.delta( "Got Reef connection. Getting session...")
 
-      status = AMQP_UP
-      Some( connection)
+      val session = connection.session
+      timer.end( "Reef connection.session successful")
+      (AMQP_UP, Some( connection), Some( session))
     } catch {
       case ex: IOException => {
         Logger.error( "Error connecting to AMQP. Exception: " + ex)
-        status = AMQP_DOWN
-        None
+        (AMQP_DOWN, None, None)
       }
       case ex: Throwable => {
         Logger.error( "Error connecting to AMQP or Reef. Exception: " + ex)
-        status = AMQP_DOWN
-        None
+        (AMQP_DOWN, None, None)
       }
     }
-
-    (status, connection)
   }
 
   private def loginReefSession( userName: String, password: String) : (ConnectionStatus, Option[Session]) = {
 
-    if( connectionStatus != AMQP_UP || !connection.isDefined)
+    if( ! connectionAvailable( "loginReefSession"))
       return (connectionStatus, None)
 
     // Set the client by sending a message to ReefClientActor
@@ -319,11 +374,11 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
       val sessionFromLogin = Await.result( connection.get.login( userName, password), 5000.milliseconds)
       ( UP, Some[Session](sessionFromLogin))
     } catch {
-      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
+      case ex: UnauthorizedException => {
         Logger.error( "Error logging into Reef. Exception: " + ex)
         ( AUTHENTICATION_FAILURE, None)
       }
-      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
+      case ex: ReefServiceException => {
         Logger.error( "Error logging into Reef. Exception: " + ex)
         ( REEF_FAILURE, None)
       }
@@ -335,23 +390,4 @@ class ReefConnectionManager( childActorFactory: WebSocketPushActorFactory) exten
 
   }
 
-//  private def getReefClient( authToken: String) : (ConnectionStatus, Option[Session]) = {
-//
-//    if( connectionStatus != AMQP_UP || !connection.isDefined)
-//      return (connectionStatus, None)
-//
-//    try {
-//      val clientFromAuthToken = connection.get.createClient( authToken)
-//      ( UP, Some[Session](clientFromAuthToken))
-//    } catch {
-//      case ex: org.totalgrid.reef.client.exception.UnauthorizedException => {
-//        ( AUTHENTICATION_FAILURE, None)
-//      }
-//      case ex: org.totalgrid.reef.client.exception.ReefServiceException => {
-//        ( REEF_FAILURE, None)
-//      }
-//    }
-//
-//  }
-//
 }
