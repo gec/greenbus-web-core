@@ -111,13 +111,13 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   }
   def coralMenusAnalysis = {
     val subMenus = List[NavigationElement](
-      NavigationItemSource( "All PVs", "pv", "#/pvs", "/models/1/equipment/$parent/children?depth=0&childTypes=PV", CHILDREN),
-      NavigationItemSource( "All Energy Storage", "ceses", "/ceses", "/models/1/equipment/$parent/children?depth=0&childTypes=CES", CHILDREN),
-      NavigationItemSource( "All Generators", "generators", "#/generators", "/models/1/equipment/$parent/children?depth=0&childTypes=Generator", CHILDREN),
-      NavigationItemSource( "All Loads", "loads", "#/loads", "/models/1/equipment/$parent/children?depth=0&childTypes=Load", CHILDREN),
-      NavigationItemSource( "Eq0", "eq0", "#/equipment", "/models/1/equipment/$parent/children?depth=0&childTypes=Equipment", CHILDREN),
-      NavigationItemSource( "Eq1", "eq0", "#/equipment", "/models/1/equipment/$parent/children?depth=1&childTypes=Equipment", CHILDREN),
-      NavigationItemSource( "Eq3", "eq0", "#/equipment", "/models/1/equipment/$parent/children?depth=3&childTypes=Equipment", CHILDREN)
+      NavigationItemSource( "All PVs", "pv", "#/pvs", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
+      NavigationItemSource( "All Energy Storage", "ceses", "/ceses", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
+      NavigationItemSource( "All Generators", "generators", "#/generators", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", CHILDREN),
+      NavigationItemSource( "All Loads", "loads", "#/loads", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", CHILDREN),
+      NavigationItemSource( "Eq0", "eq0", "#/equipment", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Equipment", CHILDREN),
+      NavigationItemSource( "Eq1", "eq0", "#/equipment", "/models/1/equipment/$parent/descendants?depth=1&childTypes=Equipment", CHILDREN),
+      NavigationItemSource( "Eq3", "eq0", "#/equipment", "/models/1/equipment/$parent/descendants?depth=3&childTypes=Equipment", CHILDREN)
     )
     List[NavigationElement](
       NavigationItem( "Dashboard", "dashboard", "#/dashboard"),

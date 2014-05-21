@@ -105,14 +105,37 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( '/entities/' + id, "entity", $scope);
 })
 
-.controller( 'PointControl', function( $rootScope, $scope, reef) {
+.controller( 'PointControl', function( $rootScope, $scope, reef, $routeParams) {
+    var equipmentIdsQueryParams = reef.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds ),
+        depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
+
+
     $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Points" }
     ];
+    $scope.points = []
 
-    reef.get( "/models/1/points", "points", $scope);
+    var delimeter = '?'
+    var url = "/models/1/points"
+    if( equipmentIdsQueryParams.length > 0) {
+        url += delimeter + equipmentIdsQueryParams
+        delimeter = '&'
+    }
+    if( depth.length > 0)
+        url += delimeter + depth
+
+    reef.get( url, "points", $scope, function(data) {
+        // data is either a array of points or a map of equipmentId -> points[]
+        // If it's an object, convert it to a list of points.
+        if( angular.isObject( data)) {
+            $scope.points = []
+            for( var equipmentId in data) {
+                $scope.points = $scope.points.concat( data[equipmentId])
+            }
+        }
+    });
 })
 
 .controller( 'PointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
@@ -512,18 +535,6 @@ return angular.module( 'controllers', ['authentication.service'] )
         return value
     }
 
-    function makeQueryStringFromArray( parameter, values) {
-        parameter = parameter + "="
-        var query = ""
-        values.forEach( function( value, index) {
-            if( index == 0)
-                query = parameter + value
-            else
-                query = query + "&" + parameter + value
-        })
-        return query
-    }
-
     $scope.findPoint = function( id) {
         $scope.ceses.forEach( function( point) {
             if( id == point.id)
@@ -655,7 +666,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     $scope.getEquipmentListener = function( ) {
         var cesIndex, pointsUrl,
             pointIds = [],
-            pointTypesQueryString = makeQueryStringFromArray( "pointTypes", POINT_TYPES),
+            pointTypesQueryString = reef.queryParameterFromArrayOrString( "pointTypes", POINT_TYPES),
             equipmentIdMap = {},
             equipmentIds = [],
             equipmentIdsQueryString = ""
@@ -664,7 +675,7 @@ return angular.module( 'controllers', ['authentication.service'] )
             equipmentIdMap[eq.id] = eq
             equipmentIds.push( eq.id)
         })
-        equipmentIdsQueryString = makeQueryStringFromArray( "equipmentIds", equipmentIds)
+        equipmentIdsQueryString = reef.queryParameterFromArrayOrString( "equipmentIds", equipmentIds)
 
 
         pointsUrl = "/models/1/points?" + equipmentIdsQueryString // TODO: include when fixed! + "&" + pointTypesQueryString
@@ -735,8 +746,8 @@ return angular.module( 'controllers', ['authentication.service'] )
 //        reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
     }
 
-    var eqTypes = makeQueryStringFromArray( "eqTypes", ["CES", "DESS"])
-    var pointTypes = makeQueryStringFromArray( "pointTypes", POINT_TYPES)
+    var eqTypes = reef.queryParameterFromArrayOrString( "eqTypes", ["CES", "DESS"])
+    var pointTypes = reef.queryParameterFromArrayOrString( "pointTypes", POINT_TYPES)
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
 //    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
     reef.get( sourceUrl, "equipment", $scope, $scope.getEquipmentListener);

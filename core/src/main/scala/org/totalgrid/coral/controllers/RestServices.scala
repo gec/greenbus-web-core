@@ -298,7 +298,7 @@ trait RestServices extends ReefAuthentication {
   }
 
   /**
-   *
+   * Get descendants of equipment with specified depth.
    * @param modelId
    * @param entityId Entity UUID
    * @param childTypes
@@ -306,7 +306,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit
    * @return
    */
-  def getEquipmentChildren( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getEquipmentChildren begin depth=$depth")
 
     val service = serviceFactory.entityService( session)
@@ -324,7 +324,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getPointsByTypeForEquipmentsQuery( entityService: EntityService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], limit: Int) = {
+  def getPointsByTypeForEquipmentsQuery( entityService: EntityService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], depth: Int, limit: Int) = {
     Logger.debug( s"getPointsByTypeForEquipmentsQuery begin")
 
     val query = EntityRelationshipFlatQuery.newBuilder()
@@ -333,22 +333,31 @@ trait RestServices extends ReefAuthentication {
       .setDescendantOf(true)
       .addAllDescendantTypes( pointTypes)
       .setPageSize(limit)
-      .setDepthLimit( 1)  // default is infinite
+      .setDepthLimit( depth)  // default is infinite
 
     entityService.relationshipFlatQuery( query.build)
   }
-  def getEdgesForParentsAndChildrenQuery( service: EntityService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], limit: Int) = {
+  def getEdgesForParentsAndChildrenQuery( service: EntityService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], depth: Int, limit: Int) = {
     val query = EntityEdgeQuery.newBuilder()
       .addAllParents( parentReefUuids)
       .addAllChildren( childReefUuids)
       .addRelationships("owns")
       .setPageSize(limit)
-      .setDepthLimit( 1)  // default is infinite
+      .setDepthLimit( depth)  // default is infinite
 
     service.edgeQuery( query.build)
 
   }
 
+  /**
+   * Return a list of points optionally filtered by point types (i.e. entity types).
+   *
+   * @param frontEndService Service for getting points by id
+   * @param entityService Service for getting entities by type
+   * @param pointTypes List of point types (i.e. entity types)
+   * @param limit Limit number of results
+   * @return
+   */
   def getPointsByTypeQuery( frontEndService: FrontEndService, entityService: EntityService, pointTypes: List[String], limit: Int) = {
 
     val query = EntityRequests.EntityQuery.newBuilder()
@@ -374,7 +383,18 @@ trait RestServices extends ReefAuthentication {
       frontEndService.getPointsWithTypes( keys)
   }
 
-  def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
+  /**
+   * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
+   * (i.e. entity types). If one or more equpmentIds, return a map of equipmentIds to points array.
+   *
+   * @param modelId Which model to query. A model is a reef connection.
+   * @param equipmentIds Optional list of equipment IDs
+   * @param pointTypes Optional list of types (i.e. entity types)
+   * @param depth If equipment IDs are specified, return points according to descendant depth.
+   * @param limit Limit the number of results.
+   * @return
+   */
+  def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[PointWithTypes]) = {
@@ -403,30 +423,23 @@ trait RestServices extends ReefAuthentication {
     val frontEndService = serviceFactory.frontEndService( session)
 
     if( equipmentIds.isEmpty) {
-
+      // Return a list of points
       getPointsByTypeQuery( frontEndService, entityService, pointTypes, limit)
 
     } else {
 
+
       val equipmentReefUuids = equipmentIds.map( ReefUUID.newBuilder().setValue( _).build())
-      getPointsByTypeForEquipmentsQuery( entityService, equipmentReefUuids, pointTypes, limit).flatMap { pointsAsEntities =>
+      getPointsByTypeForEquipmentsQuery( entityService, equipmentReefUuids, pointTypes, depth, limit).flatMap { pointsAsEntities =>
 
         val pointIds = pointsAsEntities.map( _.getUuid)
         //TODO: Currently re-getting entities as Point. Need new API from Reef to directly get points under equipment.
         getPointsByIds( frontEndService, pointIds).flatMap { points =>
 
-          //val pointsReefUuids = points.map( _.getUuid)
-          getEdgesForParentsAndChildrenQuery( entityService, equipmentReefUuids, pointIds, limit).map { edges =>
+          getEdgesForParentsAndChildrenQuery( entityService, equipmentReefUuids, pointIds, depth, limit).map { edges =>
             val equipmentToPointMap = makeEquipmentPointsMap( edges, points)
-            //        val jsArray = JsArray()
-            //        val json = equipmentToPointMap.foreach{ case (eqId, points) =>
-            //          jsArray :+
-            //          Json.obj(
-            //             "id" -> eqId.getValue,
-            //             "points" -> points
-            //          )
-            //        }
 
+            // Return a map of equipment IDs to points array.
             Ok( Json.toJson(equipmentToPointMap))
           }
         }

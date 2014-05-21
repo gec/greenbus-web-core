@@ -179,12 +179,13 @@ define([
             var route = null
             switch( containerType) {
                 case ContainerType.MicroGrid:
+                    route = "/points?equipmentIds=" + entity.id + "&depth=9999"
                     break;
                 case ContainerType.EquipmentGroup:
-                    route = "/points"
+                    route = "/points?equipmentIds=" + entity.id + "&depth=9999"
                     break;
                 case ContainerType.EquipmentLeaf:
-                    route = "/points"
+                    route = "/points?equipmentIds=" + entity.id
                     break;
                 case ContainerType.Sourced:
                     break;
