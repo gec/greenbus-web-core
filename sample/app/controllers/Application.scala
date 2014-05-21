@@ -40,7 +40,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 
   //implicit val timeout = Timeout(2 seconds)
 
-  // reefConnectionManager is assigned by Global.
+  // reefConnectionManager is assigned by Global. Ugly, but can't ask Gloabal _object_ because we need mocked Global during testing.
   var reefConnectionManager: ActorRef = _
   def connectionManager: ActorRef = reefConnectionManager
   var reefServiceFactory: ReefServiceFactory = _

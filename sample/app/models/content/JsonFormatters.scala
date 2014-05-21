@@ -118,8 +118,10 @@ object JsonFormatters {
       Json.obj(
         "type" -> "item",
         "label" -> o.label,
-        "id" -> o.id,
-        "route" -> o.route,
+        "data" -> Json.obj(
+          "id" -> o.id,
+          "route" -> o.route
+        ),
         "selected" -> o.selected,
         "children" -> o.children
       )
@@ -129,10 +131,12 @@ object JsonFormatters {
       Json.obj(
         "type" -> "item",
         "label" -> o.label,
-        "id" -> o.id,
-        "route" -> o.route,
-        "sourceUrl" -> o.sourceUrl,
-        "insertLocation" -> o.insertLocation.toString,
+        "data" -> Json.obj(
+          "id" -> o.id,
+          "route" -> o.route,
+          "sourceUrl" -> o.sourceUrl,
+          "insertLocation" -> o.insertLocation.toString
+        ),
         "selected" -> o.selected,
         "children" -> o.children
       )

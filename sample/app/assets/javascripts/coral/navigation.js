@@ -115,6 +115,13 @@ define([
     }
 
     function navTreeController( $scope, $attrs, $location, $cookies, coralRest) {
+        var ContainerType = {
+            MicroGrid: 'MicroGrid',
+            EquipmentGroup: 'EquipmentGroup',
+            EquipmentLeaf: 'EquipmentLeaf',
+            Sourced: 'Sourced'   // Ex: 'All PVs'. Has sourceUrl, bit no data
+        }
+
         $scope.navTree = [
             {
                 label: 'All Equipment',
@@ -147,19 +154,50 @@ define([
         ]
 
         $scope.menuSelect = function( branch) {
-            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.route)
-            $location.url( branch.route + "?sourceUrl=" + encodeURIComponent(branch.sourceUrl))
+            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.data.route)
+            var url = branch.data.route
+            if( branch.data.sourceUrl)
+                url = url + "?sourceUrl=" + encodeURIComponent(branch.data.sourceUrl)
+            $location.url( url)
+        }
+
+        function getContainerType( entity) {
+            if( entity.types.indexOf( ContainerType.MicroGrid) >= 0)
+                return ContainerType.MicroGrid;
+            else if( entity.types.indexOf( ContainerType.EquipmentGroup) >= 0)
+                return ContainerType.EquipmentGroup;
+            else
+                return ContainerType.EquipmentLeaf
         }
 
         function entityToTreeNode( entityWithChildren) {
             // Could be a simple entity.
             var entity = entityWithChildren.entity || entityWithChildren
 
+            // Types: (Microgrid, Root), (EquipmentGroup, Equipment), (Equipment, Breaker)
+            var containerType = getContainerType( entity)
+            var route = null
+            switch( containerType) {
+                case ContainerType.MicroGrid:
+                    break;
+                case ContainerType.EquipmentGroup:
+                    route = "/points"
+                    break;
+                case ContainerType.EquipmentLeaf:
+                    route = "/points"
+                    break;
+                case ContainerType.Sourced:
+                    break;
+                default:
+            }
+
             return {
                 label: entity.name,
                 data: {
                     id: entity.id,
-                    types: entity.types
+                    types: entity.types,
+                    containerType: containerType,
+                    route: route
                 },
                 children: entityWithChildren.children ? entityChildrenToTreeNodes( entityWithChildren.children) : []
             }
@@ -172,38 +210,64 @@ define([
             return ra
         }
 
-        function loadTreeNodesFromSource( data, index, node) {
-            coralRest.get( node.sourceUrl, null, $scope, function( equipment) {
-                var treeNodes = entityChildrenToTreeNodes( equipment)
-                switch( node.insertLocation) {
+        function loadTreeNodesFromSource( parentTree, index, child) {
+            coralRest.get( child.data.sourceUrl, null, $scope, function( equipment) {
+                var newTreeNodes = entityChildrenToTreeNodes( equipment)
+                switch( child.data.insertLocation) {
                     case "CHILDREN":
                         // Insert the resultant children before any existing static children.
-                        node.children = treeNodes.concat( node.children)
+                        child.children = newTreeNodes.concat( child.children)
                         break;
                     case "REPLACE":
-                        insertTreeNodesAtIndex( data, index, treeNodes)
+                        replaceTreeNodeAtIndexAndPreserveChildren( parentTree, index, newTreeNodes)
                         break;
                     default:
-                        console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + node.lifespan)
+                        console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + child.lifespan)
                 }
             })
 
         }
-        function insertTreeNodesAtIndex( data, index, treeNodes) {
+
+        /**
+         * Replace parentTree[index] with newTreeNodes, but copy any current children and insert them
+         * after the new tree's children.
+         *
+         * BEFORE:
+         *
+         *   loading...
+         *     All PVs
+         *     All Energy Storage
+         *
+         * AFTER:
+         *
+         *   Microgrid1
+         *     MG1
+         *       Equipment1
+         *       ...
+         *     All PVs
+         *     All Energy Storage
+         *
+         *
+         * @param parentTree
+         * @param index
+         * @param newTreeNodes
+         */
+        function replaceTreeNodeAtIndexAndPreserveChildren( parentTree, index, newTreeNodes) {
             var i,
-                oldChildren = data[index].children
-            data.splice( index, 1)
-            for( i=treeNodes.length-1; i >= 0; i-- ) {
-                var node = treeNodes[i]
-                data.splice( index, 0, node)
+                oldChildren = parentTree[index].children
+            parentTree.splice( index, 1)
+            for( i=newTreeNodes.length-1; i >= 0; i-- ) {
+                var node = newTreeNodes[i]
+                parentTree.splice( index, 0, node)
                 if( oldChildren && oldChildren.length > 0) {
                     var i2
                     for( i2 = 0; i2 < oldChildren.length; i2++) {
-                        var child = angular.copy( oldChildren[i2])
+                        var child = angular.copy( oldChildren[i2] ),
+                            sourceUrl = child.data.sourceUrl
                         node.children.push( child)
-                        if( child.sourceUrl) {
-                            if( child.sourceUrl.indexOf( '$parent'))
-                                child.sourceUrl = child.sourceUrl.replace( '$parent', node.data.id)
+                        if( sourceUrl) {
+                            if( sourceUrl.indexOf( '$parent'))
+                                child.data.sourceUrl = sourceUrl.replace( '$parent', node.data.id)
                             loadTreeNodesFromSource( node.children, node.children.length-1, child)
                         }
                     }
@@ -212,24 +276,8 @@ define([
         }
         function getSuccess( data) {
             data.forEach( function(node, index) {
-                if( node.sourceUrl)
+                if( node.data.sourceUrl)
                     loadTreeNodesFromSource( data, index, node)
-//                {
-//                    coralRest.get( node.sourceUrl, null, $scope, function( equipment) {
-//                        var treeNodes = entityChildrenToTreeNodes( equipment)
-//                        switch( node.insertLocation) {
-//                            case "CHILDREN":
-//                                // Insert the resultant children before any existing static children.
-//                                node.children = treeNodes.concat( node.children)
-//                                break;
-//                            case "REPLACE":
-//                                insertTreeNodesAtIndex( data, index, treeNodes)
-//                                break;
-//                            default:
-//                                console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + node.lifespan)
-//                        }
-//                    })
-//                }
             })
         }
 
