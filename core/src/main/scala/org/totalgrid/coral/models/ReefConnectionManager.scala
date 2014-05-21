@@ -65,9 +65,14 @@ object ReefConnectionManager {
   }
 
   trait ServiceFactory {
+
     def entityService( session: Session): EntityService
+
     def loginService( session: Session): LoginService
+
+    @throws(classOf[LoadingException])
     def amqpSettingsLoad(file : String): AmqpSettings
+
     def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection
   }
 
@@ -150,28 +155,9 @@ class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: 
     }
   }
 
-  def connectionAvailable( functionName: String): Boolean = {
-    if( connectionStatus != AMQP_UP) {
-      Logger.debug( s"ReefConnectionManager.$functionName AMQP is not UP. Status:: $connectionStatus")
-      return false
-    }
-
-    if( !connection.isDefined) {
-      Logger.debug( s"ReefConnectionManager.$functionName AMQP is UP but connection not defined")
-      return false
-    }
-
-    if( !cachedSession.isDefined) {
-      Logger.debug( s"ReefConnectionManager.$functionName AMQP is UP but session not defined")
-      return false
-    }
-
-    true
-  }
-
   private def sessionFromAuthToken( authToken: String, validationTiming: ValidationTiming, functionName: String): Future[Either[ConnectionStatus,Session]] = {
-    if( ! connectionAvailable( functionName)) {
-      return Future.successful( Left( AMQP_DOWN))
+    if( connectionStatus != AMQP_UP) {
+      return Future.successful( Left( connectionStatus))
     }
 
     val newSession = cachedSession.get.spawn
@@ -368,7 +354,7 @@ class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: 
 
   private def loginReefSession( userName: String, password: String) : (ConnectionStatus, Option[Session]) = {
 
-    if( ! connectionAvailable( "loginReefSession"))
+    if( connectionStatus != AMQP_UP)
       return (connectionStatus, None)
 
     // Set the client by sending a message to ReefClientActor

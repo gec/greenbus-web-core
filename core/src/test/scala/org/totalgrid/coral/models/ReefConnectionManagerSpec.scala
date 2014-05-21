@@ -13,6 +13,7 @@ import org.totalgrid.reef.client.service.{LoginService, EntityService}
 import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
 import org.totalgrid.reef.client.ReefConnection
 import org.totalgrid.coral.models.AuthenticationMessages.ServiceClientFailure
+import scala.concurrent.Future
 
 /* A tiny class that can be used as a Specs2 'context'. */
 abstract class AkkaTestkitSpecs2Support extends TestKit(ActorSystem("testSystem"))
@@ -31,11 +32,36 @@ with ImplicitSender
 class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions with Mockito {
   sequential // forces all tests to be run sequentially
 
+  import ReefConnectionManager.ServiceFactory
+  import ValidationTiming.{PREVALIDATED,PROVISIONAL}
+
+  val TIMEOUT = FiniteDuration(500, MILLISECONDS)
+  val childActorFactory = mock[WebSocketPushActorFactory]
+  val session1 = mock[Session]
+  val session2 = mock[Session]
+  session1.spawn returns session2
+
+  def reefConnectionMock: ReefConnection = {
+    val reefConnection = mock[ReefConnection]
+    reefConnection.session returns session1
+  }
+  def serviceFactoryMock( reefConnection: ReefConnection): ServiceFactory = {
+    val entityService = mock[EntityService]
+    val loginService = mock[LoginService]
+
+    val serviceFactory = mock[ServiceFactory]
+    serviceFactory.entityService( any[Session]) returns entityService
+    serviceFactory.loginService( any[Session]) returns loginService
+    serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
+    serviceFactory.reefConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns reefConnection
+
+  }
+
   "A TestKit really" should {
     /* for every case where you would normally use "in", use
        "in new AkkaTestkitSpecs2Support" to create a new 'context'. */
     "work properly with Specs2 unit tests" in new AkkaTestkitSpecs2Support {
-      within( FiniteDuration( 1, SECONDS)) {
+      within( TIMEOUT) {
         system.actorOf(Props(new Actor {
           def receive = { case x ⇒ sender ! x }
         })) ! "hallo"
@@ -46,34 +72,45 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
   }
 
   "ReefConnectionManagerSpec" should {
-    import ReefConnectionManager.ServiceFactory
-    import ValidationTiming.{PREVALIDATED,PROVISIONAL}
 
-    val childActorFactory = mock[WebSocketPushActorFactory]
-    val entityService = mock[EntityService]
-    val loginService = mock[LoginService]
-    val reefConnection = mock[ReefConnection]
-    val session = mock[Session]
-    val session2 = mock[Session]
 
-    session.spawn returns session2
-    reefConnection.session returns session
+    "reply to valid LoginRequest with authToken" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
 
-    val serviceFactory = mock[ServiceFactory]
-    serviceFactory.entityService( any[Session]) returns entityService
-    serviceFactory.loginService( any[Session]) returns loginService
-    serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
-    serviceFactory.reefConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns reefConnection
+        val authToken = "someAuthToken"
+        val session = mock[Session]
+        session.headers returns Map[String,String]( ReefConnection.tokenHeader -> authToken)
 
-    "receive a session request and return a new session" in new AkkaTestkitSpecs2Support {
-      within(FiniteDuration(5, SECONDS)) {
-
-        //val csvFileListener = TestProbe()
+        val reefConnection = reefConnectionMock
+        reefConnection.login( anyString, anyString) returns Future.successful( session)
+        val serviceFactory = serviceFactoryMock( reefConnection)
         val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
 
+        rcm ! LoginLogoutMessages.LoginRequest( "validUser", "validPassword")
+        expectMsg( authToken)
+      }
+    }
+
+    "reply to SessionRequest with a new session" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+        val serviceFactory = serviceFactoryMock( reefConnectionMock)
+        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
         rcm ! AuthenticationMessages.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsgType[Session] must be( session2)
       }
     }
+
+    "reply to SessionRequest with ServiceClientFailure " in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+        import org.totalgrid.msg.amqp.util.LoadingException
+
+        val serviceFactory = serviceFactoryMock( reefConnectionMock)
+        serviceFactory.amqpSettingsLoad( any[String]) throws new LoadingException( "No such file or directory")
+        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
+        rcm ! AuthenticationMessages.SessionRequest( "someAuthToken", PROVISIONAL)
+        expectMsg( new ServiceClientFailure( ConnectionStatus.CONFIGURATION_FILE_FAILURE))
+      }
+    }
   }
+
 }
