@@ -105,10 +105,38 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( '/entities/' + id, "entity", $scope);
 })
 
-.controller( 'PointControl', function( $rootScope, $scope, reef, $routeParams) {
+.controller( 'PointControl', function( $rootScope, $scope, reef, $routeParams, coralNav) {
     var equipmentIdsQueryParams = reef.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds ),
         depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
 
+    function notifyWhenEquipmentNamesAreAvailable( equipmentId) {
+        $scope.equipmentName = nameFromEquipmentIds( $routeParams.equipmentIds) + ' '
+    }
+    function nameFromTreeNode( treeNode) {
+        if( treeNode)
+            return treeNode.label
+        else
+            return '...'
+    }
+    function nameFromEquipmentIds( equipmentIds) {
+        var result = ""
+        if( equipmentIds) {
+
+            if( angular.isArray( equipmentIds)) {
+                equipmentIds.forEach( function( equipmentId, index) {
+                    var treeNode = coralNav.lookupTreeNode( equipmentId, notifyWhenEquipmentNamesAreAvailable)
+                    if( index == 0)
+                        result += nameFromTreeNode( treeNode)
+                    else
+                        result += ', ' +nameFromTreeNode( treeNode)
+                })
+            } else {
+                var treeNode = coralNav.lookupTreeNode( equipmentIds, notifyWhenEquipmentNamesAreAvailable)
+                result = nameFromTreeNode( treeNode)
+            }
+        }
+        return result
+    }
 
     $rootScope.currentMenuItem = "points";
     $rootScope.breadcrumbs = [
@@ -116,12 +144,14 @@ return angular.module( 'controllers', ['authentication.service'] )
         { name: "Points" }
     ];
     $scope.points = []
+    $scope.equipmentName = ''
 
     var delimeter = '?'
     var url = "/models/1/points"
     if( equipmentIdsQueryParams.length > 0) {
         url += delimeter + equipmentIdsQueryParams
         delimeter = '&'
+        $scope.equipmentName = nameFromEquipmentIds( $routeParams.equipmentIds) + ' '
     }
     if( depth.length > 0)
         url += delimeter + depth

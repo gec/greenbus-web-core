@@ -115,51 +115,40 @@ define([
     function navListLink(scope, element, $attrs) {
     }
 
-    function navTreeController( $scope, $attrs, $location, $cookies, coralRest) {
-        var ContainerType = {
-            MicroGrid: 'MicroGrid',
-            EquipmentGroup: 'EquipmentGroup',
-            EquipmentLeaf: 'EquipmentLeaf',
-            Sourced: 'Sourced'   // Ex: 'All PVs'. Has sourceUrl, bit no data
+    var NavService = function( coralRest) {
+        var self = this,
+            ContainerType = {
+                MicroGrid: 'MicroGrid',
+                EquipmentGroup: 'EquipmentGroup',
+                EquipmentLeaf: 'EquipmentLeaf',
+                Sourced: 'Sourced'   // Ex: 'All PVs'. Has sourceUrl, bit no data
+            },
+            equipmentIdToTreeNodeCache = {},
+            notifies = {}
+
+
+        function storeInCache( treeNode) {
+            equipmentIdToTreeNodeCache[treeNode.id] = treeNode
+            var notifyList = notifies[treeNode.id]
+            if( notifyList) {
+                notifyList.forEach( function( notify) { notify( treeNode.id)})
+                delete notifies[treeNode.id];
+            }
         }
 
-        $scope.navTree = [
-            {
-                label: 'All Equipment',
-                children: [],
-                data: {
-                    regex: '^[^/]+',
-                    count: 0,
-                    newMessageCount: 1,
-                    depth: 0
-                }
-            }
-        ]
-        var sample = [
-            {
-                "entity": {
-                    "name": "Some Microgrid",
-                    "id": "b9e6eac2-be4d-41cf-b82a-423d90515f64",
-                    "types": ["Root", "MicroGrid"]
-                },
-                "children": [
-                    {
-                        "entity": {
-                            "name": "MG1",
-                            "id": "03c2db16-0f78-4800-adfc-9dff9d4598da",
-                            "types": ["Equipment", "EquipmentGroup"]
-                        },
-                        "children": []
-                    }
-            ]}
-        ]
+        function addNotify( equipmentId, notifyWhenAvailable) {
+            var notifyForEqupimentId = notifies[ equipmentId]
+            if( notifyForEqupimentId)
+                notifyForEqupimentId.push( notifyWhenAvailable)
+            else
+                notifies[ equipmentId] = [notifyWhenAvailable]
+        }
 
-        $scope.menuSelect = function( branch) {
-            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.route)
-            var url = branch.route
-            if( branch.sourceUrl)
-                url = url + "?sourceUrl=" + encodeURIComponent(branch.sourceUrl)
-            $location.url( url)
+        self.lookupTreeNode = function( equipmentId, notifyWhenAvailable) {
+            var treeNode = equipmentIdToTreeNodeCache[equipmentId]
+            if( !treeNode && notifyWhenAvailable)
+                addNotify( equipmentId, notifyWhenAvailable)
+            return treeNode
         }
 
         function getContainerType( entity) {
@@ -170,6 +159,7 @@ define([
             else
                 return ContainerType.EquipmentLeaf
         }
+
 
         function entityToTreeNode( entityWithChildren) {
             // Could be a simple entity.
@@ -199,20 +189,72 @@ define([
                 types: entity.types,
                 containerType: containerType,
                 route: route,
-                children: entityWithChildren.children ? entityChildrenToTreeNodes( entityWithChildren.children) : []
+                children: entityWithChildren.children ? entityChildrenListToTreeNodes( entityWithChildren.children) : []
             }
         }
-        function entityChildrenToTreeNodes( entityWithChildrenList) {
+        function entityChildrenListToTreeNodes( entityWithChildrenList) {
             var ra = []
             entityWithChildrenList.forEach( function( entityWithChildren) {
-                ra.push( entityToTreeNode( entityWithChildren))
+                var treeNode = entityToTreeNode( entityWithChildren)
+                ra.push( treeNode)
+                storeInCache( treeNode)
             })
             return ra
         }
 
+        self.getTreeNodes = function( sourceUrl, scope, successListener) {
+            coralRest.get( sourceUrl, null, scope, function( entityWithChildrenList) {
+                var treeNodes = entityChildrenListToTreeNodes( entityWithChildrenList)
+                successListener( treeNodes)
+            })
+        }
+    }
+
+
+    function navTreeController( $scope, $attrs, $location, $cookies, coralRest, coralNav) {
+
+        $scope.navTree = [
+            {
+                label: 'All Equipment',
+                children: [],
+                data: {
+                    regex: '^[^/]+',
+                    count: 0,
+                    newMessageCount: 1,
+                    depth: 0
+                }
+            }
+        ]
+        // GET /models/1/equipment?depth=3&rootTypes=Root
+        var sampleGetResponse = [
+            {
+                "entity": {
+                    "name": "Some Microgrid",
+                    "id": "b9e6eac2-be4d-41cf-b82a-423d90515f64",
+                    "types": ["Root", "MicroGrid"]
+                },
+                "children": [
+                    {
+                        "entity": {
+                            "name": "MG1",
+                            "id": "03c2db16-0f78-4800-adfc-9dff9d4598da",
+                            "types": ["Equipment", "EquipmentGroup"]
+                        },
+                        "children": []
+                    }
+            ]}
+        ]
+
+        $scope.menuSelect = function( branch) {
+            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.route)
+            var url = branch.route
+            if( branch.sourceUrl)
+                url = url + "?sourceUrl=" + encodeURIComponent(branch.sourceUrl)
+            $location.url( url)
+        }
+
         function loadTreeNodesFromSource( parentTree, index, child) {
-            coralRest.get( child.sourceUrl, null, $scope, function( equipment) {
-                var newTreeNodes = entityChildrenToTreeNodes( equipment)
+            coralNav.getTreeNodes( child.sourceUrl, $scope, function( newTreeNodes) {
                 switch( child.insertLocation) {
                     case "CHILDREN":
                         // Insert the resultant children before any existing static children.
@@ -222,7 +264,7 @@ define([
                         replaceTreeNodeAtIndexAndPreserveChildren( parentTree, index, newTreeNodes)
                         break;
                     default:
-                        console.error( "navTreeController.getSuccess.get Unknown item lifespan: " + child.lifespan)
+                        console.error( "navTreeController.getSuccess.get Unknown insertLocation: " + child.insertLocation)
                 }
             })
 
@@ -288,6 +330,9 @@ define([
     }
 
     return angular.module('coral.navigation', ["ui.bootstrap", "coral.rest"]).
+        factory('coralNav', function( coralRest){
+            return new NavService( coralRest);
+        } ).
         // <nav-bar-top route="/menus/admin"
         directive('navBarTop', function(){
             return {
