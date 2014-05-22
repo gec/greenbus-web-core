@@ -14,6 +14,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
+ * License for the specific language governing permissions and limitations under
  * the License.
  */
 define([
@@ -154,10 +155,10 @@ define([
         ]
 
         $scope.menuSelect = function( branch) {
-            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.data.route)
-            var url = branch.data.route
-            if( branch.data.sourceUrl)
-                url = url + "?sourceUrl=" + encodeURIComponent(branch.data.sourceUrl)
+            console.log( "navTreeController.menuSelect " + branch.label + ", route=" + branch.route)
+            var url = branch.route
+            if( branch.sourceUrl)
+                url = url + "?sourceUrl=" + encodeURIComponent(branch.sourceUrl)
             $location.url( url)
         }
 
@@ -194,12 +195,10 @@ define([
 
             return {
                 label: entity.name,
-                data: {
-                    id: entity.id,
-                    types: entity.types,
-                    containerType: containerType,
-                    route: route
-                },
+                id: entity.id,
+                types: entity.types,
+                containerType: containerType,
+                route: route,
                 children: entityWithChildren.children ? entityChildrenToTreeNodes( entityWithChildren.children) : []
             }
         }
@@ -212,9 +211,9 @@ define([
         }
 
         function loadTreeNodesFromSource( parentTree, index, child) {
-            coralRest.get( child.data.sourceUrl, null, $scope, function( equipment) {
+            coralRest.get( child.sourceUrl, null, $scope, function( equipment) {
                 var newTreeNodes = entityChildrenToTreeNodes( equipment)
-                switch( child.data.insertLocation) {
+                switch( child.insertLocation) {
                     case "CHILDREN":
                         // Insert the resultant children before any existing static children.
                         child.children = newTreeNodes.concat( child.children)
@@ -264,11 +263,11 @@ define([
                     var i2
                     for( i2 = 0; i2 < oldChildren.length; i2++) {
                         var child = angular.copy( oldChildren[i2] ),
-                            sourceUrl = child.data.sourceUrl
+                            sourceUrl = child.sourceUrl
                         node.children.push( child)
                         if( sourceUrl) {
                             if( sourceUrl.indexOf( '$parent'))
-                                child.data.sourceUrl = sourceUrl.replace( '$parent', node.data.id)
+                                child.sourceUrl = sourceUrl.replace( '$parent', node.id)
                             loadTreeNodesFromSource( node.children, node.children.length-1, child)
                         }
                     }
@@ -277,7 +276,7 @@ define([
         }
         function getSuccess( data) {
             data.forEach( function(node, index) {
-                if( node.data.sourceUrl)
+                if( node.sourceUrl)
                     loadTreeNodesFromSource( data, index, node)
             })
         }
