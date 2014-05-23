@@ -115,6 +115,34 @@ define([
     function navListLink(scope, element, $attrs) {
     }
 
+
+    function NotifyCache() {
+        this.cache = {}
+        this.listeners = {}
+    }
+    NotifyCache.prototype.put = function( key, value) {
+        this.cache[key] = value
+        var notifyList = this.listeners[key]
+        if( notifyList) {
+            notifyList.forEach( function( notify) { notify( key, value)})
+            delete this.listeners[key];
+        }
+    }
+    NotifyCache.prototype.addListener = function( key, listener) {
+        var listenersForId = this.listeners[ key]
+        if( listenersForId)
+            listenersForId.push( listener)
+        else
+            this.listeners[ key] = [listener]
+    }
+    NotifyCache.prototype.get = function( key, listener) {
+        var value = this.cache[ key]
+        if( !value && listener)
+            this.addListener( key, listener)
+        return value
+    }
+
+
     var NavService = function( coralRest) {
         var self = this,
             ContainerType = {
@@ -123,32 +151,20 @@ define([
                 EquipmentLeaf: 'EquipmentLeaf',
                 Sourced: 'Sourced'   // Ex: 'All PVs'. Has sourceUrl, bit no data
             },
-            equipmentIdToTreeNodeCache = {},
-            notifies = {}
+            equipmentIdToTreeNodeCache = new NotifyCache(),
+            menuIdToTreeNodeCache = new NotifyCache()
 
 
-        function storeInCache( treeNode) {
-            equipmentIdToTreeNodeCache[treeNode.id] = treeNode
-            var notifyList = notifies[treeNode.id]
-            if( notifyList) {
-                notifyList.forEach( function( notify) { notify( treeNode.id)})
-                delete notifies[treeNode.id];
-            }
+        self.getTreeNodeByEquipmentId = function( equipmentId, notifyWhenAvailable) {
+            return equipmentIdToTreeNodeCache.get( equipmentId, notifyWhenAvailable)
         }
 
-        function addNotify( equipmentId, notifyWhenAvailable) {
-            var notifyForEqupimentId = notifies[ equipmentId]
-            if( notifyForEqupimentId)
-                notifyForEqupimentId.push( notifyWhenAvailable)
-            else
-                notifies[ equipmentId] = [notifyWhenAvailable]
+        self.getTreeNodeByMenuId = function( menuId, notifyWhenAvailable) {
+            return menuIdToTreeNodeCache.get( menuId, notifyWhenAvailable)
         }
 
-        self.lookupTreeNode = function( equipmentId, notifyWhenAvailable) {
-            var treeNode = equipmentIdToTreeNodeCache[equipmentId]
-            if( !treeNode && notifyWhenAvailable)
-                addNotify( equipmentId, notifyWhenAvailable)
-            return treeNode
+        self.putTreeNodeByMenuId = function( menuId, treeNode) {
+            return menuIdToTreeNodeCache.put( menuId, treeNode)
         }
 
         function getContainerType( entity) {
@@ -186,6 +202,7 @@ define([
             return {
                 label: entity.name,
                 id: entity.id,
+                type: 'item',
                 types: entity.types,
                 containerType: containerType,
                 route: route,
@@ -197,7 +214,7 @@ define([
             entityWithChildrenList.forEach( function( entityWithChildren) {
                 var treeNode = entityToTreeNode( entityWithChildren)
                 ra.push( treeNode)
-                storeInCache( treeNode)
+                equipmentIdToTreeNodeCache.put( treeNode.id, treeNode)
             })
             return ra
         }
@@ -208,6 +225,25 @@ define([
                 successListener( treeNodes)
             })
         }
+
+        function cacheNavItems( items) {
+            items.forEach( function( item) {
+                if( item.type === 'item')
+                    menuIdToTreeNodeCache.put( item.id, item)
+                if( item.children.length > 0)
+                    cacheNavItems( item.children)
+            })
+        }
+
+        self.getNavTree = function( url, name, scope, successListener) {
+            coralRest.get( url, name, scope, function(data) {
+                // example: [ {type:item, label:Dashboard, id:dashboard, route:#/dashboard, selected:false, children:[]}, ...]
+                cacheNavItems( data)
+                if( successListener)
+                    successListener( data)
+            })
+        }
+
     }
 
 
@@ -297,15 +333,24 @@ define([
         function replaceTreeNodeAtIndexAndPreserveChildren( parentTree, index, newTreeNodes) {
             var i,
                 oldChildren = parentTree[index].children
+            // Remove the child we're replacing.
             parentTree.splice( index, 1)
             for( i=newTreeNodes.length-1; i >= 0; i-- ) {
                 var node = newTreeNodes[i]
                 parentTree.splice( index, 0, node)
+                // For each new child that we're adding, replicate the old children.
+                // Replace $parent in the sourceUrl with its current parent.
                 if( oldChildren && oldChildren.length > 0) {
                     var i2
                     for( i2 = 0; i2 < oldChildren.length; i2++) {
                         var child = angular.copy( oldChildren[i2] ),
                             sourceUrl = child.sourceUrl
+                        child.id = child.id + '.' + node.id
+                        child.route = child.route + '.' + node.id
+                        // The child is a copy. We need to put it in the cache.
+                        // TODO: We need better coordination with coralNav. This works, but I think it's a kludge
+                        // TODO: We didn't remove the old treeNode from the cache. It might even have a listener that will fire.
+                        coralNav.putTreeNodeByMenuId( child.id, child)
                         node.children.push( child)
                         if( sourceUrl) {
                             if( sourceUrl.indexOf( '$parent'))
@@ -323,7 +368,7 @@ define([
             })
         }
 
-        return coralRest.get( $attrs.href, "navTree", $scope, getSuccess)
+        return coralNav.getNavTree( $attrs.href, "navTree", $scope, getSuccess)
     }
     // The linking function will add behavior to the template
     function navTreeLink(scope, element, $attrs) {

@@ -39,6 +39,7 @@ import scala.concurrent.ExecutionContext.Implicits._
 import org.totalgrid.coral.models.{ReefServiceFactory, EntityWithChildren}
 import org.totalgrid.coral.reefpolyfill.{FrontEndService, PointWithTypes}
 import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
+import org.totalgrid.coral.util.Timer
 
 
 // for postfix 'seconds'
@@ -397,7 +398,7 @@ trait RestServices extends ReefAuthentication {
   def getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
-    def makeEquipmentPointsMap( edges: Seq[EntityEdge], points: Seq[PointWithTypes]) = {
+    def makeEquipmentIdPointsMap( edges: Seq[EntityEdge], points: Seq[PointWithTypes]) = {
 
       val pointIdPointMap = points.foldLeft( Map[String, PointWithTypes]()) { (map, point) => map + (point.getUuid.getValue -> point) }
 
@@ -428,19 +429,26 @@ trait RestServices extends ReefAuthentication {
 
     } else {
 
-
+      val t1 = new Timer( "getPointsByTypeForEquipmentsQuery |||||||||||||||||||||||||")
       val equipmentReefUuids = equipmentIds.map( ReefUUID.newBuilder().setValue( _).build())
       getPointsByTypeForEquipmentsQuery( entityService, equipmentReefUuids, pointTypes, depth, limit).flatMap { pointsAsEntities =>
-
+        t1.delta( "got pointsAsEntities")
         val pointIds = pointsAsEntities.map( _.getUuid)
         //TODO: Currently re-getting entities as Point. Need new API from Reef to directly get points under equipment.
         getPointsByIds( frontEndService, pointIds).flatMap { points =>
+          t1.delta( "got getPointsByIds")
 
-          getEdgesForParentsAndChildrenQuery( entityService, equipmentReefUuids, pointIds, depth, limit).map { edges =>
-            val equipmentToPointMap = makeEquipmentPointsMap( edges, points)
-
-            // Return a map of equipment IDs to points array.
-            Ok( Json.toJson(equipmentToPointMap))
+          // Return a map of equipment IDs to points array.
+          if( equipmentIds.length <= 1) {
+            val equipmentIdToPointsMap = Map( equipmentIds(0) -> points)
+            t1.end( "return early because it's just on equipment")
+            Future.successful( Ok( Json.toJson(equipmentIdToPointsMap)))
+          } else {
+            getEdgesForParentsAndChildrenQuery( entityService, equipmentReefUuids, pointIds, depth, limit).map { edges =>
+              t1.end( "got getEdgesForParentsAndChildrenQuery")
+              val equipmentIdToPointsMap = makeEquipmentIdPointsMap( edges, points)
+              Ok( Json.toJson(equipmentIdToPointsMap))
+            }
           }
         }
       }

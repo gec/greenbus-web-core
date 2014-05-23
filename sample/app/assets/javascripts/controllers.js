@@ -105,9 +105,78 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( '/entities/' + id, "entity", $scope);
 })
 
+.controller( 'PointsForNavControl', function( $rootScope, $scope, reef, $routeParams, coralNav) {
+    var navId = $routeParams.id,
+        depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
+
+    $rootScope.currentMenuItem = "??";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "???" }
+    ];
+    $scope.points = []
+    $scope.equipmentName = ''
+
+    function nameFromTreeNode( treeNode) {
+        if( treeNode)
+            return treeNode.label
+        else
+            return '...'
+    }
+
+    function getEquipmentIds( treeNode) {
+        var result = []
+        treeNode.children.forEach( function( node){
+            if( node.containerType && node.containerType !== 'Sourced')
+                result.push( node.id)
+        })
+        return result
+    }
+    function navIdListener( id, treeNode) {
+        $scope.equipmentName = nameFromTreeNode( treeNode) + ' '
+        var equipmentIds = getEquipmentIds( treeNode)
+        var equipmentIdsQueryParams = reef.queryParameterFromArrayOrString( "equipmentIds", equipmentIds )
+
+        var delimeter = '?'
+        var url = "/models/1/points"
+        if( equipmentIdsQueryParams.length > 0) {
+            url += delimeter + equipmentIdsQueryParams
+            delimeter = '&'
+            $scope.equipmentName = nameFromTreeNode( treeNode) + ' '
+        }
+        if( depth.length > 0)
+            url += delimeter + depth
+
+        reef.get( url, "points", $scope, function(data) {
+            // data is either a array of points or a map of equipmentId -> points[]
+            // If it's an object, convert it to a list of points.
+            if( angular.isObject( data)) {
+                $scope.points = []
+                for( var equipmentId in data) {
+                    $scope.points = $scope.points.concat( data[equipmentId])
+                }
+            }
+        });
+    }
+
+    var treeNode = coralNav.getTreeNodeByMenuId( navId, navIdListener)
+    if( treeNode)
+        navIdListener( navId, treeNode)
+
+
+})
+
 .controller( 'PointControl', function( $rootScope, $scope, reef, $routeParams, coralNav) {
     var equipmentIdsQueryParams = reef.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds ),
         depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
+
+    $rootScope.currentMenuItem = "points";
+    $rootScope.breadcrumbs = [
+        { name: "Reef", url: "#/"},
+        { name: "Points" }
+    ];
+    $scope.points = []
+    $scope.equipmentName = ''
 
     function notifyWhenEquipmentNamesAreAvailable( equipmentId) {
         $scope.equipmentName = nameFromEquipmentIds( $routeParams.equipmentIds) + ' '
@@ -124,27 +193,19 @@ return angular.module( 'controllers', ['authentication.service'] )
 
             if( angular.isArray( equipmentIds)) {
                 equipmentIds.forEach( function( equipmentId, index) {
-                    var treeNode = coralNav.lookupTreeNode( equipmentId, notifyWhenEquipmentNamesAreAvailable)
+                    var treeNode = coralNav.getTreeNodeByEquipmentId( equipmentId, notifyWhenEquipmentNamesAreAvailable)
                     if( index == 0)
                         result += nameFromTreeNode( treeNode)
                     else
                         result += ', ' +nameFromTreeNode( treeNode)
                 })
             } else {
-                var treeNode = coralNav.lookupTreeNode( equipmentIds, notifyWhenEquipmentNamesAreAvailable)
+                var treeNode = coralNav.getTreeNodeByEquipmentId( equipmentIds, notifyWhenEquipmentNamesAreAvailable)
                 result = nameFromTreeNode( treeNode)
             }
         }
         return result
     }
-
-    $rootScope.currentMenuItem = "points";
-    $rootScope.breadcrumbs = [
-        { name: "Reef", url: "#/"},
-        { name: "Points" }
-    ];
-    $scope.points = []
-    $scope.equipmentName = ''
 
     var delimeter = '?'
     var url = "/models/1/points"
@@ -693,7 +754,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     }
 
     // Called after get sourceUrl is successful
-    $scope.getEquipmentListener = function( ) {
+    function getEquipmentListener( ) {
         var cesIndex, pointsUrl,
             pointIds = [],
             pointTypesQueryString = reef.queryParameterFromArrayOrString( "pointTypes", POINT_TYPES),
@@ -780,7 +841,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     var pointTypes = reef.queryParameterFromArrayOrString( "pointTypes", POINT_TYPES)
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
 //    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
-    reef.get( sourceUrl, "equipment", $scope, $scope.getEquipmentListener);
+    reef.get( sourceUrl, "equipment", $scope, getEquipmentListener);
 })
 
 .controller( 'EndpointControl', function( $rootScope, $scope, reef) {
