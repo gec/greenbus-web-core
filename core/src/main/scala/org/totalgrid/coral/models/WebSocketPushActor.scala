@@ -37,8 +37,10 @@ import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHi
 import org.totalgrid.reef.client.service.proto.Measurements
 import scala.collection.mutable.ListBuffer
 import org.totalgrid.coral.util.Timer
+import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointSubscriptionQuery
+import org.totalgrid.reef.client.service.proto.EntityRequests.EntitySubscriptionQuery
 
-///import scala.collection.JavaConversions._
+import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.language.postfixOps // for postfix 'seconds'
 import org.totalgrid.reef.client.service.proto.Events.Alarm
@@ -70,7 +72,7 @@ object WebSocketPushActor {
   case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
   //case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
   case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
-  //case class SubscribeToEndpointConnections( override val id: String) extends Subscribe
+  case class SubscribeToEndpointStatus( override val id: String, endpointIds: Seq[String]) extends Subscribe
 
   case class Unsubscribe( id: String)
   case class MessageError( message: String, error: JsError)
@@ -103,6 +105,11 @@ object WebSocketPushActor {
       (__ \ "limit").read[Int]
     )(SubscribeToRecentEvents)
 
+  implicit val subscribeToEndpointStatusReads = (
+    (__ \ "subscriptionId").read[String] and
+      (__ \ "endpointIds").read[Seq[String]]
+    )(SubscribeToEndpointStatus)
+
 }
 
 
@@ -113,7 +120,7 @@ object WebSocketPushActor {
  *
  * @author Flint O'Brien
  */
-class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession : Session, aPushChannel: Concurrent.Channel[JsValue]) extends Actor  {
+class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession : Session, aPushChannel: Concurrent.Channel[JsValue], serviceFactory: ReefServiceFactory) extends Actor  {
 
   import WebSocketPushActor._
   import ReefConnectionManager._
@@ -163,6 +170,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementsHistory( subscribe)
     case subscribe: SubscribeToActiveAlarms => subscribeToActiveAlarms( subscribe)
     case subscribe: SubscribeToRecentEvents => subscribeToRecentEvents( subscribe)
+    case subscribe: SubscribeToEndpointStatus => subscribeToEndpointStatus( subscribe)
     case Unsubscribe( id) => cancelSubscription( id)
     case MessageError( message, jsError) => pushJsError( message, jsError)
     case UnknownMessage( messageName) => unknownMessage( messageName)
@@ -235,7 +243,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
-    val service = MeasurementService.client( session.get)
+    val service = serviceFactory.measurementService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id)
 
     val uuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
@@ -255,9 +263,31 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     }
   }
 
+  def subscribeToEndpointStatus( subscribe: SubscribeToEndpointStatus) = {
+    val service = serviceFactory.frontEndService( session.get)
+    Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id)
+
+    val uuids = subscribe.endpointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+    val query = EntitySubscriptionQuery.newBuilder().addAllUuids( uuids)
+    val result = service.subscribeToFrontEndConnectionStatuses( query.build)
+
+    result onSuccess {
+      case (statuses, subscription) =>
+        pushChannel.push( frontEndConnectionStatusSeqPushWrites.writes( subscribe.id, statuses))
+        subscription.start { m =>
+          pushChannel.push( frontEndConnectionStatusNotificationPushWrites.writes( subscribe.id, m))
+        }
+        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    }
+    result onFailure {
+      case f => Logger.error( "WebSocketPushActor.subscribeToEndpointStatus.onFailure " + f)
+      pushError( subscribe, "Failure: " + f)
+    }
+  }
+
   def subscribeToMeasurementsHistory( subscribe: SubscribeToMeasurementHistory) = {
     val timer = new Timer( "subscribeToMeasurementsHistory")
-    val service = MeasurementService.client( session.get)
+    val service = serviceFactory.measurementService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.id)
     val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
     timer.delta( "initialized service and uuid")

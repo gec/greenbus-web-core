@@ -30,7 +30,7 @@ import play.api.libs.functional.syntax._
 import models.content._
 import play.api.libs.json.JsArray
 import scala.Some
-import org.totalgrid.coral.models.ReefServiceFactory
+import org.totalgrid.coral.models.{ReefServiceFactory, ReefServiceFactoryImpl}
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 

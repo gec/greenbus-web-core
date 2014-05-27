@@ -32,7 +32,7 @@ with ImplicitSender
 class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions with Mockito {
   sequential // forces all tests to be run sequentially
 
-  import ReefConnectionManager.ServiceFactory
+  import ReefConnectionManager.ReefConnectionManagerServiceFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
 
   val TIMEOUT = FiniteDuration(500, MILLISECONDS)
@@ -45,11 +45,11 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     val reefConnection = mock[ReefConnection]
     reefConnection.session returns session1
   }
-  def serviceFactoryMock( reefConnection: ReefConnection): ServiceFactory = {
+  def serviceFactoryMock( reefConnection: ReefConnection): ReefConnectionManagerServiceFactory = {
     val entityService = mock[EntityService]
     val loginService = mock[LoginService]
 
-    val serviceFactory = mock[ServiceFactory]
+    val serviceFactory = mock[ReefConnectionManagerServiceFactory]
     serviceFactory.entityService( any[Session]) returns entityService
     serviceFactory.loginService( any[Session]) returns loginService
     serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]

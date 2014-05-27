@@ -11,26 +11,18 @@
                 <tr>
                     <th>Name</th>
                     <th>Protocol</th>
-                    <th>Auto Assigned</th>
-                    <th>State</th>
                     <th>Enabled</th>
-                    <th>Front End</th>
-                    <th>Port</th>
-                    <th>Port State</th>
-                    <th>Routed</th>
+                    <th>State</th>
+                    <th>Last Heartbeat</th>
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="ec in endpointConnections">
-                    <td><a href="#/endpointconnections/{{ec.endpoint.name | encodeURI}}">{{ec.endpoint.name}}</a></td>
-                    <td>{{ec.endpoint.protocol}}</td>
-                    <td>{{ec.endpoint.autoAssigned}}</td>
-                    <td>{{ec.state}}</td>
-                    <td>{{ec.enabled}}</td>
-                    <td>{{ec.fep}}</td>
-                    <td>{{ec.endpoint.channel.name}}</td>
-                    <td>{{ec.endpoint.channel.state}}</td>
-                    <td>{{ec.routed}}</td>
+                <tr ng-repeat="ep in endpoints">
+                    <td><a href="#/endpoints/{{ep.endpoint.name | encodeURI}}">{{ep.name}}</a></td>
+                    <td>{{ep.protocol}}</td>
+                    <td>{{ep.enabled}}</td>
+                    <td>{{ep.state}}</td>
+                    <td>{{ep.lastHeartbeat}}</td>
                 </tr>
             </tbody>
         </table>

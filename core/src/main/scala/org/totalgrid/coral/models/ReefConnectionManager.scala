@@ -33,7 +33,7 @@ import org.totalgrid.msg.amqp.util.LoadingException
 import org.totalgrid.msg.qpid.QpidBroker
 import scala.concurrent.{Future, Await}
 import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service.{EntityService, LoginService}
+import org.totalgrid.reef.client.service.{EventService, EntityService, LoginService}
 import org.totalgrid.reef.client.service.proto.LoginRequests
 import org.totalgrid.reef.client.service.proto.EntityRequests.EntityKeySet
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
@@ -41,6 +41,7 @@ import org.totalgrid.reef.client.exception._
 import java.util.UUID
 import org.totalgrid.coral.util.Timer
 import akka.pattern.AskTimeoutException
+import org.totalgrid.coral.reefpolyfill.{FrontEndServicePF, FrontEndService}
 
 
 object ReefConnectionManager {
@@ -64,24 +65,26 @@ object ReefConnectionManager {
     def writes( o: ServiceClientFailure): JsValue = Json.obj( "error" -> o.status)
   }
 
-  trait ServiceFactory {
-
-    def entityService( session: Session): EntityService
-
-    def loginService( session: Session): LoginService
+  
+  trait ReefConnectionManagerServiceFactory {
 
     @throws(classOf[LoadingException])
     def amqpSettingsLoad(file : String): AmqpSettings
-
     def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection
+
+    def loginService( session: Session): LoginService
+    def entityService( session: Session): EntityService = EntityService.client( session)
   }
 
-  object ServiceFactoryDefault extends ServiceFactory {
-    override def entityService( session: Session): EntityService = EntityService.client( session)
-    override def loginService( session: Session): LoginService = LoginService.client( session)
+  object ReefConnectionManagerServiceFactorySingleton extends ReefConnectionManagerServiceFactory {
     override def amqpSettingsLoad(file: String): AmqpSettings = AmqpSettings.load( file)
     override def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection =
       ReefConnection.connect( settings, broker, timeoutMs)
+
+    override def entityService( session: Session): EntityService = EntityService.client( session)
+    override def loginService( session: Session): LoginService = LoginService.client( session)
+
+
   }
 }
 import ReefConnectionManager._
@@ -101,7 +104,7 @@ trait WebSocketPushActorFactory {
  *
  * @author Flint O'Brien
  */
-class ReefConnectionManager( serviceFactory: ServiceFactory, childActorFactory: WebSocketPushActorFactory) extends Actor {
+class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory, childActorFactory: WebSocketPushActorFactory) extends Actor {
   import ReefConnectionManager._
   import ConnectionStatus._
   import ValidationTiming._

@@ -38,7 +38,7 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
   def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
     // Create a pushChannel that the new actor will use for push
     val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
-    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel)) /*, name = actorName*/) // Getting two with the same name
+    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel, ReefServiceFactoryDefault)) /*, name = actorName*/) // Getting two with the same name
     val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
     WebSocketChannels( iteratee, enumerator)
   }
@@ -49,9 +49,9 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
  * @author Flint O'Brien
  */
 object Global extends GlobalSettings {
-  import ReefConnectionManager.ServiceFactoryDefault
+  import ReefConnectionManager.ReefConnectionManagerServiceFactorySingleton
 
-  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ServiceFactoryDefault, ClientPushActorFactory)), "ReefConnectionManager")
+  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ReefConnectionManagerServiceFactorySingleton, ClientPushActorFactory)), "ReefConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)

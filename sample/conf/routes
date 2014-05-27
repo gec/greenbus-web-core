@@ -34,8 +34,8 @@ GET           /commands/:name                                      controllers.A
 
 GET           /equipmentwithpointsbytype                           controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
 
-GET           /endpointconnections                                 controllers.Application.getEndpointConnections
-GET           /endpointconnections/*name                           controllers.Application.getEndpointConnection( name: String)
+GET           /endpoints                                           controllers.Application.getEndpoints
+GET           /endpoints/*name                                     controllers.Application.getEndpointConnection( name: String)
 
 GET           /applications                                        controllers.Application.getApplications
 GET           /applications/:name                                  controllers.Application.getApplication( name: String)

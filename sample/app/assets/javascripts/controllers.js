@@ -844,27 +844,36 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( sourceUrl, "equipment", $scope, getEquipmentListener);
 })
 
-.controller( 'EndpointControl', function( $rootScope, $scope, reef) {
-    $rootScope.currentMenuItem = "endpointconnections";
+.controller( 'EndpointControl', function( $rootScope, $scope, coralRest) {
+    $rootScope.currentMenuItem = "endpoints";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Endpoints" }
     ];
 
-    reef.get( "/endpointconnections", "endpointConnections", $scope);
+    coralRest.get( "/endpoints", "endpoints", $scope, function(data){
+        var endpointIds = data.map( function(endpoint){ endpoint.id})
+        var json = {
+            subscribeToMeasurementHistory: {
+                "endpointIds": endpointIds
+            }
+        }
+        coralRest.suscribe( )
+
+    });
 })
         
 .controller( 'EndpointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
-    $rootScope.currentMenuItem = "endpointconnections";
+    $rootScope.currentMenuItem = "endpoints";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
-        { name: "Endpoints", url: "#/endpointconnections"},
+        { name: "Endpoints", url: "#/endpoints"},
         { name: routeName }
     ];
 
-    reef.get( '/endpointconnections/' + routeName, "endpointConnection", $scope);
+    reef.get( '/endpoints/' + routeName, "endpoint", $scope);
 })
 
 .controller( 'ApplicationControl', function( $rootScope, $scope, reef) {

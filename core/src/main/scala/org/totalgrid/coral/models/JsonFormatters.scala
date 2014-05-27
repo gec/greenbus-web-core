@@ -29,7 +29,7 @@ import org.totalgrid.reef.client.service.proto.Measurements._
 //import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
 //import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
-import org.totalgrid.reef.client.service.proto.FrontEnd.{Point, Endpoint, Command}
+import org.totalgrid.reef.client.service.proto.FrontEnd._
 import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 import org.totalgrid.coral.reefpolyfill.PointWithTypes
 
@@ -216,9 +216,8 @@ object JsonFormatters {
       Json.obj(
         "name" -> o.getName,
         "id" -> o.getUuid.getValue,
-        "protocol" -> o.getProtocol//,
-//        "autoAssigned" -> o.getAutoAssigned,
-//        "channel" -> o.getChannel
+        "protocol" -> o.getProtocol,
+        "enabled" -> !o.getDisabled
       )
   }
 
@@ -409,5 +408,49 @@ object JsonFormatters {
     (__ \ "entity").write[Entity] and
       (__ \ "children").lazyWrite(Writes.seq[EntityWithChildren](entityWithChildrenWrites))
   ) (unlift(EntityWithChildren.unapply))
+
+
+  /**
+   * FrontEndConnectionStatus.
+   */
+  implicit val frontEndConnectionStatusWrites = new Writes[FrontEndConnectionStatus] {
+    def writes( o: FrontEndConnectionStatus): JsValue = {
+      Json.obj(
+        "eventType" -> "UNKNOWN",     // see FrontEndConnectionStatusNotification.EventType: ADDED, MODIFIED, REMOVED
+        "name" -> o.getEndpointName,
+        "id" -> o.getEndpointUuid.getValue,
+        "status" -> o.getState.name,
+        "lastHeartbeat" -> o.getUpdateTime
+      )
+    }
+  }
+  lazy val frontEndConnectionStatusPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusWrites)
+
+  /**
+   * FrontEndConnectionStatusNotification.
+   */
+  implicit val frontEndConnectionStatusNotificationWrites = new Writes[FrontEndConnectionStatusNotification] {
+    def writes( o: FrontEndConnectionStatusNotification): JsValue = {
+      Json.obj(
+        "eventType" -> o.getEventType.name,     // ADDED, MODIFIED, REMOVED
+        "name" -> o.getValue.getEndpointName,
+        "id" -> o.getValue.getEndpointUuid.getValue,
+        "status" -> o.getValue.getState.name,
+        "lastHeartbeat" -> o.getValue.getUpdateTime
+      )
+    }
+  }
+  lazy val frontEndConnectionStatusNotificationPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusNotificationWrites)
+
+  /**
+   * Seq of FrontEndConnectionStatus.
+   */
+  implicit val frontEndConnectionStatusSeqWrites = new Writes[Seq[FrontEndConnectionStatus]] {
+    def writes( o: Seq[FrontEndConnectionStatus]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val frontEndConnectionStatusSeqPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusSeqWrites)
+
 
 }
