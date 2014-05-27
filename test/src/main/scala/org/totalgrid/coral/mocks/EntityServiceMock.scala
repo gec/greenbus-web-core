@@ -5,9 +5,10 @@ import scala.concurrent.Future
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.Logger
-import org.totalgrid.reef.client.service.proto.Model.{EntityEdge, Entity, ReefUUID}
+import org.totalgrid.reef.client.service.proto.Model._
 import org.totalgrid.reef.client.service.proto.EntityRequests._
 import org.totalgrid.msg.Subscription
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 object EntityServiceMock {
 
@@ -47,45 +48,45 @@ object EntityServiceMock {
 class EntityServiceMock extends EntityService {
   import EntityServiceMock._
 
-  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery, headers: Map[String, String]): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = null
+  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery, headers: Map[String, String]): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = throw new NotImplementedException
 
-  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = null
+  override def subscribeToEdges(query: EntityEdgeSubscriptionQuery): Future[(Seq[EntityEdge], Subscription[EntityEdgeNotification])] = throw new NotImplementedException
 
-  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = null
+  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = null
+  override def deleteEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def putEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = null
+  override def putEdges(descriptors: Seq[EntityEdgeDescriptor], headers: Map[String, String]): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def putEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = null
+  override def putEdges(descriptors: Seq[EntityEdgeDescriptor]): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def edgeQuery(query: EntityEdgeQuery, headers: Map[String, String]): Future[Seq[EntityEdge]] = null
+  override def edgeQuery(query: EntityEdgeQuery, headers: Map[String, String]): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def edgeQuery(query: EntityEdgeQuery): Future[Seq[EntityEdge]] = null
+  override def edgeQuery(query: EntityEdgeQuery): Future[Seq[EntityEdge]] = throw new NotImplementedException
 
-  override def delete(entityUuids: Seq[ReefUUID], headers: Map[String, String]): Future[Seq[Entity]] = null
+  override def delete(entityUuids: Seq[ReefUUID], headers: Map[String, String]): Future[Seq[Entity]] = throw new NotImplementedException
 
-  override def delete(entityUuids: Seq[ReefUUID]): Future[Seq[Entity]] = null
+  override def delete(entityUuids: Seq[ReefUUID]): Future[Seq[Entity]] = throw new NotImplementedException
 
-  override def put(entities: Seq[Entity], headers: Map[String, String]): Future[Seq[Entity]] = null
+  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery, headers: Map[String, String]): Future[Seq[Entity]] = throw new NotImplementedException
 
-  override def put(entities: Seq[Entity]): Future[Seq[Entity]] = null
-
-  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery, headers: Map[String, String]): Future[Seq[Entity]] = null
-
-  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery): Future[Seq[Entity]] = null
-
-  override def subscribe(query: EntitySubscriptionQuery, headers: Map[String, String]): Future[(Seq[Entity], Subscription[EntityNotification])] = null
-
-  override def subscribe(query: EntitySubscriptionQuery): Future[(Seq[Entity], Subscription[EntityNotification])] = null
+  override def relationshipFlatQuery(query: EntityRelationshipFlatQuery): Future[Seq[Entity]] = throw new NotImplementedException
 
   override def entityQuery(query: EntityQuery, headers: Map[String, String]): Future[Seq[Entity]] = entityQuery( query)
 
+  override def subscribe(query: EntitySubscriptionQuery): Future[(Seq[Entity], Subscription[EntityNotification])] = throw new NotImplementedException
+
+  override def put(entities: Seq[EntityTemplate]): Future[Seq[Entity]] = throw new NotImplementedException
+
+  override def put(entities: Seq[EntityTemplate], headers: Map[String, String]): Future[Seq[Entity]] = throw new NotImplementedException
+
+  override def subscribe(query: EntitySubscriptionQuery, headers: Map[String, String]): Future[(Seq[Entity], Subscription[EntityNotification])] = throw new NotImplementedException
+
   override def entityQuery(query: EntityQuery): Future[Seq[Entity]] = {
-    if( query.hasAll && query.getAll)
-      Future( entities)
-    else {
+    if( query.getIncludeTypesList.length > 0)
       Future( query.getIncludeTypesList.toList.map( t => makeEntity( "uuid", "name", t)) )
+    else {
+      Future( entities)
     }
   }
 

@@ -19,7 +19,7 @@
 package org.totalgrid.coral.models
 
 import org.totalgrid.reef.client.service.proto.Model.Entity
-import org.totalgrid.coral.reefpolyfill.PointWithTypes
+import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 
 /**
  *
@@ -35,7 +35,7 @@ object ReefExtensions {
   /**
    * An entity with a list of points that are PointsWithTypes
    * @param equipment
-   * @param pointsWithTypes
+   * @param points
    */
-  case class EquipmentWithPointsWithTypes( equipment: Entity, pointsWithTypes: List[PointWithTypes])
+  case class EquipmentWithPoints( equipment: Entity, points: List[Point])
 }

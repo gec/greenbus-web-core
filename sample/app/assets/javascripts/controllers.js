@@ -574,8 +574,8 @@ return angular.module( 'controllers', ['authentication.service'] )
             point.checked = CHECKMARK_UNCHECKED
             point.currentMeasurement = currentMeasurement
             pointIds.push( point.id)
-            if( ! point.valueType || ! point.unit)
-                console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
+            if( ! point.pointType || ! point.unit)
+                console.error( "------------- point: " + point.name + " no pointType '" + point.pointType + "' or unit '" + point.unit + "'")
             if( ! point.unit)
                 point.unit = 'raw'
 
@@ -824,8 +824,8 @@ return angular.module( 'controllers', ['authentication.service'] )
 //            cesIndex = $scope.ceses.length
 //            eq.points.forEach( function( point) {
 //                pointIds.push( point.id)
-//                if( ! point.valueType || ! point.unit)
-//                    console.error( "------------- point: " + point.name + " no valueType '" + point.valueType + "' or unit '" + point.unit + "'")
+//                if( ! point.pointType || ! point.unit)
+//                    console.error( "------------- point: " + point.name + " no pointType '" + point.pointType + "' or unit '" + point.unit + "'")
 //                pointIdToInfoMap[ point.id] = {
 //                    "cesIndex": cesIndex,
 //                    "type": getInterestingType( point.types),

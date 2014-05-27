@@ -247,7 +247,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id)
 
     val uuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
-    val result = service.subscribeWithCurrentValue( uuids)
+    val result = service.getCurrentValuesAndSubscribe( uuids)
 
     result onSuccess {
       case (measurements, subscription) =>
@@ -292,7 +292,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
     timer.delta( "initialized service and uuid")
 
-    val result = service.subscribeWithCurrentValue( Seq( uuid))
+    val result = service.getCurrentValuesAndSubscribe( Seq( uuid))
     result onSuccess {
       case (measurements, subscription) =>
         timer.delta( "onSuccess 1")
@@ -331,8 +331,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
       val query = MeasurementHistoryQuery.newBuilder()
         .setPointUuid( uuid)
-        .setWindowStart( subscribe.timeFrom)   // exclusive
-        .setWindowEnd( currentMeasurementTime) // inclusive
+        .setTimeFrom( subscribe.timeFrom)   // exclusive
+        .setTimeTo( currentMeasurementTime) // inclusive
         .setLimit( subscribe.limit)
         .setLatest( true) // return latest portion of time window when limit reached.
         .build

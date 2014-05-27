@@ -12,7 +12,7 @@ object ApplicationBuild extends Build {
   val playVersion       = "2.2.1"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
-  val reefVersion       = "0.6.0.M2-SNAPSHOT" // "0.5.0-SNAPSHOT"
+  val reefVersion       = "0.6.0.M3-SNAPSHOT"
   val msgVersion       = "0.0.1-SNAPSHOT"
 
   lazy val baseSettings = Seq(

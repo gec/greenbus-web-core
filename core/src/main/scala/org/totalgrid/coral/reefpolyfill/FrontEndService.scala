@@ -13,35 +13,7 @@ import org.totalgrid.msg
 import play.api.Logger
 import org.totalgrid.reef.client.service.EntityService
 
-/**
- * Point should always have Entity Types. These types are distinct from Point.type
- *
- * @param point
- * @param types
- */
-class PointWithTypes( val point: Point, types: List[String]) {
-
-  def getTypes = types
-
-  def getAbnormal = point.getAbnormal
-  def getDefaultInstanceForType = point.getDefaultInstanceForType
-  def getEndpointUuid = point.getEndpointUuid
-  def getName = point.getName
-  def getSerializedSize = point.getSerializedSize
-  def getPointType = point.getType
-  def getUnit = point.getUnit
-  def getUuid = point.getUuid
-}
-
 object FrontEndServicePF{
-
-  /**
-   * Point should always have Entity Types. These types are distinct from Point.type
-   *
-   * @param point
-   * @param types
-   */
-//  case class PointWithTypes( point: Point, types: List[String])
 
   def makePointMapById( points: Seq[Point]) =
     points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
@@ -49,30 +21,12 @@ object FrontEndServicePF{
   def makeEntityMapById( entitys: Seq[Entity]) =
     entitys.foldLeft( Map[String, Entity]()) { (map, entity) => map + (entity.getUuid.getValue -> entity) }
 
-  def makePointWithTypes( point: Point, entityMap: Map[String,Entity]) = {
-    entityMap.get( point.getUuid.getValue) match {
-      case Some( entity) => new PointWithTypes( point, entity.getTypesList.toList)
-      case None =>
-        Logger.error( s"makePointsWithTypes error no entity found for point name=${point.getName} uuid=${point.getUuid.getValue}")
-        new PointWithTypes( point, List[String]())
-    }
-  }
-
 }
 
 
 trait FrontEndServicePF {
   self: FrontEndService =>
   import FrontEndServicePF._
-
-  def getPointsWithTypes( request: EntityKeySet, headers: Map[String, String] = Map()): Future[Seq[PointWithTypes]] = {
-    frontEndService.getPoints( request, headers).flatMap { points =>
-        entityService.get( request).map { entities =>
-        val entityMap = makeEntityMapById( entities)
-        points.map( point => makePointWithTypes( point, entityMap) )
-      }
-    }
-  }
 
 
 }
@@ -84,15 +38,20 @@ trait FrontEndServicePF {
  */
 class FrontEndService( protected val frontEndService: service.FrontEndService, protected val entityService: EntityService) extends service.FrontEndService with FrontEndServicePF {
 
+  override def pointQuery(request: PointQuery): Future[Seq[Point]] = frontEndService.pointQuery( request)
+  override def pointQuery(request: PointQuery, headers: Map[String, String]): Future[Seq[Point]] = frontEndService.pointQuery( request, headers)
+
+  override def commandQuery(request: CommandQuery): Future[Seq[Command]] = frontEndService.commandQuery( request)
+  override def commandQuery(request: CommandQuery, headers: Map[String, String]): Future[Seq[Command]] = frontEndService.commandQuery( request, headers)
+
+  override def configFileQuery(request: ConfigFileQuery): Future[Seq[ConfigFile]] = frontEndService.configFileQuery( request)
+  override def configFileQuery(request: ConfigFileQuery, headers: Map[String, String]): Future[Seq[ConfigFile]] = frontEndService.configFileQuery( request, headers)
+
   override def getPoints(request: EntityKeySet): Future[Seq[Point]] = frontEndService.getPoints( request)
 
   override def endpointQuery(request: EndpointQuery): Future[Seq[Endpoint]] = frontEndService.endpointQuery( request)
 
   override def endpointQuery(request: EndpointQuery, headers: Map[String, String]): Future[Seq[Endpoint]] = frontEndService.endpointQuery( request, headers)
-
-  override def putPointStatuses(status: Seq[PointStatus]): Future[Seq[Point]] = frontEndService.putPointStatuses( status)
-
-  override def putPointStatuses(status: Seq[PointStatus], headers: Map[String, String]): Future[Seq[Point]] = frontEndService.putPointStatuses( status, headers)
 
   override def getCommands(request: EntityKeySet): Future[Seq[Command]] = frontEndService.getCommands( request)
 

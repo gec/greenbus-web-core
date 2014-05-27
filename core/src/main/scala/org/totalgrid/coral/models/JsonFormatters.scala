@@ -31,7 +31,6 @@ import org.totalgrid.reef.client.service.proto.Measurements._
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import org.totalgrid.reef.client.service.proto.FrontEnd._
 import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
-import org.totalgrid.coral.reefpolyfill.PointWithTypes
 
 /**
  *
@@ -360,40 +359,29 @@ object JsonFormatters {
   }
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
 
-//  implicit val pointWrites = new Writes[Point] {
-//    def writes( o: Point): JsValue =
-//      Json.obj(
-//        "name" -> o.getName,
-//        "id" -> o.getUuid.getValue,
-//        "valueType" -> o.getType.name,
-//        "unit" -> o.getUnit,
-//        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
-//      )
-//  }
-
-  implicit val pointWithTypesWrites = new Writes[PointWithTypes] {
-    def writes( o: PointWithTypes): JsValue =
+  implicit val pointWrites = new Writes[Point] {
+    def writes( o: Point): JsValue =
       Json.obj(
         "name" -> o.getName,
         "id" -> o.getUuid.getValue,
-        "valueType" -> o.getPointType.name,     // ANALOG, COUNTER, STATUS
+        "pointType" -> o.getPointType.name,
+        "types" -> o.getTypesList.toList,
         "unit" -> o.getUnit,
-        "endpoint" -> o.getEndpointUuid.getValue,  // TODO: get EndpointName
-        "types" -> o.getTypes
+        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
   }
 
-  implicit val equipmentWithPointsWithTypesWrites = new Writes[EquipmentWithPointsWithTypes] {
-    def writes( o: EquipmentWithPointsWithTypes): JsValue = {
+  implicit val equipmentWithPointsWrites = new Writes[EquipmentWithPoints] {
+    def writes( o: EquipmentWithPoints): JsValue = {
       Json.obj(
         "name" -> o.equipment.getName,
         "id" -> o.equipment.getUuid.getValue,
         "types" -> o.equipment.getTypesList.toList,
-        "points" -> o.pointsWithTypes
+        "points" -> o.points
       )
     }
   }
-  lazy val equipmentWithPointsWithTypesPushWrites = new PushWrites( "equipmentWithPointsWithTypes", equipmentWithPointsWithTypesWrites)
+  lazy val equipmentWithPointsPushWrites = new PushWrites( "equipmentWithPoints", equipmentWithPointsWrites)
 
 
 //  implicit val entityWithChildrenWrites = new Writes[EntityWithChildren] {
