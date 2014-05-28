@@ -54,7 +54,7 @@ define([
     'coral/eventService',
     'coral/navigation'
 
-], function( angular, authentication) {
+], function( angular) {
 'use strict';
 
 

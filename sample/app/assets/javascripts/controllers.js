@@ -32,16 +32,16 @@ var CHECKMARK_NEXT_STATE = [1, 0, 0]
 
 return angular.module( 'controllers', ['authentication.service'] )
 
-.controller( 'MenuControl', function( $rootScope, $scope, $timeout, reef, $http) {
+.controller( 'MenuControl', ['$rootScope', '$scope', function( $rootScope, $scope) {
 
     $scope.isActive = function(menuItem) {
         return {
             active: menuItem && menuItem == $scope.currentMenuItem
         };
     };
-})
+}])
 
-.controller( 'ReefStatusControl', function( $rootScope, $scope, $timeout, reef) {
+.controller( 'ReefStatusControl', ['$scope', 'reef', function( $scope, reef) {
 
     $scope.status = reef.getStatus()
     $scope.visible = $scope.status.status !== "UP"
@@ -51,9 +51,9 @@ return angular.module( 'controllers', ['authentication.service'] )
         $scope.status = status;
         $scope.visible = $scope.status.status !== "UP"
     });
-})
+}])
 
-.controller( 'LoadingControl', function( $rootScope, $scope, reef, $location) {
+.controller( 'LoadingControl', ['$rootScope', '$scope', 'reef', '$location', function( $rootScope, $scope, reef, $location) {
 
     $scope.status = reef.getStatus();
 
@@ -74,14 +74,14 @@ return angular.module( 'controllers', ['authentication.service'] )
         $scope.status = status;
         $scope.visible = $scope.status.status !== "UP"
     });
-})
+}])
 
-.controller( 'LogoutControl', function( $rootScope, $scope, authentication, $timeout) {
+.controller( 'LogoutControl', ['$scope', 'authentication', function( $scope, authentication) {
 
     authentication.logout();
-})
+}])
 
-.controller( 'EntityControl', function( $rootScope, $scope, reef) {
+.controller( 'EntityControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "entities";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -89,9 +89,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
     console.log( "EntityControl")
     reef.get( "/entities", "entities", $scope);
-})
+}])
 
-.controller( 'EntityDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'EntityDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var id = $routeParams.id,
         name = $routeParams.name;
 
@@ -103,9 +103,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/entities/' + id, "entity", $scope);
-})
+}])
 
-.controller( 'PointsForNavControl', function( $rootScope, $scope, reef, $routeParams, coralNav) {
+.controller( 'PointsForNavControl', ['$rootScope', '$scope', 'reef', '$routeParams', 'coralNav', function( $rootScope, $scope, reef, $routeParams, coralNav) {
     var navId = $routeParams.id,
         depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
 
@@ -164,9 +164,9 @@ return angular.module( 'controllers', ['authentication.service'] )
         navIdListener( navId, treeNode)
 
 
-})
+}])
 
-.controller( 'PointControl', function( $rootScope, $scope, reef, $routeParams, coralNav) {
+.controller( 'PointControl', ['$rootScope', '$scope', 'reef', '$routeParams', 'coralNav', function( $rootScope, $scope, reef, $routeParams, coralNav) {
     var equipmentIdsQueryParams = reef.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds ),
         depth = reef.queryParameterFromArrayOrString( "depth", $routeParams.depth )
 
@@ -227,9 +227,9 @@ return angular.module( 'controllers', ['authentication.service'] )
             }
         }
     });
-})
+}])
 
-.controller( 'PointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'PointDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var id = $routeParams.id,
         name = $routeParams.name;
 
@@ -241,9 +241,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/models/1/points/' + id, "point", $scope);
-})
+}])
 
-.controller( 'CommandControl', function( $rootScope, $scope, reef) {
+.controller( 'CommandControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "commands";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -251,9 +251,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( "/commands", "commands", $scope);
-})
+}])
 
-.controller( 'CommandDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'CommandDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var commandName = $routeParams.name;
 
     $rootScope.currentMenuItem = "commands";
@@ -264,9 +264,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/commands/' + commandName, "command", $scope);
-})
+}])
 
-.controller( 'MeasurementControl', function( $rootScope, $scope, $window, $filter, reef, meas) {
+.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$filter', 'reef', 'meas', function( $rootScope, $scope, $window, $filter, reef, meas) {
     $scope.points = []
     $scope.checkAllState = CHECKMARK_UNCHECKED
     $scope.checkCount = 0
@@ -583,12 +583,12 @@ return angular.module( 'controllers', ['authentication.service'] )
         reef.subscribeToMeasurements( $scope, pointIds, $scope.onMeasurement, $scope.onError)
     });
 
-})
+}])
 
 /**
  * Energy Storage Systems Control
  */
-.controller( 'CesesControl', function( $rootScope, $scope, $filter, reef, $location) {
+.controller( 'CesesControl', ['$rootScope', '$scope', '$filter', 'reef', '$location', function( $rootScope, $scope, $filter, reef, $location) {
     $scope.ceses = []     // our mappings of data from the server
     $scope.equipment = [] // from the server. TODO this should not be scope, but get assignes to scope.
     $scope.searchText = ""
@@ -842,9 +842,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     var url = "/equipmentwithpointsbytype?" + eqTypes + "&" + pointTypes
 //    reef.get( url, "equipment", $scope, $scope.getSuccessListener);
     reef.get( sourceUrl, "equipment", $scope, getEquipmentListener);
-})
+}])
 
-.controller( 'EndpointControl', function( $rootScope, $scope, coralRest) {
+.controller( 'EndpointControl', ['$rootScope', '$scope', 'coralRest', function( $rootScope, $scope, coralRest) {
     $rootScope.currentMenuItem = "endpoints";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -858,12 +858,12 @@ return angular.module( 'controllers', ['authentication.service'] )
                 "endpointIds": endpointIds
             }
         }
-        coralRest.suscribe( )
+        // TODO: coralRest.suscribe( )
 
     });
-})
+}])
         
-.controller( 'EndpointDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'EndpointDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "endpoints";
@@ -874,9 +874,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/endpoints/' + routeName, "endpoint", $scope);
-})
+}])
 
-.controller( 'ApplicationControl', function( $rootScope, $scope, reef) {
+.controller( 'ApplicationControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "applications";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -884,8 +884,8 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( "/applications", "applications", $scope);
-})
-.controller( 'ApplicationDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+}])
+.controller( 'ApplicationDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "applications";
@@ -896,9 +896,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/applications/' + routeName, "application", $scope);
-})
+}])
 
-.controller( 'EventControl', function( $rootScope, $scope, reef) {
+.controller( 'EventControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "events";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -906,10 +906,10 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     //reef.get( "/events/40", "events", $scope);
-})
+}])
 
 //.controller( 'AlarmControl', function( $rootScope, $scope, $attrs, reef) {
-.controller( 'AlarmControl', function( $rootScope, $scope, reef) {
+.controller( 'AlarmControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $scope.alarms = []
 //    $scope.limit = Number( $attrs.limit || 20);
     $scope.limit = 20;
@@ -935,9 +935,9 @@ return angular.module( 'controllers', ['authentication.service'] )
 
 
     //reef.get( "/alarms/40", "alarms", $scope);
-})
+}])
 
-.controller( 'AgentControl', function( $rootScope, $scope, reef) {
+.controller( 'AgentControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "agents";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -945,9 +945,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( "/agents", "agents", $scope);
-})
+}])
     
-.controller( 'AgentDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'AgentDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "agents";
@@ -958,9 +958,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/agents/' + routeName, "agent", $scope);
-})
+}])
 
-.controller( 'PermissionSetControl', function( $rootScope, $scope, reef) {
+.controller( 'PermissionSetControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "permissionsets";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
@@ -968,9 +968,9 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( "/permissionsets", "permissionSets", $scope);
-})
+}])
     
-.controller( 'PermissionSetDetailControl', function( $rootScope, $scope, $routeParams, reef) {
+.controller( 'PermissionSetDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
     var routeName = $routeParams.name;
 
     $rootScope.currentMenuItem = "permissionsets";
@@ -981,27 +981,7 @@ return angular.module( 'controllers', ['authentication.service'] )
     ];
 
     reef.get( '/permissionsets/' + routeName, "permissionSet", $scope);
-})
-
-
-.controller( 'CharlotteControl', function( $scope, $timeout, reef) {
-
-	console.log("Called controller");
-	if ($scope.centerMeasurements == null) {
-		console.log("Started loop");
-		// HACK -- being called twice? don't know why
-
-		var loop = function() {
-			$timeout( 
-				function() {
-				    console.log("looped")
-					loop();
-				}, 10000);
-		};
-
-		loop();
-	}
-})
+}])
 
 
 });// end RequireJS define

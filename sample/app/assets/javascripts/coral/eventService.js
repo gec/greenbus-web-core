@@ -77,7 +77,7 @@ define([
             </tbody> \
             </table>'
 
-    function alarmsController( $scope, $attrs, subscription) {
+    var alarmsController = ['$scope', '$attrs', 'subscription', function( $scope, $attrs, subscription) {
         $scope.loading = true
         $scope.alarms = []
         $scope.limit = Number( $attrs.limit || 20);
@@ -100,7 +100,7 @@ define([
             }
         }
         return subscription.subscribe( request, $scope, onAlarm, onError)
-    }
+    }]
     // The linking function will add behavior to the template
     function alarmsLink(scope, element, attrs) {
         // Title element
@@ -123,7 +123,7 @@ define([
     }
 
 
-    function eventsController( $scope, $attrs, subscription) {
+    var eventsController = ['$scope', '$attrs', 'subscription', function( $scope, $attrs, subscription) {
         console.log( "eventsController")
         $scope.loading = true
         $scope.events = []
@@ -148,7 +148,7 @@ define([
             }
         }
         return subscription.subscribe( request, $scope, onEvent, onError)
-    }
+    }]
 
     // The linking function will add behavior to the template
     function eventsLink(scope, element, attrs) {

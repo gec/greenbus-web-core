@@ -240,9 +240,9 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
 
 return angular.module('ReefAdmin.services', ["authentication.service", "coral.subscription"]).
-    factory('reef', function( $rootScope, $timeout, $http, $location, authentication, subscription){
+    factory('reef', ['$rootScope', '$timeout', '$http', '$location', 'authentication', 'subscription', function( $rootScope, $timeout, $http, $location, authentication, subscription){
         return new ReefService( $rootScope, $timeout, $http, $location, authentication, subscription);
-    })
+    }])
     .directive('alarmBanner', function(){
         return {
             restrict: 'E', // Element name

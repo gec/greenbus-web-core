@@ -287,7 +287,7 @@ define([
 
 
     return angular.module('coral.subscription', ["authentication.service"]).
-        factory('websocketFactory', function($window) {
+        factory('websocketFactory', ['$window', function($window) {
             var wsClass;
 
             if ('WebSocket' in $window)
@@ -302,9 +302,9 @@ define([
             return wsClass
                 ? function(url) { return new wsClass(url); }
                 : undefined;
-        }).
-        factory('subscription', function( $rootScope, $location, authentication, websocketFactory){
+        }]).
+        factory('subscription', ['$rootScope', '$location', 'authentication', 'websocketFactory', function( $rootScope, $location, authentication, websocketFactory){
             return new SubscriptionService( $rootScope, $location, authentication, websocketFactory);
-        })
+        }])
 
 });// end RequireJS define

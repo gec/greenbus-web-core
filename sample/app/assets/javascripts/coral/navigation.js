@@ -70,7 +70,7 @@ define([
         on-select         = "menuSelect(branch)">\
     </abn-tree>'
 
-    function navBarTopController( $scope, $attrs, $location, $cookies, coralRest) {
+    var navBarTopController = ['$scope', '$attrs', '$location', '$cookies', 'coralRest', function( $scope, $attrs, $location, $cookies, coralRest) {
         $scope.loading = true
         $scope.applicationMenuItems = []
         $scope.sessionMenuItems = []
@@ -93,12 +93,12 @@ define([
         }
 
         return coralRest.get( $attrs.href, "data", $scope, onSuccess)
-    }
+    }]
     // The linking function will add behavior to the template
     function navBarTopLink(scope, element, $attrs) {
     }
 
-    function navListController( $scope, $attrs, $location, $cookies, coralRest) {
+    var navListController = ['$scope', '$attrs', 'coralRest', function( $scope, $attrs, coralRest) {
         $scope.navItems = [ {type: "header", label: "loading..."}]
 
         $scope.getClass = function( item) {
@@ -110,7 +110,7 @@ define([
         }
 
         return coralRest.get( $attrs.href, "navItems", $scope)
-    }
+    }]
     // The linking function will add behavior to the template
     function navListLink(scope, element, $attrs) {
     }
@@ -247,7 +247,7 @@ define([
     }
 
 
-    function navTreeController( $scope, $attrs, $location, $cookies, coralRest, coralNav) {
+    var navTreeController = ['$scope', '$attrs', '$location', '$cookies', 'coralRest', 'coralNav', function( $scope, $attrs, $location, $cookies, coralRest, coralNav) {
 
         $scope.navTree = [
             {
@@ -369,15 +369,15 @@ define([
         }
 
         return coralNav.getNavTree( $attrs.href, "navTree", $scope, getSuccess)
-    }
+    }]
     // The linking function will add behavior to the template
     function navTreeLink(scope, element, $attrs) {
     }
 
     return angular.module('coral.navigation', ["ui.bootstrap", "coral.rest"]).
-        factory('coralNav', function( coralRest){
+        factory('coralNav', ['coralRest', function( coralRest){
             return new NavService( coralRest);
-        } ).
+        }]).
         // <nav-bar-top route="/menus/admin"
         directive('navBarTop', function(){
             return {

@@ -181,9 +181,9 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
 
 
 return angular.module('coral.rest', ["authentication.service"]).
-    factory('coralRest', function( $rootScope, $timeout, $http, $location, authentication){
+    factory('coralRest', ['$rootScope', '$timeout', '$http', '$location', 'authentication', function( $rootScope, $timeout, $http, $location, authentication){
         return new CoralRest( $rootScope, $timeout, $http, $location, authentication);
-    }).
+    }]).
     config(['$httpProvider', function ($httpProvider) {
 
 

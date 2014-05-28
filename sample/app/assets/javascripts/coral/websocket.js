@@ -24,7 +24,7 @@ define([
     'use strict';
 
     angular.module('coral.websocket', []).
-        factory('websocketFactory', function($window) {
+        factory('websocketFactory', ['$window', function($window) {
             var wsClass;
 
             if ('WebSocket' in $window)
@@ -39,6 +39,6 @@ define([
             return wsClass
                 ? function(url) { return new wsClass(url); }
                 : undefined;
-        })
+        }])
 
 });// end RequireJS define

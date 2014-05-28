@@ -30,7 +30,7 @@ define([
     // The LoginFormController provides the behaviour behind a reusable form to allow users to authenticate.
     // This controller and its template (partials/login.html) are used in a modal dialog box by the authentication service.
     // $modal is from ui-bootstrap
-    .controller('LoginController', function($scope, authentication, $modal) {
+    .controller('LoginController', ['$scope', 'authentication', '$modal', function($scope, authentication, $modal) {
 
         $scope.error = null
         $scope.status = authentication.getStatus()
@@ -45,7 +45,8 @@ define([
 
 
         // the dialog is injected in the specified controller
-        function ModalController($scope, $modalInstance, userName, password, error){
+        var ModalController = ['$scope', '$modalInstance', 'userName', 'password', 'error', function($scope, $modalInstance, userName, password, error){
+//        var ModalController = function($scope, $modalInstance, userName, password, error){
             // private scope just for this controller.
             $scope.userName = userName
             $scope.password = password
@@ -55,7 +56,8 @@ define([
                 // Angular-UI is not right. 'this' is where the scope variables are.
                 $modalInstance.close( {userName: this.userName, password: this.password});   // calls then()
             };
-        }
+//        }
+        }]
 
 
         function openDialog(){
@@ -83,6 +85,6 @@ define([
         $scope.openDialog = openDialog
         openDialog()
 
-    });
+    }]);
 
 }); // end RequireJS define

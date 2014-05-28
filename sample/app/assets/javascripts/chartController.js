@@ -26,7 +26,7 @@ define([
 
 return angular.module( 'chartController', ['authentication.service', 'coral.meas'] )
 
-.controller( 'ReefStatusControl', function( $rootScope, $scope, $timeout, reef) {
+.controller( 'ReefStatusControl', ['$rootScope', '$scope', '$timeout', 'reef', function( $rootScope, $scope, $timeout, reef) {
 
     $scope.status = reef.getStatus()
     $scope.visible = $scope.status.status !== "UP"
@@ -36,9 +36,9 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         $scope.status = status;
         $scope.visible = $scope.status.status !== "UP"
     });
-})
+}])
 
-.controller( 'ChartController', function( $scope, $timeout, $window, $filter, reef, meas) {
+.controller( 'ChartController', ['$scope', '$timeout', '$window', '$filter', 'reef', 'meas', function( $scope, $timeout, $window, $filter, reef, meas) {
     var chartSource = $window.opener.coralChart,
         documentElement = $window.document.documentElement,
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
@@ -319,7 +319,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         $scope.loading = false
     }, 500)
 
-});  // end .controller 'ChartControl'
+}]);  // end .controller 'ChartControl'
 
 
 

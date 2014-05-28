@@ -80,8 +80,8 @@ define([
         factory('pointMeasurements', function(){
             return {};
         } ).
-        factory('meas', function( subscription, pointMeasurements){
+        factory('meas', ['subscription', 'pointMeasurements', function( subscription, pointMeasurements){
             return new MeasService( subscription, pointMeasurements);
-        })
+        }])
 
 });// end RequireJS define

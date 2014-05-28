@@ -44,7 +44,7 @@ define([
     'angular-cookies',
     'authentication/service',
     'authentication/controller'
-], function( angular, $cookies, authentication) {
+], function( angular) {
     'use strict';
 
     var app = angular.module('ReefAdmin', [

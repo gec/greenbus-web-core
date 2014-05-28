@@ -59,7 +59,7 @@ define([
     'coral/navigation',
     'coral/measService'
 
-], function( angular, authentication) {
+], function( angular) {
 'use strict';
 
 
