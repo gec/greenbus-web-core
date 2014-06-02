@@ -12,7 +12,7 @@
                     <th>Name</th>
                     <th>Protocol</th>
                     <th>Enabled</th>
-                    <th>State</th>
+                    <th>Comms Status</th>
                     <th>Last Heartbeat</th>
                 </tr>
             </thead>
@@ -21,8 +21,8 @@
                     <td><a href="#/endpoints/{{ep.endpoint.name | encodeURI}}">{{ep.name}}</a></td>
                     <td>{{ep.protocol}}</td>
                     <td>{{ep.enabled}}</td>
-                    <td>{{ep.state}}</td>
-                    <td>{{ep.lastHeartbeat}}</td>
+                    <td><span ng-class="ep.commStatus.status | commStatusIcon: ep.enabled"></span> {{ep.commStatus.status}}</td>
+                    <td>{{ep.commStatus.lastHeartbeat}}</td>
                 </tr>
             </tbody>
         </table>

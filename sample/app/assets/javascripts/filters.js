@@ -80,6 +80,26 @@ angular.module('ReefAdmin.filters', []).
             }
         };
     }).
+    filter('commStatusIcon', function() {
+        function getCss( enabled, statusString) {
+            if( enabled)
+                return 'coral-comms-enabled-' + statusString
+            else
+                return 'coral-comms-disabled-' + statusString
+        }
+        return function(status, enabled) {
+            var klass
+            switch( status) {
+                case 'Up': klass = 'glyphicon glyphicon-arrow-up ' + getCss( enabled, 'up'); break;
+                case 'Down': klass = 'glyphicon glyphicon-arrow-down ' + getCss( enabled, 'down'); break;
+                case 'Error': klass = 'glyphicon glyphicon-exclamation-sign ' + getCss( enabled, 'error'); break;
+                case 'Unknown':
+                default:
+                    klass = 'glyphicon glyphicon-question-sign ' + getCss( enabled, 'unknown');
+            }
+            return klass
+        };
+    }).
     filter('cesBatteryStandby', function() {
         return function(standby) {
             return ( standby === "OffAvailable" || standby === "true")

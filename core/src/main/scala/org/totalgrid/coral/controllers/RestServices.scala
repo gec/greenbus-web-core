@@ -567,7 +567,7 @@ trait RestServices extends ReefAuthentication {
 
     val service = serviceFactory.frontEndService( session)
     val query = EndpointQuery.newBuilder() //.setPageSize(pageSize)
-    service.endpointQuery( query.build()).map{ result => Ok( Json.toJson(result)) }
+    service.endpointWithCommsQuery( query.build()).map{ result => Ok( Json.toJson(result)) }
   }
 
   def getEndpointConnections = ReefClientActionAsync { (request, session) =>

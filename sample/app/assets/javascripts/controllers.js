@@ -21,7 +21,8 @@
 define([
     'authentication/service',
     'services',
-    'coral/measService'
+    'coral/measService',
+    'coral/subscription'
 ], function( authentication) {
 'use strict';
 
@@ -30,7 +31,7 @@ var CHECKMARK_UNCHECKED = 0,
     CHECKMARK_PARTIAL = 2
 var CHECKMARK_NEXT_STATE = [1, 0, 0]
 
-return angular.module( 'controllers', ['authentication.service'] )
+return angular.module( 'controllers', ['authentication.service', 'coral.subscription'] )
 
 .controller( 'MenuControl', ['$rootScope', '$scope', function( $rootScope, $scope) {
 
@@ -844,21 +845,99 @@ return angular.module( 'controllers', ['authentication.service'] )
     reef.get( sourceUrl, "equipment", $scope, getEquipmentListener);
 }])
 
-.controller( 'EndpointControl', ['$rootScope', '$scope', 'coralRest', function( $rootScope, $scope, coralRest) {
+.controller( 'EndpointControl', ['$rootScope', '$scope', 'coralRest', "subscription", function( $rootScope, $scope, coralRest, subscription) {
     $rootScope.currentMenuItem = "endpoints";
     $rootScope.breadcrumbs = [
         { name: "Reef", url: "#/"},
         { name: "Endpoints" }
     ];
+    $scope.endpoints = []
+
+    var CommStatusNames = {
+        COMMS_DOWN: "Down",
+        COMMS_UP: "Up",
+        ERROR: "Error",
+        UNKNOWN: "Unknown"
+    }
+
+    function findEndpointIndex( id) {
+        var i, endpoint,
+            length = $scope.endpoints.length
+
+        for( i = 0; i < length; i++) {
+            endpoint = $scope.endpoints[i]
+            if( endpoint.id === id)
+                return i
+        }
+        return -1
+    }
+    function findEndpoint( id) {
+
+        var index = findEndpointIndex( id)
+        if( index >= 0)
+            return $scope.endpoints[index]
+        else
+            return null
+    }
+
+
+
+    function getCommStatus( commStatus) {
+        var status = CommStatusNames.UNKNOWN,
+            lastHeartbeat = 0
+        if( commStatus) {
+            var statusValue = commStatus.status || 'UNKNOWN'
+            status = CommStatusNames[statusValue]
+            lastHeartbeat = commStatus.lastHeartbeat || 0
+        }
+        return { status: status, lastHeartbeat: lastHeartbeat}
+    }
+    function updateEndpoint( update) {
+        var endpoint = findEndpoint( update.id)
+        if( endpoint) {
+            if( update.hasOwnProperty( 'name'))
+                endpoint.name = update.name
+            if( update.hasOwnProperty( 'protocol'))
+                endpoint.protocol = update.protocol
+            if( update.hasOwnProperty( 'enabled'))
+                endpoint.enabled = update.enabled
+            if( update.hasOwnProperty( 'commStatus')) {
+                endpoint.commStatus = getCommStatus( update.commStatus)
+            }
+        }
+    }
+    function removeEndpoint( id) {
+        var index = findEndpointIndex( id)
+        if( index >= 0)
+            return $scope.endpoints.splice(index,1)
+    }
 
     coralRest.get( "/endpoints", "endpoints", $scope, function(data){
         var endpointIds = data.map( function(endpoint){ endpoint.id})
-        var json = {
-            subscribeToMeasurementHistory: {
-                "endpointIds": endpointIds
-            }
-        }
-        // TODO: coralRest.suscribe( )
+        $scope.endpoints.forEach( function(endpoint){
+            endpoint.commStatus = getCommStatus( endpoint.commStatus)
+        })
+        subscription.subscribe(
+            {subscribeToEndpoints: {"endpointIds": endpointIds}},
+            $scope,
+            function( subscriptionId, messageType, endpointNotification){
+                var ep = endpointNotification.endpoint
+                switch( endpointNotification.eventType) {
+                    case 'ADDED':
+                        ep.commStatus = getCommStatus( ep.commStatus)
+                        $scope.endpoints.push( ep)
+                        break;
+                    case 'MODIFIED':
+                        updateEndpoint( endpointNotification.endpoint)
+                        break;
+                    case 'REMOVED':
+                        removeEndpoint( endpointNotification.endpoint)
+                        break;
+                }
+            },
+            function( messageError, message){
+                console.error( 'EndpointControl.subscription error: ' + messageError)
+            })
 
     });
 }])

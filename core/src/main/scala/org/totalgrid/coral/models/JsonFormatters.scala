@@ -210,17 +210,57 @@ object JsonFormatters {
 //      )
 //  }
 
-  implicit val endpointWrites = new Writes[Endpoint] {
-    def writes( o: Endpoint): JsValue =
+  /** Use EndpointWithComms until Reef includes comms with standard Endpoint */
+//  implicit val endpointWrites = new Writes[Endpoint] {
+//    def writes( o: Endpoint): JsValue =
+//      Json.obj(
+//        "name" -> o.getName,
+//        "id" -> o.getUuid.getValue,
+//        "protocol" -> o.getProtocol,
+//        "enabled" -> !o.getDisabled
+//      )
+//  }
+
+  implicit val endpointCommStatusWrites = new Writes[EndpointCommStatus] {
+    def writes( o: EndpointCommStatus): JsValue =
       Json.obj(
-        "name" -> o.getName,
-        "id" -> o.getUuid.getValue,
-        "protocol" -> o.getProtocol,
-        "enabled" -> !o.getDisabled
+        "status" -> o.status.name,
+        "lastHeartbeat" -> o.lastHeartbeat
       )
   }
 
-//  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
+  implicit val endpointWithCommsWrites = new Writes[EndpointWithComms] {
+    def writes( o: EndpointWithComms): JsValue =
+      JsObject(
+        List(
+          Some("id" -> JsString(o.id.getValue)),
+          Some( "name" -> JsString(o.name)),
+          o.protocol.map( "protocol" -> JsString(_)),       // If None, don't include key
+          o.enabled.map( "enabled" -> JsBoolean(_)),        // If None, don't include key
+          o.commStatus.map( "commStatus" -> Json.toJson(_)) // If None, don't include key
+        ).flatten
+      )
+  }
+  implicit val endpointWithCommsSeqWrites = new Writes[Seq[EndpointWithComms]] {
+    def writes( o: Seq[EndpointWithComms]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val endopintWithCommsPushWrites = new PushWrites( "endpoint", endpointWithCommsWrites)
+  lazy val endopintWithCommsSeqPushWrites = new PushWrites( "endpoint", endpointWithCommsSeqWrites)
+
+
+  implicit val endpointWithCommsNotificationWrites = new Writes[EndpointWithCommsNotification] {
+    def writes( o: EndpointWithCommsNotification): JsValue =
+      Json.obj(
+        "eventType" -> o.eventType.name,
+        "endpoint" -> o.endpoint
+      )
+  }
+  lazy val endopintWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
+
+
+  //  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
 //    def writes( o: EndpointConnection): JsValue = {
 //      val ep = o.getEndpoint
 //      Json.obj(
@@ -404,7 +444,7 @@ object JsonFormatters {
   implicit val frontEndConnectionStatusWrites = new Writes[FrontEndConnectionStatus] {
     def writes( o: FrontEndConnectionStatus): JsValue = {
       Json.obj(
-        "eventType" -> "UNKNOWN",     // see FrontEndConnectionStatusNotification.EventType: ADDED, MODIFIED, REMOVED
+        "eventType" -> "MODIFIED",     // see FrontEndConnectionStatusNotification.EventType: ADDED, MODIFIED, REMOVED
         "name" -> o.getEndpointName,
         "id" -> o.getEndpointUuid.getValue,
         "status" -> o.getState.name,

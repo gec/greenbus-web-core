@@ -5,6 +5,14 @@
     color: #999999;
 }
 
+.coral-comms-enabled-up {color: green}
+.coral-comms-enabled-down {color: #b22222}
+.coral-comms-enabled-error {color: #b22222}
+.coral-comms-enabled-unknown {color: orangered}
+.coral-comms-disabled-up {color: darkgray}
+.coral-comms-disabled-down {color: darkgray}
+.coral-comms-disabled-error {color: darkslategray}
+.coral-comms-disabled-unknown {color: darkslategray}
 
 /*.T-Jo {*/
 .coral-checkbox-container {

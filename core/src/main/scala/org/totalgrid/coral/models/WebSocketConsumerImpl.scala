@@ -67,10 +67,10 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
             .map( request => pushActor ! request)
             .recoverTotal( jsError => pushActor ! MessageError( "subscribeToRecentEvents", jsError))
 
-        case "subscribeToEndpointStatus" =>
-          subscribeToEndpointStatusReads.reads( data)
+        case "subscribeToEndpoints" =>
+          subscribeToEndpointsReads.reads( data)
             .map( request => pushActor ! request)
-            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToEndpointStatus", jsError))
+            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToEndpoints", jsError))
 
         case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
         case "close" => pushActor ! Quit
