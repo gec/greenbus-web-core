@@ -913,7 +913,7 @@ return angular.module( 'controllers', ['authentication.service', 'coral.subscrip
     }
 
     coralRest.get( "/endpoints", "endpoints", $scope, function(data){
-        var endpointIds = data.map( function(endpoint){ endpoint.id})
+        var endpointIds = data.map( function(endpoint){ return endpoint.id})
         $scope.endpoints.forEach( function(endpoint){
             endpoint.commStatus = getCommStatus( endpoint.commStatus)
         })
