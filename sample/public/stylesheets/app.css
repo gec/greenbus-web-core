@@ -112,10 +112,10 @@
     padding: 10% 25%;
 }
 .coral-checkbox-checked {
-    background: url(../images/checkmark.png) no-repeat -5px -3px;
+    background: url(../../images/checkmark.png) no-repeat -5px -3px;
 }
 .coral-checkbox-partial {
-    background: url(../images/checkmark-partial.png) no-repeat -5px -3px;
+    background: url(../../images/checkmark-partial.png) no-repeat -5px -3px;
 }
 .coral-icon {
     margin-right: 4px;

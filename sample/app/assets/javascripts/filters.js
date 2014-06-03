@@ -191,12 +191,12 @@ angular.module('ReefAdmin.filters', []).
             var image
 
             if( unit === "raw") {
-                image = "../images/pointRaw.png"
+                image = "../../images/pointRaw.png"
             } else {
                 switch( type) {
-                    case "ANALOG": image = "../images/pointAnalog.png"; break;
-                    case "STATUS": image = "../images/pointStatus.png"; break;
-                    default: image = "../images/pointRaw.png";
+                    case "ANALOG": image = "../../images/pointAnalog.png"; break;
+                    case "STATUS": image = "../../images/pointStatus.png"; break;
+                    default: image = "../../images/pointRaw.png";
                 }
             }
 
