@@ -58,7 +58,7 @@
                     </td>
                     <td>
                         <div class="coral-icon-text draggable" draggable ident="point.id">
-                            <img class="coral-icon" src="{{ point.valueType | pointTypeImage: point.unit }}" width="14px" height="14px" title="{{ point.valueType | pointTypeText: point.unit }}"/>
+                            <img class="coral-icon" src="{{ point.pointType | pointTypeImage: point.unit }}" width="14px" height="14px" title="{{ point.pointType | pointTypeText: point.unit }}"/>
                             {{point.name}}
                         </div>
                     </td>
@@ -67,7 +67,7 @@
                     <td>{{point.unit}}</td>
                     <td>{{point.currentMeasurement.shortQuality}}</td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                    <td>{{ point.valueType }}</td>
+                    <td>{{ point.pointType }}</td>
                     <td>{{ point.id }}</td>
                 </tr>
             </tbody>
