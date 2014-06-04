@@ -159,6 +159,15 @@ define([
             return equipmentIdToTreeNodeCache.get( equipmentId, notifyWhenAvailable)
         }
 
+        /**
+         * Get the tree node by menu Id. This returns immediately with the value
+         * or null if the menu item is not available yet. If not available,
+         * notifyWhenAvailable will be called when available.
+         *
+         * @param menuId The menu id to retrieve
+         * @param notifyWhenAvailable function( id, treeNode)
+         * @returns TreeNode if available, otherwise null.
+         */
         self.getTreeNodeByMenuId = function( menuId, notifyWhenAvailable) {
             return menuIdToTreeNodeCache.get( menuId, notifyWhenAvailable)
         }

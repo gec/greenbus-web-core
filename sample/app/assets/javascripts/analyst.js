@@ -52,6 +52,7 @@ define([
     'authentication/service',
     'authentication/interceptor',
     'controllers',
+    'measurementController',
     'chartController',
     'directives',
     'services',

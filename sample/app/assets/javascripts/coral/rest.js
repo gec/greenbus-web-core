@@ -177,6 +177,24 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
 
     }
 
+  self.queryParameterFromArrayOrString = function( parameter, arrayOrString) {
+    var parameterEqual = parameter + "="
+    var query = ""
+    if( angular.isArray( arrayOrString)) {
+      arrayOrString.forEach( function( value, index) {
+        if( index == 0)
+          query = parameterEqual + value
+        else
+          query = query + "&" + parameterEqual + value
+      })
+    } else {
+      if( arrayOrString && arrayOrString.length > 0)
+        query = parameterEqual + arrayOrString
+    }
+    return query
+  }
+
+
 }
 
 
