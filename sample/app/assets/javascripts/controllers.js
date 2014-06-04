@@ -108,7 +108,7 @@ return angular.module( 'controllers', ['authentication.service', 'coral.subscrip
  */
 .controller( 'PointsForNavControl', ['$rootScope', '$scope', 'coralRest', '$routeParams', 'coralNav',
 function( $rootScope, $scope, coralRest, $routeParams, coralNav) {
-    var navId = $routeParams.id,
+    var navId = $routeParams.navId,
         depth = coralRest.queryParameterFromArrayOrString( "depth", $routeParams.depth )
 
     $rootScope.currentMenuItem = "??";

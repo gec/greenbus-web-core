@@ -83,13 +83,14 @@ define([
         $routeProvider.
           when('/logout', {templateUrl: '/partials/login.html', controller: 'LogoutControl'}).
           when('/measurements', {templateUrl: '/partials/measurements.html', controller: 'MeasurementControl'}).
+          when('/measurements/:navId', {templateUrl: '/partials/measurements.html', controller: 'MeasurementControl'}).
           when('/chart', {templateUrl: '/partials/chart.html', controller: 'ChartControl'}).
           when('/allces/:id', {templateUrl: '/partials/ceses.html', controller: 'CesesControl'}).
           when('/entities', {templateUrl: '/partials/entities.html', controller: 'EntityControl'}).
           when('/entities/:id/:name', {templateUrl: '/partials/entitydetail.html', controller: 'EntityDetailControl'}).
           when('/points', {templateUrl: '/partials/points.html', controller: 'PointControl'}).
           when('/points/:id/:name', {templateUrl: '/partials/pointdetail.html', controller: 'PointDetailControl'}).
-          when('/pointsfornav/:id', {templateUrl: '/partials/points.html', controller: 'PointsForNavControl'}).
+          when('/pointsfornav/:navId', {templateUrl: '/partials/points.html', controller: 'PointsForNavControl'}).
           when('/commands', {templateUrl: '/partials/commands.html', controller: 'CommandControl'}).
           when('/commands/:name', {templateUrl: '/partials/commanddetail.html', controller: 'CommandDetailControl'}).
           when('/endpoints', {templateUrl: '/partials/endpoints.html', controller: 'EndpointControl'}).

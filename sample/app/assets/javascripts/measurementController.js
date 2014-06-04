@@ -36,12 +36,16 @@ var CHECKMARK_NEXT_STATE = [1, 0, 0]
 // No array as second argument, so it returns the existing module.
 return angular.module( 'controllers')
 
-.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$filter', 'coralRest', 'subscription', 'meas',
-function( $rootScope, $scope, $window, $filter, coralRest, subscription, meas) {
+.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas',
+function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas) {
   $scope.points = []
   $scope.checkAllState = CHECKMARK_UNCHECKED
   $scope.checkCount = 0
   $scope.charts = []
+  var navId = $routeParams.navId,
+      depth = coralRest.queryParameterFromArrayOrString( "depth", $routeParams.depth ),
+    equipmentIdsQueryParams = coralRest.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds )
+
 
 
   $rootScope.currentMenuItem = "measurements";
@@ -361,14 +365,59 @@ function( $rootScope, $scope, $window, $filter, coralRest, subscription, meas) {
     );
   }
 
-  coralRest.get( "/models/1/points", "points", $scope, function () {
-    var pointIds = [],
-        currentMeasurement = {
-          value: "-",
-          time: null,
-          shortQuality: "-",
-          longQuality: "-"
+
+  function nameFromTreeNode( treeNode) {
+    if( treeNode)
+      return treeNode.label
+    else
+      return '...'
+  }
+
+  function getEquipmentIds( treeNode) {
+    var result = []
+    treeNode.children.forEach( function( node){
+      if( node.containerType && node.containerType !== 'Sourced')
+        result.push( node.id)
+    })
+    return result
+  }
+  function navIdListener( id, treeNode) {
+    $scope.equipmentName = nameFromTreeNode( treeNode) + ' '
+    var equipmentIds = getEquipmentIds( treeNode)
+    var equipmentIdsQueryParams = coralRest.queryParameterFromArrayOrString( "equipmentIds", equipmentIds )
+
+    var delimeter = '?'
+    var url = "/models/1/points"
+    if( equipmentIdsQueryParams.length > 0) {
+      url += delimeter + equipmentIdsQueryParams
+      delimeter = '&'
+      $scope.equipmentName = nameFromTreeNode( treeNode) + ' '
+    }
+    if( depth.length > 0)
+      url += delimeter + depth
+
+    coralRest.get( url, "points", $scope, function(data) {
+      // data is either a array of points or a map of equipmentId -> points[]
+      // If it's an object, convert it to a list of points.
+      if( angular.isObject( data)) {
+        $scope.points = []
+        for( var equipmentId in data) {
+          $scope.points = $scope.points.concat( data[equipmentId])
         }
+      }
+      var pointIds = processPointsAndReturnPointIds()
+      subscribeToMeasurements( pointIds)
+    });
+  }
+
+  function processPointsAndReturnPointIds() {
+    var pointIds = [],
+      currentMeasurement = {
+        value: "-",
+        time: null,
+        shortQuality: "-",
+        longQuality: "-"
+      }
     $scope.points.forEach( function ( point ) {
       point.checked = CHECKMARK_UNCHECKED
       point.currentMeasurement = currentMeasurement
@@ -379,9 +428,77 @@ function( $rootScope, $scope, $window, $filter, coralRest, subscription, meas) {
         point.unit = 'raw'
 
     })
+    return pointIds
+  }
 
-    subscribeToMeasurements( pointIds)
-  })
+
+
+  function notifyWhenEquipmentNamesAreAvailable( equipmentId) {
+    $scope.equipmentName = nameFromEquipmentIds( $routeParams.equipmentIds) + ' '
+  }
+  function nameFromTreeNode( treeNode) {
+    if( treeNode)
+      return treeNode.label
+    else
+      return '...'
+  }
+  function nameFromEquipmentIds( equipmentIds) {
+    var result = ""
+    if( equipmentIds) {
+
+      if( angular.isArray( equipmentIds)) {
+        equipmentIds.forEach( function( equipmentId, index) {
+          var treeNode = coralNav.getTreeNodeByEquipmentId( equipmentId, notifyWhenEquipmentNamesAreAvailable)
+          if( index == 0)
+            result += nameFromTreeNode( treeNode)
+          else
+            result += ', ' +nameFromTreeNode( treeNode)
+        })
+      } else {
+        var treeNode = coralNav.getTreeNodeByEquipmentId( equipmentIds, notifyWhenEquipmentNamesAreAvailable)
+        result = nameFromTreeNode( treeNode)
+      }
+    }
+    return result
+  }
+
+
+
+
+  if( navId) {
+    // If treeNode exists, it's returned immediately. If it's still being loaded,
+    // navIdListener will be called when it's finally available.
+    //
+    var treeNode = coralNav.getTreeNodeByMenuId( navId, navIdListener)
+    if( treeNode)
+      navIdListener( navId, treeNode)
+
+  } else {
+
+    var delimeter = '?'
+    var url = "/models/1/points"
+    if( equipmentIdsQueryParams.length > 0) {
+      url += delimeter + equipmentIdsQueryParams
+      delimeter = '&'
+      $scope.equipmentName = nameFromEquipmentIds( $routeParams.equipmentIds) + ' '
+    }
+    if( depth.length > 0)
+      url += delimeter + depth
+
+    coralRest.get( url, "points", $scope, function( data) {
+      // data is either a array of points or a map of equipmentId -> points[]
+      // If it's an object, convert it to a list of points.
+      if( angular.isObject( data)) {
+        $scope.points = []
+        for( var equipmentId in data) {
+          $scope.points = $scope.points.concat( data[equipmentId])
+        }
+      }
+
+      var pointIds = processPointsAndReturnPointIds()
+      subscribeToMeasurements( pointIds)
+    })
+  }
 
 }])
 
