@@ -76,32 +76,32 @@
 
     <div ng-include src="'/partials/loadingprogress.html'"></div>
 
-    <div class="navbar-fixed-bottom invisible">
-        <div class="coral-chart" ng-repeat="chart in charts">
-            <div class="coral-win" >
-                <div class="coral-win-titlebar clearfix">
-                    <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
-                    <div class="coral-win-actions">
-                        <a href="" ng-click=""><i class="glyphicon glyphicon-minus icon-white" style="margin-top: 5px"></i></a>
-                        <a href="" ng-click="chartPopout($index)"><i class="glyphicon glyphicon-share-alt icon-white"></i></a>
-                        <a href="" ng-click="chartRemove($index)"><i class="glyphicon glyphicon-remove icon-white"></i></a>
-                    </div>
-                </div>
-                <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
-                    <li class="coral-legend" ng-repeat="point in chart.points">
-                        <div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">
-                            <span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>
-                            <a class="coral-remove" href="" ng-click="removePoint( chart, point)"><span class="glyphicon glyphicon-remove"></span></a>
-                        </div>
-                    </li>
-                </ul>
-                <div class="coral-win-container">
-                    <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
-                        <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!--<div class="navbar-fixed-bottom invisible">-->
+        <!--<div class="coral-chart" ng-repeat="chart in charts">-->
+            <!--<div class="coral-win" >-->
+                <!--<div class="coral-win-titlebar clearfix">-->
+                    <!--<p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>-->
+                    <!--<div class="coral-win-actions">-->
+                        <!--<a href="" ng-click=""><i class="glyphicon glyphicon-minus icon-white" style="margin-top: 5px"></i></a>-->
+                        <!--<a href="" ng-click="chartPopout($index)"><i class="glyphicon glyphicon-share-alt icon-white"></i></a>-->
+                        <!--<a href="" ng-click="chartRemove($index)"><i class="glyphicon glyphicon-remove icon-white"></i></a>-->
+                    <!--</div>-->
+                <!--</div>-->
+                <!--<ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">-->
+                    <!--<li class="coral-legend" ng-repeat="point in chart.points">-->
+                        <!--<div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">-->
+                            <!--<span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>-->
+                            <!--<a class="coral-remove" href="" ng-click="removePoint( chart, point)"><span class="glyphicon glyphicon-remove"></span></a>-->
+                        <!--</div>-->
+                    <!--</li>-->
+                <!--</ul>-->
+                <!--<div class="coral-win-container">-->
+                    <!--<div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">-->
+                        <!--<div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>-->
+                    <!--</div>-->
+                <!--</div>-->
+            <!--</div>-->
+        <!--</div>-->
+    <!--</div>-->
 </div>
 

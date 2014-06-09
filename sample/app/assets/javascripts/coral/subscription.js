@@ -65,6 +65,7 @@ define([
                 $rootScope.$apply(function () {
 
                     if( message.type === "ConnectionStatus") {
+                        console.debug( 'onMessage.ConnectionStatus ' + message.data)
                         handleReefConnectionStatus( message.data)
                         return
                     }
@@ -75,6 +76,7 @@ define([
                         return
                     }
 
+//                    console.debug( 'onMessage message.subscriptionId=' + message.subscriptionId + ", message.type=" + message.type)
 
                     var listener = getListenerForMessage( message)
                     if( listener && listener.message)
@@ -131,7 +133,7 @@ define([
             //webSocket.close()
             console.log( "webSocket.handleError message.error: " + message.error)
             if( message.jsError)
-                console.log( "webSocket.handleError message.jsError: " + message.jsError)
+                console.error( "webSocket.handleError message.jsError: " + message.jsError)
 
             var listener = getListenerForMessage( message);
             if( listener && listener.error)

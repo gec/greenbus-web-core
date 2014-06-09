@@ -126,7 +126,8 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
         // encodeURI because objects like point names can have percents in them.
         $http.get( encodeURI( url), httpConfig).
             success(function(json) {
-                $scope[name] = json;
+                if( name)
+                  $scope[name] = json;
                 $scope.loading = false;
                 console.log( "reef.get success json.length: " + json.length + ", url: " + url);
 

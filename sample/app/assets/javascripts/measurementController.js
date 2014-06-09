@@ -24,6 +24,7 @@ define([
   'coral/measService',
   'coral/rest',
   'coral/subscription',
+  'coral/chartService',
   'controllers'
 ], function( authentication) {
 'use strict';
@@ -36,8 +37,8 @@ var CHECKMARK_NEXT_STATE = [1, 0, 0]
 // No array as second argument, so it returns the existing module.
 return angular.module( 'controllers')
 
-.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas',
-function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas) {
+.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas', 'coralRequest',
+function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas, coralRequest) {
   $scope.points = []
   $scope.checkAllState = CHECKMARK_UNCHECKED
   $scope.checkCount = 0
@@ -224,11 +225,13 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     }
 
     if( points.length > 0 ) {
-      chart = makeChart( points )
-      $scope.charts.push( chart )
-      chart.points.forEach( function ( point ) {
-        subscribeToMeasurementHistory( chart, point )
-      } )
+      coralRequest.push( 'coral.request.addChart', points)
+
+//      chart = makeChart( points )
+//      $scope.charts.push( chart )
+//      chart.points.forEach( function ( point ) {
+//        subscribeToMeasurementHistory( chart, point )
+//      } )
 
     }
   }
@@ -311,6 +314,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
 
   function onArrayOfPointMeasurement( arrayOfPointMeasurement ) {
+    console.debug( "onArrayOfPointMeasurement arrayOfPointMeasurement.length=" + arrayOfPointMeasurement.length)
     arrayOfPointMeasurement.forEach( function ( pm ) {
       var point = findPoint( pm.point.id )
       if( point ) {
