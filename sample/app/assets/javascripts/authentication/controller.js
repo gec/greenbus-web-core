@@ -34,8 +34,8 @@ define([
 
         $scope.error = null
         $scope.status = authentication.getStatus()
-        $scope.userName = "one"
-        $scope.password = "two"
+        $scope.userName = ''
+        $scope.password = ''
         var mainScope = $scope
 
         function errorListener( description) {

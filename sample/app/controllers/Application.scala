@@ -111,7 +111,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   }
   def coralMenusAnalysis = {
     val subMenus = List[NavigationElement](
-      NavigationItemSource( "All PV", "allpv", "/measurements/allpv", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
+      NavigationItemSource( "All Solar", "allsolar", "/measurements/allsolar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
       NavigationItemSource( "All Energy Storage", "allces", "/allces/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
       NavigationItemSource( "All Generator", "allgenerator", "/measurements/allgenerator", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", CHILDREN),
       NavigationItemSource( "All Load", "allload", "/measurements/allload", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", CHILDREN)
