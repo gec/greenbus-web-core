@@ -31,11 +31,10 @@ define([
    * addChart( points)
    * removeChart( chart)
    *
-   * @param subscription
-   * @param pointMeasurements - Map of point.id to MeasurementHistory
+   * @param meas
    * @constructor
    */
-  var ChartService = function ( meas, $rootScope ) {
+  var ChartService = function ( meas) {
     var self = this
     var chartRequests = []
 
@@ -201,8 +200,8 @@ define([
   }
 
   return angular.module( 'coral.chart', ['coral.meas', 'coral.request'] ).
-    factory( 'coralChart', ['meas', '$rootScope', function ( meas, $rootScope ) {
-      return new ChartService( meas, $rootScope );
+    factory( 'coralChart', ['meas', function ( meas) {
+      return new ChartService( meas);
     }] )
 
 });// end RequireJS define

@@ -45,9 +45,6 @@ define( 'coral/MeasurementHistory',
             return this.measurements
 
         var self = this,
-//            now = new Date().getTime(),
-//            timeFrom = now - 1000 * 60 * 60,  // 1 Hour
-//            limit = 500,
             json = {
                 subscribeToMeasurementHistory: {
                     "pointId": this.point.id,

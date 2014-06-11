@@ -29,13 +29,21 @@ define([
 // No array as second argument, so it returns the existing module.
 return angular.module( 'coral.chart')
 
+/**
+ * Control multiple charts. This is the controller for the charts at the bottom of the application window.
+ *
+ * Any controller that would like a new chart makes a request to this controller
+ * via coralRequest.push( 'coral.request.addChart', points).
+ *
+ */
 .controller( 'ChartsController', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'meas', 'coralRequest', 'coralChart',
 function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, coralRequest, coralChart) {
-  $scope.points = []
+
+  var REQUEST_ADD_CHART = 'coral.request.addChart'
   $scope.charts = []
 
+  // TODO: The chart labels need this formatting.
   var number = $filter( 'number' )
-
   function formatMeasurementValue( value ) {
     if( typeof value == "boolean" || isNaN( value ) || !isFinite( value ) ) {
       return value
@@ -43,31 +51,6 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
       return number( value )
     }
   }
-
-//  function findPoint( id ) {
-//    var i, point,
-//      length = $scope.points.length
-//
-//    for( i = 0; i < length; i++ ) {
-//      point = $scope.points[i]
-//      if( point.id === id )
-//        return point
-//    }
-//    return null
-//  }
-//
-//  function findPointBy( testTrue ) {
-//    var i, point,
-//        length = $scope.points.length
-//
-//    for( i = 0; i < length; i++ ) {
-//      point = $scope.points[i]
-//      if( testTrue( point ) )
-//        return point
-//    }
-//    return null
-//  }
-
 
 
   function subscribeToMeasurementHistory( chart, point ) {
@@ -128,6 +111,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
     $scope.charts.splice( index, 1 )
   }
 
+  // Pop the chart out into a new browser window.
+  // The new window can access the intended chart via $window.opener.coralChart;
   $scope.chartPopout = function ( index ) {
 
     $window.coralChart = $scope.charts[index];
@@ -136,72 +121,14 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
       '_blank',
       'resizeable,top=100,left=100,height=200,width=300,location=no,toolbar=no'
     )
-    //child window:   $scope.chart = $window.opener.coralChart;
 
     // TODO: cancel subscriptions and remove measurement history
     $scope.charts.splice( index, 1 )
   }
 
-//  function onArrayOfPointMeasurement( arrayOfPointMeasurement ) {
-//    arrayOfPointMeasurement.forEach( function ( pm ) {
-//      var point = findPoint( pm.point.id )
-//      if( point ) {
-//        pm.measurement.value = formatMeasurementValue( pm.measurement.value )
-//        point.currentMeasurement = pm.measurement
-//      } else {
-//        console.error( "onArrayOfPointMeasurement couldn't find point.id = " + pm.point.id )
-//      }
-//    } )
-//
-//  }
-
-//  // Subscribed to measurements for tabular. Expect an array of pointMeasurement
-//  $scope.onMeasurement = function ( subscriptionId, type, measurements ) {
-//
-//    switch( type ) {
-//      case 'measurements': onArrayOfPointMeasurement( measurements ); break;
-////      case 'pointWithMeasurements': onPointWithMeasurements( measurements); break;
-//      default:
-//        console.error( "MeasurementController.onMeasurement unknown type: '" + type + "'" )
-//    }
-//  }
-//
-//  $scope.onError = function ( error, message ) {
-//
-//  }
-
-  function compareByName( a, b ) {
-    if( a.name < b.name )
-      return -1;
-    if( a.name > b.name )
-      return 1;
-    return 0;
-  }
-
-//  function subscribeToMeasurements( pointIds) {
-//    subscription.subscribe(
-//      {
-//        subscribeToMeasurements: { "pointIds": pointIds }
-//      },
-//      $scope,
-//      function ( subscriptionId, type, measurements ) {
-//        switch( type ) {
-//          case 'measurements': onArrayOfPointMeasurement( measurements ); break;
-//          //case 'pointWithMeasurements': onPointWithMeasurements( measurements); break;
-//          default:
-//            console.error( "MeasurementController.onMeasurement unknown type: '" + type + "'" )
-//        }
-//      },
-//      function ( error, message ) {
-//      }
-//    );
-//  }
-
-  var REQUEST_ADD_CHART = 'coral.request.addChart'
 
   /**
    * Some controller requested that we add a new chart with the specified points.
-   * We may already have some of the points.
    */
   $scope.$on( REQUEST_ADD_CHART, function() {
     var points = coralRequest.pop( REQUEST_ADD_CHART);
@@ -217,7 +144,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
     }
   });
 
-}])
+}])  // end controller 'ChartsController'
 
 
 });// end RequireJS define

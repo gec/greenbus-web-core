@@ -43,8 +43,10 @@ define([
          * @param point The Point with id and name
          * @param timeFrom Long milliseconds from Epoch.
          * @param limit The maximum number of measurements to query from the server
-         * @param subscriber The identifying object for the subscription.
+         * @param subscriber The subscriber object is used to unsubscribe. It is also the 'this' used
+         *                   for calls to notify.
          * @param notify Optional function to be called each time measurements are added to array.
+         *               The function is called with subscriber as 'this'.
          * @returns An array with measurements. New measurements will be updated as they come in.
          */
         self.subscribeToMeasurementHistory = function ( scope, point, timeFrom, limit, subscriber, notify) {
