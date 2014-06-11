@@ -36,7 +36,7 @@ require.config({
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] },
         "abn-tree" : { deps: ["angular"] },
-        "d3-tratis" : { deps: ["d3"] }
+        "d3-traits" : { deps: ["d3"] }
     },
     priority: [
         "angular"

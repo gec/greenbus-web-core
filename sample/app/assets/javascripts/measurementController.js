@@ -210,8 +210,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
 
   $scope.chartAdd = function ( index ) {
-    var chart,
-      points = []
+    var points = []
 
     if( index < 0 ) {
       // Add all measurements that are checked
@@ -226,13 +225,6 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
     if( points.length > 0 ) {
       coralRequest.push( 'coral.request.addChart', points)
-
-//      chart = makeChart( points )
-//      $scope.charts.push( chart )
-//      chart.points.forEach( function ( point ) {
-//        subscribeToMeasurementHistory( chart, point )
-//      } )
-
     }
   }
   $scope.onDropPoint = function ( id, chart ) {

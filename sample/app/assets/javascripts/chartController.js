@@ -17,18 +17,21 @@
  * the License.
  */
 define([
-    'authentication/service',
-    'services',
-    'coral/measService',
-    'd3-traits'
-], function( authentication) {
+  'authentication/service',
+  'services',
+  'coral/rest',
+  'coral/measService',
+  'coral/requestService',
+  'coral/chartService',
+  'd3-traits'
+], function() {
 'use strict';
 
-return angular.module( 'chartController', ['authentication.service', 'coral.meas'] )
+return angular.module( 'chartController', ['authentication.service', 'coral.rest','coral.meas', 'coral.chart'] )
 
-.controller( 'ReefStatusControl', ['$rootScope', '$scope', '$timeout', 'reef', function( $rootScope, $scope, $timeout, reef) {
+.controller( 'ReefStatusControl', ['$rootScope', '$scope', '$timeout', 'coralRest', function( $rootScope, $scope, $timeout, coralRest) {
 
-    $scope.status = reef.getStatus()
+    $scope.status = coralRest.getStatus()
     $scope.visible = $scope.status.status !== "UP"
 
     // This is not executed until after Reef AngularJS service is initialized
@@ -38,7 +41,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
     });
 }])
 
-.controller( 'ChartController', ['$scope', '$timeout', '$window', '$filter', 'reef', 'meas', function( $scope, $timeout, $window, $filter, reef, meas) {
+.controller( 'ChartController', ['$scope', '$timeout', '$window', '$filter', 'coralRest', 'meas', 'coralChart', function( $scope, $timeout, $window, $filter, coralRest, meas, coralChart) {
     var chartSource = $window.opener.coralChart,
         documentElement = $window.document.documentElement,
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
@@ -90,96 +93,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         }
     }
 
-    function findPointBy( testTrue) {
-        var i, point,
-            points = $scope.chart.points,
-            length = points.length
-
-        for( i = 0; i < length; i++) {
-            point = points[i]
-            if( testTrue( point))
-                return point
-        }
-        return null
-    }
-
-    function makeChartConfig( unitMapKeys) {
-        var axis,
-            config = {
-                x1: function(d) { return d.time; },
-                seriesData: function(s) { return s.measurements},
-                seriesLabel: function(s) { return s.name}
-            }
-        unitMapKeys.forEach( function( key, index) {
-            axis = 'y' + (index+1)
-            config[axis] = function(d) { return d.value; }
-        })
-        return config
-    }
-
-    function getChartUnits( points) {
-        var units = {}
-
-        points.forEach( function( point) {
-            if( ! units.hasOwnProperty( point.unit))
-                units[point.unit] = [ point]
-            else
-                units[point.unit].push( point)
-        })
-        return units
-    }
-
-    function makeChartTraits( unitMap) {
-        var unit,
-            unitMapKeys = Object.keys( unitMap),
-            config = makeChartConfig( unitMapKeys),
-            chartTraits = d3.trait( d3.trait.chart.base, config )
-            .trait( d3.trait.scale.time, { axis: "x1"})
-
-
-        unitMapKeys.forEach( function( unit, index) {
-            var axis = 'y' + (index+1),
-                filter = function( s) { return s.unit === unit},
-                orient = index === 0 ? 'left' : 'right'
-
-            chartTraits = chartTraits.trait( d3.trait.scale.linear, { axis: axis, seriesFilter: filter, unit: unit })
-                .trait( d3.trait.chart.line, { interpolate: "linear", seriesFilter: filter, yAxis: axis})
-                .trait( d3.trait.axis.linear, { axis: axis, orient: orient, extentTicks: true, label: unit})
-        })
-
-        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
-//            .trait( d3.trait.legend.series)
-            .trait( d3.trait.focus.tooltip)
-
-        return chartTraits
-    }
-
-    function makeChart( points) {
-        var chartTraits, config, unit, yIndex,
-            unitMap = getChartUnits( points),
-            name = points.length === 1 ? points[0].name : points[0].name + ",..."
-
-        // TODO: Still see a NaN error when displaying chart before we have data back from subscription
-        points.forEach( function( point) {
-            if( !point.measurements)
-                point.measurements = [ /*{time: new Date(), value: 0}*/]
-        })
-
-        chartTraits = makeChartTraits( unitMap)
-
-        return {
-            name: name,
-            traits: chartTraits,
-            points: points,
-            unitMap: unitMap,
-//            data: [
-//                { name: name, values: [] }
-//            ],
-            selection: null
-        }
-    }
-
-    function pointAlreadyHasSubscription( point) { return point.hasOwnProperty( 'subscriptionId') }
+//    function pointAlreadyHasSubscription( point) { return point.hasOwnProperty( 'subscriptionId') }
 
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
@@ -194,45 +108,20 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         meas.unsubscribeToMeasurementHistory( point, chart)
     }
 
-    function getPointSuccess( json) {
-        var point = json
-        console.log( "getPointSuccess: " + point.name + " " + point.uuid + " unit=" + point.unit)
-
-        if( !point.measurements)
-            point.measurements = []
-        $scope.chart.points.push( point)
-
-        subscribeToMeasurementHistory( $scope.chart, point)
-
-        if( $scope.chart.unitMap.hasOwnProperty( point.unit)) {
-            $scope.chart.unitMap[point.unit].push( point)
-        } else {
-            $scope.chart.unitMap[point.unit] = [point]
-            $scope.chart.traits.remove()
-            $scope.chart.traits = makeChartTraits( $scope.chart.unitMap)
-        }
-
-        $scope.chart.traits.call( $scope.chart.selection)
-
-        $timeout( function() {
-            console.log( "getPointSuccess.onResize: " + point.name + " " + point.uuid + " unit=" + point.unit)
-            onResize()
-        }, 500)
-    }
-
     /**
      * A new point was dropped on us. Add it to the chart.
      * @param uuid
      */
-    $scope.onDropPoint = function( uuid) {
-        console.log( "dropPoint uuid=" + uuid)
-        // Don't add a point that we're already charting.
-        var point = findPointBy( function(p) { return p.uuid === uuid})
-        if( point)
-            return
-
-
-        reef.get( '/points/' + uuid, "point", $scope, getPointSuccess);
+    $scope.onDropPoint = function( pointId) {
+      console.log( "dropPoint uuid=" + pointId)
+      // Don't add a point that we're already charting.
+      if( ! $scope.chart.pointExists( pointId)) {
+        var url = "/models/1/points/" + pointId
+        coralRest.get( url, null, $scope, function(point) {
+          $scope.chart.addPoint( point)
+          subscribeToMeasurementHistory( $scope.chart, point )
+        });
+      }
     }
 
         /**
@@ -244,7 +133,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         console.log( "onDragSuccess chart=" + chart.name + " uuid=" + uuid)
 
         $scope.$apply(function () {
-            var point = findPointBy( function(p) { return p.uuid === uuid})
+            var point =  $scope.chart.getPointByid( uuid)
             $scope.removePoint( point, true)
         })
     }
@@ -252,30 +141,12 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
     $scope.removePoint = function( point, keepSubscription) {
         var chart = $scope.chart,
             index = chart.points.indexOf( point);
-        chart.points.splice(index, 1);
+        chart.removePoint(point);
         if( ! keepSubscription)
             unsubscribeToMeasurementHistory( point);
 
-        if( chart.points.length > 0) {
-            var pointsForUnit = chart.unitMap[ point.unit]
-            index = pointsForUnit.indexOf( point)
-            pointsForUnit.splice( index, 1)
-
-            if( pointsForUnit.length <= 0) {
-                delete chart.unitMap[point.unit];
-                chart.traits.remove()
-                chart.traits = makeChartTraits( chart.unitMap)
-            }
-
-            chart.traits.call( chart.selection)
-            $timeout( function() {
-                console.log( "removePoint.onResize: " + point.name + " " + point.uuid + " unit=" + point.unit)
-                onResize()
-            }, 500)
-
-        } else {
-            index = $scope.charts.indexOf( chart)
-            $scope.chartRemove( index)
+        if( chart.points.length <= 0) {
+          // TODO: remove chart
         }
 
     }
@@ -286,34 +157,11 @@ return angular.module( 'chartController', ['authentication.service', 'coral.meas
         $scope.charts.splice( index, 1)
     }
 
-    $scope.onMeasurement = function( subscriptionId, type, measurement) {
-        var point = findPointBy( function(p) { return p.name == measurement.name})
-        if( point){
-            measurement.value = formatMeasurementValue( measurement.value)
-            point.currentMeasurement = measurement
-        } else {
-            console.error( "onMeasurement coudn't find point for measurement.name=" + measurement.name)
-        }
-    }
 
-    $scope.onError = function( error, message) {
-
-    }
-
-    function compareByName( a, b) {
-        if (a.name < b.name)
-            return -1;
-        if (a.name > b.name)
-            return 1;
-        return 0;
-    }
-
-    console.log( "chartController calling makeChart")
-    $scope.chart = makeChart( chartSource.points)
+    $scope.chart = coralChart.newChart( chartSource.points)
     $scope.chart.points.forEach( function( point) {
         subscribeToMeasurementHistory( $scope.chart, point)
     })
-    //$scope.loading = false
     $timeout( function() {
         onResize()
         $scope.loading = false

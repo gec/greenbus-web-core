@@ -199,7 +199,7 @@ define([
 
   }
 
-  return angular.module( 'coral.chart', ['coral.meas', 'coral.request'] ).
+  return angular.module( 'coral.chart', ['coral.meas'] ).
     factory( 'coralChart', ['meas', function ( meas) {
       return new ChartService( meas);
     }] )
