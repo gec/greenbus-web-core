@@ -50,13 +50,10 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     console.log( "ChartController $scope.chart=" + chartSource)
 
-    $scope.chart = {
-        name: "no name",
-        traits: null,
-        points: [],
-        unitMap: {},
-        selection: null
-    }
+    $scope.chart = coralChart.newChart( chartSource.points)
+    $scope.chart.points.forEach( function( point) {
+      subscribeToMeasurementHistory( $scope.chart, point)
+    })
     $scope.loading = true
 
     documentElement.style.overflow = 'hidden';  // firefox, chrome
@@ -99,7 +96,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         var now = new Date().getTime(),
             timeFrom = now - 1000 * 60 * 60,  // 1 Hour
             limit = 500,
-            notify = function() { chart.traits.update( "trend")}
+            notify = function() { chart.update( "trend")}
 
         point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
     }
@@ -158,10 +155,6 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
     }
 
 
-    $scope.chart = coralChart.newChart( chartSource.points)
-    $scope.chart.points.forEach( function( point) {
-        subscribeToMeasurementHistory( $scope.chart, point)
-    })
     $timeout( function() {
         onResize()
         $scope.loading = false
