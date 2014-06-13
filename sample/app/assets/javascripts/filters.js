@@ -125,11 +125,11 @@ angular.module('ReefAdmin.filters', []).
     filter('essStateIcon', function() {
         return function(state) {
             if( state === "standby")
-                return "/images/standby14.png"
+                return "/images/standby29x16.png"
             else if( state === "charging")
-                return "/images/charging14.png"
+                return "/images/charging29x16.png"
             else if( state === "discharging")
-                return "/images/discharging14.png"
+                return "/images/discharging29x16.png"
             else
                 return ""
         };
