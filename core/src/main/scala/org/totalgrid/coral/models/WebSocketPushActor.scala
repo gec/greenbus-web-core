@@ -42,7 +42,10 @@ import org.totalgrid.reef.client.service.proto.EntityRequests.EntitySubscription
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
-import scala.language.postfixOps // for postfix 'seconds'
+import scala.language.postfixOps
+import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
+
+// for postfix 'seconds'
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 
 
@@ -378,22 +381,52 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   def subscribeToActiveAlarms( subscribe: SubscribeToActiveAlarms) = {
-//      Logger.debug( "WebSocketPushActor.subscribeToActiveAlarms " + subscribe.id)
-//      val result = session.get.subscribeToActiveAlarms( subscribe.limit).await
-//      val subscription = subscriptionHandler[Alarm]( result, subscribe.id, alarmPushWrites)
-//      subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    Logger.debug( "WebSocketPushActor.subscribeToRecentAlarms " + subscribe.id)
+    val timer = new Timer( "WebSocketPushActor.subscribeToRecentAlarms")
+    val service = serviceFactory.eventService( session.get)
+    val eventQuery = EventSubscriptionQuery.newBuilder
+    val alarmQuery = AlarmSubscriptionQuery.newBuilder
+      .setEventQuery( eventQuery.build)
+    val result = service.subscribeToAlarms( alarmQuery.build)
+
+    result onSuccess {
+      case (alarms, subscription) =>
+        timer.end( s"onSuccess alarms.length=${alarms.length}")
+        pushChannel.push( alarmSeqPushWrites.writes( subscribe.id, alarms.reverse))
+        subscription.start { alarmNotification =>
+          pushChannel.push( alarmPushWrites.writes( subscribe.id, alarmNotification.getValue))
+        }
+        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    }
+    result onFailure {
+      case f => Logger.error( "WebSocketPushActor.subscribeToRecentAlarms.onFailure " + f)
+        pushError( subscribe, "Failure: " + f)
+    }
 
   }
 
   def subscribeToRecentEvents( subscribe: SubscribeToRecentEvents) = {
     Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
-//      val result =
-//        if( subscribe.eventTypes.length > 0)
-//          session.get.subscribeToRecentEvents( subscribe.eventTypes.toList, subscribe.limit).await
-//        else
-//          session.get.subscribeToRecentEvents( subscribe.limit).await
-//      val subscription = subscriptionHandler[Event]( result, subscribe.id, eventPushWrites)
-//      subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    val timer = new Timer( "WebSocketPushActor.subscribeToRecentEvents")
+    val service = serviceFactory.eventService( session.get)
+    val query = EventSubscriptionQuery.newBuilder
+      .addAllEventType(subscribe.eventTypes.toList)
+      .setLimit( subscribe.limit)
+    val result = service.subscribeToEvents( query.build)
+
+    result onSuccess {
+      case (events, subscription) =>
+        timer.end( s"onSuccess events.length=${events.length}")
+        pushChannel.push( eventSeqPushWrites.writes( subscribe.id, events.reverse))
+        subscription.start { eventNotification =>
+          pushChannel.push( eventPushWrites.writes( subscribe.id, eventNotification.getValue))
+        }
+        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+    }
+    result onFailure {
+      case f => Logger.error( "WebSocketPushActor.subscribeToRecentEvents.onFailure " + f)
+        pushError( subscribe, "Failure: " + f)
+    }
 
   }
 

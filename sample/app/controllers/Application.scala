@@ -120,7 +120,8 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 //      NavigationItem( "Dashboard", "dashboard", "#/dashboard"),
       NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=3&rootTypes=Root", REPLACE, selected=true, children=subMenus),
       NavigationItem( "Endpoints", "endpoints", "/endpoints"),
-      NavigationItem( "Events & Alarms", "eventsAlarms", "/eventsAlarms")
+      NavigationItem( "Events", "events", "/events"),
+      NavigationItem( "Alarms", "alarms", "/alarms")
     )
   }
   def getCoralMenus( name: String) = ReefClientAction { (request, client) =>

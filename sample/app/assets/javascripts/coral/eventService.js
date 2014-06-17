@@ -83,11 +83,16 @@ define([
         $scope.limit = Number( $attrs.limit || 20);
 
         function onAlarm( subscriptionId, type, alarm) {
+          if( angular.isArray( alarm)) {
+            console.log( "alarmService onAlarm length=" + alarm.length)
+            $scope.alarms = alarm.concat( $scope.alarms)
+          } else {
             console.log( "alarmService onAlarm " + alarm.id + " '" + alarm.state + "'" + " '" + alarm.event.message + "'")
-            $scope.loading = false
             $scope.alarms.unshift( alarm)
-            while( $scope.alarms.length > $scope.limit)
-                $scope.alarms.pop()
+          }
+          while( $scope.alarms.length > $scope.limit)
+            $scope.alarms.pop()
+          $scope.loading = false
         }
 
         function onError( error, message) {
@@ -130,11 +135,16 @@ define([
         $scope.limit = Number( $attrs.limit || 20);
 
         function onEvent( subscriptionId, type, event) {
+          if( angular.isArray( event)) {
+            console.log( "eventService onEvent length=" + event.length)
+            $scope.events = event.concat( $scope.events)
+          } else {
             console.log( "eventService onEvent " + event.id + " '" + event.entity + "'" + " '" + event.message + "'")
-            $scope.loading = false
             $scope.events.unshift( event)
-            while( $scope.events.length > $scope.limit)
-                $scope.events.pop()
+          }
+          while( $scope.events.length > $scope.limit)
+            $scope.events.pop()
+          $scope.loading = false
         }
 
         function onError( error, message) {

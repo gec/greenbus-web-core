@@ -388,6 +388,13 @@ object JsonFormatters {
   }
   lazy val eventPushWrites = new PushWrites( "event", eventWrites)
 
+  implicit val eventSeqWrites = new Writes[Seq[Event]] {
+    def writes( o: Seq[Event]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val eventSeqPushWrites = new PushWrites( "event", eventSeqWrites)
+
   implicit val alarmWrites = new Writes[Alarm] {
     def writes( o: Alarm): JsValue = {
       Json.obj(
@@ -398,6 +405,13 @@ object JsonFormatters {
     }
   }
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
+
+  implicit val alarmSeqWrites = new Writes[Seq[Alarm]] {
+    def writes( o: Seq[Alarm]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val alarmSeqPushWrites = new PushWrites( "alarm", alarmSeqWrites)
 
   implicit val pointWrites = new Writes[Point] {
     def writes( o: Point): JsValue =
