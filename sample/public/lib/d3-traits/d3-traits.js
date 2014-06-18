@@ -1,6 +1,6 @@
-/*! d3-traits - v0.0.1 - 2013-10-23
+/*! d3-traits - v0.0.1 - 2014-06-18
 * https://github.com/gec/d3-traits
-* Copyright (c) 2013 d3-traits; Licensed ,  */
+* Copyright (c) 2014 d3-traits; Licensed ,  */
 (function (d3) {
 
 //    var a, b, c, d, e
@@ -20,6 +20,8 @@
 //            .trait( d, {})
 //            .trait( e, {})
 //            .config( { x1: 4})
+
+var DEBUG = false
 
 Array.isArray = Array.isArray || function (vArg) {
     return Object.prototype.toString.call(vArg) === "[object Array]";
@@ -62,6 +64,7 @@ function isX( scaleName) { return scaleName.charAt(0) === 'x'}
  */
 function isY( scaleName) { return scaleName.charAt(0) === 'y'}
 
+function extentMin( extent) { return extent[ 0] }
 function extentMax( extent) { return extent[ extent.length - 1] }
 
 function isData( _data, accessSeries) {
@@ -74,12 +77,27 @@ function isValidDate(d) {
     return !isNaN(d.getTime());
 }
 
-function getChartRange( _super, name) {
+function getScaleRange( _super, name) {
     // SVG origin is top-left
     if( d3.trait.utils.isX( name))
         return [ _super.minRangeMarginLeft( name), _super.chartWidth() - _super.minRangeMarginRight( name)]
     else
         return [ _super.chartHeight() - _super.minRangeMarginBottom( name), _super.minRangeMarginTop( name)]
+}
+
+function getScaleExtensions( _super, name, scale) {
+    var domainExtent = scale.domain()
+    // SVG origin is top-left
+    if( d3.trait.utils.isX( name))
+        return [
+            [0, scale( domainExtent[0])],
+            [scale(domainExtent[1]), _super.chartWidth()]
+        ]
+    else
+        return [
+            [0, scale( domainExtent[0])],
+            [ scale(domainExtent[1]), _super.chartHeight()]
+        ]
 }
 
 function configFloat( valueConfig, valueDefault) {
@@ -160,7 +178,7 @@ function extendTraitsConfig( config, defaultConfig) {
 }
 
 function TraitOld( trait, config, _super) {
-    //console.log( "trait( " + trait.name + ")")
+    //if( DEBUG) console.log( "trait( " + trait.name + ")")
 
     var id, imp,
         self = this,
@@ -193,7 +211,7 @@ function TraitOld( trait, config, _super) {
     self.imp = imp
 }
 function Trait( _trait, _config, _super) {
-    console.log( "trait( " + _trait.name + ")")
+    if( DEBUG) console.log( "trait( " + _trait.name + ")")
 
     var id, imp,
         self = this
@@ -208,13 +226,13 @@ function Trait( _trait, _config, _super) {
     self.getImp = function() { return imp}
 
     self.trait = function( _trait, config) {
-        //console.log( ".trait( " + _trait.name + ")")
+        //if( DEBUG) console.log( ".trait( " + _trait.name + ")")
         var t = new Trait( _trait, config, imp)
         return t.getImp()
     }
 
 //    self.config = function( _config) {
-//        //console.log( ".config( {...})")
+//        //if( DEBUG) console.log( ".config( {...})")
 //        if( self._super)
 //            self._super.config( _config)
 //
@@ -233,7 +251,7 @@ function Trait( _trait, _config, _super) {
     }
 
     function makeVirtual( name, fn, _superFn) {
-        console.log( "makeVirtual " + name)
+        if( DEBUG) console.log( "makeVirtual " + name)
         return (function(name, fn){
             return function() {
                 var tmp = this._super;
@@ -259,21 +277,21 @@ function Trait( _trait, _config, _super) {
     }
 
     self.__virtualize = function( name, fn) {
-        console.log( "__virtualize begin " + _trait.name + " name=" + name)
+        if( DEBUG) console.log( "__virtualize begin " + _trait.name + " name=" + name)
 
         var virtual = null
         if( imp.hasOwnProperty( name) && typeof imp[name] === "function" ) {
             // The first parent has the same function.
             // The parent's version could be normal or virtualized.
             //
-            console.log( "__virtualize " + _trait.name + " name=" + name + " hasFunction")
+            if( DEBUG) console.log( "__virtualize " + _trait.name + " name=" + name + " hasFunction")
 //            var original = '__original__' + name
 
             // imp[name] could be virtualized or normal
             virtual = makeVirtual( name, fn, imp[name])
 
 //            if( ! imp.hasOwnProperty( original)) {
-//                console.log( "__virtualize " + _trait.name + " name=" + name + " newly virtualized save original")
+//                if( DEBUG) console.log( "__virtualize " + _trait.name + " name=" + name + " newly virtualized save original")
 //                // save original
 //                imp[original] = imp[name]
 //            }
@@ -281,7 +299,7 @@ function Trait( _trait, _config, _super) {
             if( _super)
                 _super.__replaceVirtual( name, virtual)
         } else {
-            console.log( "__virtualize " + _trait.name + " name=" + name + " hasFunction NOT  ")
+            if( DEBUG) console.log( "__virtualize " + _trait.name + " name=" + name + " hasFunction NOT  ")
         }
 //        if( _super)
 //            virtual = _super.__virtualize( name, fn)
@@ -305,7 +323,7 @@ function Trait( _trait, _config, _super) {
     // _stack[0] is most derived trait imp.
     //
     self.__makeVTable = function() {
-        console.log( "__makeVTable begin " + _trait.name)
+        if( DEBUG) console.log( "__makeVTable begin " + _trait.name)
 
         var name, virtualized
 
@@ -313,23 +331,23 @@ function Trait( _trait, _config, _super) {
 
             virtualized = _super.__virtualize( name, imp[name])
             if( virtualized) {
-                console.log( _trait.name +".__makeVTable name " + name + "   virtualized")
+                if( DEBUG) console.log( _trait.name +".__makeVTable name " + name + "   virtualized")
 //                imp[ '__original__' + name] = imp[name]
                 imp[name] = virtualized
             } else {
-                console.log( _trait.name +".__makeVTable name " + name + " ! virtualized")
+                if( DEBUG) console.log( _trait.name +".__makeVTable name " + name + " ! virtualized")
             }
 
         }
 
         // Replicate super methods in imp; no overrides.
         for( name in _super) {
-            //console.log( _trait.name +".__makeVTable replicate " + name + "  in _super")
+            //if( DEBUG) console.log( _trait.name +".__makeVTable replicate " + name + "  in _super")
             if( !(name in imp))
                 imp[name] = _super[ name]
         }
 
-        console.log( "__makeVTable end")
+        if( DEBUG) console.log( "__makeVTable end")
     }
 
     self.__getRoot = function() {
@@ -366,7 +384,7 @@ function Trait( _trait, _config, _super) {
 Trait.prototype = {
 
     trait: function( _trait, config) {
-        //console.log( ".trait( " + _trait.name + ")")
+        //if( DEBUG) console.log( ".trait( " + _trait.name + ")")
         var t = new Trait( _trait, config, this)
         var imp = t.getImp()
         return imp
@@ -415,7 +433,7 @@ d3.selection.prototype.trait = function( trait, config)
         for( var index in trait)
             this.trait( trait[index])
     } else {
-        //console.log( ".trait( " + trait.name + ")")
+        //if( DEBUG) console.log( ".trait( " + trait.name + ")")
         this._traitsInitialize()
 
         var traitCount = this.traits.length
@@ -438,7 +456,7 @@ d3.selection.prototype.callTraits = function() {
 
     for( var index in this.traits) {
         var traitInstance = this.traits[ index]
-        //console.log( ".callTraits  " + index + " " + traitInstance.name)
+        //if( DEBUG) console.log( ".callTraits  " + index + " " + traitInstance.name)
         this.call( traitInstance)
     }
     return this
@@ -485,8 +503,10 @@ d3.trait.utils = {
     isY: isY,
     isData: isData,
     isValidDate: isValidDate,
+    extentMin: extentMin,
     extentMax: extentMax,
-    getChartRange: getChartRange,
+    getScaleRange: getScaleRange,
+    getScaleExtensions: getScaleExtensions,
     getTraitCache: getTraitCache,
     configMargin: configMargin,
     configFloat: configFloat
@@ -1103,6 +1123,30 @@ d3.trait.utils = {
                     label.attr( { transform: labelTransform( self, c, label) } )
                 }
                 groupAxis.call(axis);
+
+                // Do we have to provide a line to extend each end of the axis?
+                if( _super.isMinRangeMargin( c.name)) {
+
+                    var extData = d3.trait.utils.getScaleExtensions( _super, c.name, scale)
+
+                    var extension = groupAxis.selectAll( "path.axis-extension")
+                        .data( extData)
+
+                    extension.enter()
+                        .append( "path")
+                        .attr("class", "axis-extension")
+                        .attr( "d", function( d) {
+                            return "M" + d[0] + ",0L" + d[1] + ",0";
+                        })
+
+                    extension.transition().duration( 0)
+                        .attr("class", "axis-extension")
+                        .attr( "d", function( d) {
+                            return "M" + d[0] + ",0L" + d[1] + ",0";
+                        })
+                }
+
+
             })
         }
         axisLinear.update = function( type, duration) {
@@ -1215,7 +1259,7 @@ d3.trait.utils = {
         axisMonth.update = function( type, duration) {
             this._super( type, duration)
 
-            scaleForUpdate.range( d3.trait.utils.getChartRange( _super, c.name))
+            scaleForUpdate.range( d3.trait.utils.getScaleRange( _super, c.name))
 
             var domain = scale.domain() // original scale
             var domainMax = d3.trait.utils.extentMax( domain)
@@ -1328,81 +1372,261 @@ trait.chart.area = _chartArea
 
 (function (d3, trait) {
 
-function barAttr( _config, barOffsetX, barW, chartHeight, x1, y1) {
+var INSETS_NONE          = 'none',          // Don't adjust insets
+    INSETS_EXTEND_DOMAIN = 'extend-domain', // Extend the domain extents so bars are completely visible
+    INSETS_INSET_RANGE   = 'inset-range'    // Inset the scales range so bars are completely visible
+
+
+/**
+ * extentTicks: T: ticks on each extent. Overrides ticks.
+ * ticks: Approximate number of ticks
+ * @param config
+ * @returns { width:, gap:, justification, insets:}
+ */
+function barConfig( config) {
+    var gap = d3.trait.utils.configFloat( config.gap, 0.1),
+        outerGap = d3.trait.utils.configFloat( config.outerGap, gap),
+        c = {
+        width: config.width || 'auto',
+            // gap is percentage of bar width (0-1)
+        gap: gap,
+            // outerGap can be 0 to greater than 1
+        outerGap: outerGap,
+        justification: config.justification || 'center',
+        //insets: 'none' 'extend-domain', 'inset-range', {top: 0, right: 0, bottom: 0, left: 0}
+        insets: config.insets || INSETS_INSET_RANGE
+    }
+    return c
+}
+
+
+function barAttr( config, barDimensions, chartHeight, x1, y1) {
     // NOTE: for transition from enter, use  y1(0) for y: and height:
     return {
-        x: function(d, i) { return x1(_config.x1(d)) + barOffsetX; },
-        y: function(d, i) { return y1(_config.y1(d)); },
-        width: barW,
-        height: function(d, i) { return chartHeight - y1(_config.y1(d)); }
+        x: function(d, i) { return x1(config.x1(d)) + barDimensions.offset; },
+        y: function(d, i) { return y1(config.y1(d)); },
+        width: barDimensions.width,
+        height: function(d, i) { return chartHeight - y1(config.y1(d)); }
     }
 }
 
+function barOffsetForJustification( justification, width, gap) {
+    var offset = 0
+    switch( justification) {
+        case 'left':
+            offset = Math.round( gap / 2);
+            break;
+        case 'right':
+            offset = Math.round( 0 - width - gap / 2) ;
+            break;
+        default:
+            // center
+            offset = 0 - Math.round( width / 2);
+            break;
+    }
+    return offset
+}
+
+function rangeExtentOfBarsAndOuterGapForOneSeries( data, indicesExtent, accessor, scale, width, gap, outerGap, justification) {
+
+    var i, minValue, maxValue,
+        offsetLeft = barOffsetForJustification( justification, width, gap) - outerGap,
+        offsetRight = barOffsetForJustification( justification, width, gap) + width + outerGap
+
+    if( ! indicesExtent)
+        return scale.range()
+
+    i = indicesExtent[0],
+        minValue = scale( accessor( data[i], i) ) + offsetLeft
+
+    i = indicesExtent[1]
+    maxValue = scale( accessor( data[i], i) ) + offsetRight
+
+    return [Math.floor( minValue), Math.ceil( maxValue)]
+}
+
+function rangeExtentOfBarsAndOuterGap( filteredSeries, indicesExtents, seriesData, accessor, scale, barWidth, gap, outerGap, justification) {
+
+    var rangeExtents = filteredSeries.map( function( s, i) { return rangeExtentOfBarsAndOuterGapForOneSeries( seriesData( s), indicesExtents[i], accessor, scale, barWidth, gap, outerGap, justification) } )
+    var min = d3.min( rangeExtents, function( extent, i) { return extent[0]})
+    var max = d3.min( rangeExtents, function( extent, i) { return extent[1]})
+
+    return [min, max]
+}
+
+
+/**
+ *   Handle pathological case where outer bars are centered on scale extents (so half off chart).
+ *
+ *    Original        inset-range       extend-domain
+ *     |     |      |             |   |               |
+ *    _|_   _|_     |  ___   ___  |   |   ___   ___   |
+ *   |*|*| |*|*|    | |***| |***| |   |  |***| |***|  |
+ *     +-----+       ---+-----+---    +----+-----+----+
+ *     1     2          1     2       0    1     2    3
+ *
+ *   Calculate the first and last bar outer edges plus a nice "inset" and scale that down
+ *   to fit in the pixels available (current range).
+ */
+function getBarDimensions( filteredSeries, seriesData, accessor, c, scale, chartWidth) {
+
+    // minimum scale distance between any two adjacent bars visible within the current domain.
+    var width,
+        minRangeMargin = null,
+        domainExtent = null,
+        gap = 0,
+        outerGap = 0
+
+
+    if( scale.rangeBand) {
+        width = c.width === 'auto'? scale.rangeBand() : c.width
+        // gap isn't known with range bands
+    } else {
+        var scaleDomain = scale.domain(),
+            // Find the data indices (across all series) for what's visible with current domain.
+            indicesExtents = filteredSeries.map( function( s) { return trait.chart.utils.dataIndicesExtentForDomainExtent( seriesData( s), accessor, scaleDomain) } ),
+            // Get the minimum distance between bar centers across all data in all series
+            minDistanceX = d3.min( filteredSeries, function( s, i) { return trait.chart.utils.minDistanceBetween( seriesData( s), indicesExtents[i], accessor, scale) } )
+
+        width = c.width === 'auto' ? Math.max( 1, Math.floor( minDistanceX * (1-c.gap))) : c.width
+        gap = Math.round( width * c.gap)
+        outerGap = Math.floor( width * c.outerGap)
+
+        // Get the minimun distance between bar centers across all data in all series
+        var rangeExtent = rangeExtentOfBarsAndOuterGap( filteredSeries, indicesExtents, seriesData, accessor, scale, width, gap, outerGap, c.justification),
+            min = rangeExtent[0],
+            max = rangeExtent[1]
+        //console.log( "minDistanceX: " + minDistanceX + " width: " + width + " rangeExtent: " + rangeExtent)
+
+        if( min < 0 || max > chartWidth) {
+
+            if( c.insets === INSETS_INSET_RANGE) {
+                // Careful, one bar may be within chart and one bar off chart.
+                var totalWidth = Math.max ( max, chartWidth ) - Math.min ( 0, min ),
+                    scaleItDown = chartWidth / totalWidth
+
+                if( c.width === 'auto') {
+                    width = Math.max ( 1, Math.floor ( width * scaleItDown ) )
+                    gap = Math.round( width * c.gap)
+                    outerGap = Math.floor( width * c.outerGap)
+                }
+
+                if ( c.insets === INSETS_INSET_RANGE ) {
+                    rangeExtent = rangeExtentOfBarsAndOuterGap ( filteredSeries, indicesExtents, seriesData, accessor, scale, width, gap, outerGap, c.justification)
+                    min = rangeExtent[0]
+                    max = rangeExtent[1]
+
+                    if ( min < 0 || max > chartWidth ) {
+                        minRangeMargin = {}
+                        if ( min < 0 )
+                            minRangeMargin.left = 1 - min
+                        if ( max > chartWidth )
+                            minRangeMargin.right = max - chartWidth
+                    }
+                }
+            } else if( c.insets === INSETS_EXTEND_DOMAIN) {
+                var domainMin = min < 0 ? scale.invert( min) : scaleDomain[0] ,
+                    domainMax = max > chartWidth ? scale.invert(max) : scaleDomain[ scaleDomain.length-1]
+                domainExtent = [domainMin, domainMax]
+            }
+
+        }
+
+    }
+
+    var offset = barOffsetForJustification( c.justification, width, gap)
+
+    //console.log( "barDimensions: width, gap, offset: " + width + ", " + gap + ", " + offset)
+
+    return {
+        width: width,
+        gap: gap,
+        outerGap: outerGap,
+        offset: offset,
+        domainExtent: domainExtent,
+        minRangeMargin: minRangeMargin
+    }
+}
+
+
+
+/**
+ *
+ * Example Bar Chart Configurations
+ *
+ * ONE            TWO            THREE          FOUR           FIVE
+ * Linear Axis    Linear Axis    Ordinal Axis   Ordinal Axis   Ordinal Grouped
+ * Tick centered  Tick centered  Tick centered  Tick left      Tick left
+ * x(0) == 0      x(0) > 0
+ * 0 label        No 0 label                                   Label left
+ * scale != data  Scale == data
+ *  _________      _________      _________      _________      _______________
+ * |      _  |    |      _  |    |      _  |    |      _  |    |     _   _     |
+ * |  _  |*| |    |  _  |*| |    |  _  |*| |    |  _  |*| |    |  _ |~| |*| _  |
+ * | |*| |*| |    | |*| |*| |    | |*| |*| |    | |*| |*| |    | |*||~| |*||~| |
+ * +--+---+--+     --+---+--      --+---+--      +---+---+      +------+------+
+ * 0  1   2  3       1   2          A   B          A   B         A      B
+ *
+ *    ONE
+ *    Linear axis with scala extents outside of data min/max.
+ *    Auto bar width based on min data distance
+ *    Auto extents based on domain extent and bar width. I.e. Don't want have of the first bar off the chart.
+ *
+ *    TWO
+ *    Linear axis with scale extents equal to data min/max.
+ *    Auto inset for axis so x(1) is not left edge of chart
+ *    No axis labels outside of data domain. noAxisLabelsOnExtents.
+ *
+ *    insets: 'none' 'extend-domain', 'inset-range', {top: 0, right: 0, bottom: 0, left: 0}
+ *    justification: centered, right or left
+ *
+ *    THREE & FOUR
+ *    Oridnal axis with ticks centered or left.
+ *
+ * @param _super
+ * @param _config
+ * @returns {chartBar}
+ * @private
+ */
 function _chartBar( _super,  _config) {
     // Store the group element here so we can have multiple bar charts in one chart.
     // A second "bar chart" might have a different y-axis, style or orientation.
-    var group, series, bars, barW, barOffsetX, lastDomainMax,
+    var group, series, bars, barDimensions, lastDomainMax,
         x1 = _super.x1(),
         y1 = _super.y1(),
-        gap = 0,                        // gap is the extra spacing beyond bar padding of 0.1 * barWidth.
-        barCount = _config.barCount
+        barCount = _config.barCount,
+        dispatch = d3.dispatch('customHover' ),
+        c = barConfig( _config),
+        x1IsRangeBand = typeof x1.rangeBand === "function"
 
-    // TODO: Need to have the scale setup the number of bars.
-    // - For time scale, the data is not evenly speaced, so it's the minimum space between data (although very wide bars may not be good either).
-    // - For ordinal scale, the data is evenly spaced (always?), so it's the number of elements in the series.
-    // - Needs to work with zoom too.
-    function getBarCountRange( filteredData) {
-        var countRange
-        if( barCount) {
-            var count = typeof( barCount) === "function" ? barCount( filteredData) : barCount
-            countRange = d3.range( count)
-        } else {
-            var series1 = _config.seriesData( filteredData[0])
-            countRange = series1.map(function(d, i){ return i; })
-        }
-        return countRange
-    }
 
-    function minDistanceBetween( data, access, scale) {
-        var i,
-            min = Number.MAX_VALUE,
-            length = data.length
 
-        if( length < 2)
-            return 0
 
-        var current,
-            last = scale( access( data[0]))
-        for( i = 1; i < length; i++) {
-            current = scale( access( data[i]))
-            min = Math.min( min, current-last)
-            last = current
-        }
-
-        return min
-    }
-
-    var dispatch = d3.dispatch('customHover');
     function chartBar( _selection) {
         var self = chartBar
 
         _selection.each(function(_data) {
             var element = this,
-                filtered = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data,
-                minDistanceX = d3.min( filtered, function( s) { return minDistanceBetween( _config.seriesData( s), _config.x1, x1) } )
+                chartWidth = _super.chartWidth(),
+                filteredSeries = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
-            barW = Math.floor( minDistanceX * 0.9 - gap)
+            barDimensions = getBarDimensions( filteredSeries, _config.seriesData, _config.x1, c, x1, chartWidth)
 
-//            var xBand = d3.scale.ordinal()
-//                .domain( getBarCountRange( filtered))
-//                .rangeRoundBands(x1.range(), 0.1); // bar padding will be 0.1 * bar width
-//            var gapSize = xBand.rangeBand() / 100 * gap;
-//            barW = xBand.rangeBand() - gapSize;
-//            barOffsetX = Math.round( gapSize / 2 - barW / 2);
-            barOffsetX = Math.round( gap / 2 - barW / 2);
-            // The bar padding is already .1 * bar width. Let's use * 0.4 for better outer padding
-//            self.minRangeMarginLeft( "x1", Math.ceil( gapSize / 2 + barW * 0.4 + barW / 2))
-            self.minRangeMarginLeft( "x1", Math.ceil( gap / 2 + barW * 0.4 + barW / 2))
+            if( barDimensions.minRangeMargin || barDimensions.domainExtent) {
+                // Turn off notify so we don't reenter chartBar() on changing scale.
+                _super.onChartResized ( 'chartBar', function () { } )
+
+                if ( barDimensions.minRangeMargin ) {
+                    self.minRangeMargin ( 'x1', barDimensions.minRangeMargin )
+                } else if ( barDimensions.domainExtent ) {
+                    _super.x1Domain( barDimensions.domainExtent)
+                }
+
+                barDimensions = getBarDimensions ( filteredSeries, _config.seriesData, _config.x1, c, x1, chartWidth)
+
+                // Turn notify back on.
+                _super.onChartResized ( 'chartBar', self )
+            }
 
             if( !group) {
                 var classes = _config.chartClass ? "chart-bar " + _config.chartClass : 'chart-bar'
@@ -1411,7 +1635,7 @@ function _chartBar( _super,  _config) {
 
             // DATA JOIN
             series = group.selectAll(".series")
-                .data( filtered)
+                .data( filteredSeries)
             {
                 // UPDATE
 
@@ -1425,26 +1649,25 @@ function _chartBar( _super,  _config) {
             // DATA JOIN
             bars = series.selectAll("rect")
                 .data( _config.seriesData)
-            {
-                // UPDATE
-                bars.transition()
-                    .duration(500).delay(500).ease(self.ease())
-                    .attr( barAttr( _config, barOffsetX, barW, self.chartHeight(), x1, y1));
 
-                // ENTER
-                bars.enter().append('rect')
-                    .classed('bar', true)
-                    .attr( barAttr( _config, barOffsetX, barW, self.chartHeight(), x1, y1))
-                    .on('mouseover', dispatch.customHover);
+            // ENTER
+            bars.enter().append('rect')
+                .classed('bar', true)
+                .attr( barAttr( _config, barDimensions, self.chartHeight(), x1, y1))
+                .on('mouseover', dispatch.customHover);
 
-                // EXIT
-                bars.exit()
-                    .transition()
-                    .style({opacity: 0})
-                    .remove();
+            // UPDATE
+            bars.transition()
+                .duration(0).delay(0).ease(self.ease())
+                .attr( barAttr( _config, barDimensions, self.chartHeight(), x1, y1));
 
-                lastDomainMax = d3.trait.utils.extentMax( x1.domain())
-            }
+            // EXIT
+            bars.exit()
+                .transition()
+                .style({opacity: 0})
+                .remove();
+
+            lastDomainMax = d3.trait.utils.extentMax( x1.domain())
 
         })
     }
@@ -1459,7 +1682,7 @@ function _chartBar( _super,  _config) {
 
         // redraw the line and no transform
         series.attr( "transform", null)
-        bars.attr( barAttr( _config, barOffsetX, barW, _super.chartHeight(), x1, y1));
+        bars.attr( barAttr( _config, barDimensions, _super.chartHeight(), x1, y1));
 
         bars = series.selectAll("rect" )
             .data( _config.seriesData)
@@ -1467,7 +1690,7 @@ function _chartBar( _super,  _config) {
         // ENTER
         bars.enter().append('rect')
             .classed('bar', true)
-            .attr( barAttr( _config, barOffsetX, barW, _super.chartHeight(), x1, y1))
+            .attr( barAttr( _config, barDimensions, _super.chartHeight(), x1, y1))
 
         bars.exit()
             .transition()
@@ -1494,20 +1717,23 @@ function _chartBar( _super,  _config) {
         return this;
     };
 
-    chartBar.gap = function(_x) {
-        if (!arguments.length) return gap;
-        gap = _x;
-        return this;
-    };
     d3.rebind(chartBar, dispatch, 'on');
     _super.onChartResized( 'chartBar', chartBar)
-    _super.onRangeMarginChanged( 'chartBar', chartBar)
+//    _super.onRangeMarginChanged( 'chartBar', chartBar)
 
     return chartBar;
 
 }
 
 trait.chart.bar = _chartBar
+trait.chart.barUtils = {
+    barConfig: barConfig,
+    barAttr: barAttr,
+    barOffsetForJustification: barOffsetForJustification,
+    rangeExtentOfBarsAndOuterGapForOneSeries: rangeExtentOfBarsAndOuterGapForOneSeries,
+    rangeExtentOfBarsAndOuterGap: rangeExtentOfBarsAndOuterGap,
+    getBarDimensions: getBarDimensions
+}
 
 }(d3, d3.trait));
 
@@ -1522,18 +1748,54 @@ function _chartBase( _super, _config) {
     if( !_config)
         _config = {}
 
+    if( !_config.seriesData)
+        _config.seriesData =  function(s) { return s}
+    if( !_config.seriesLabel)
+        _config.seriesLabel =  function(s, i) { return "Series "+i}
+
+    if( !_config.x1)
+        _config.x1 =  function(d) { return d[0]}
+    if( !_config.y1)
+        _config.y1 =  function(d) { return d[1]}
+
     var margin = d3.trait.utils.configMargin( _config.margin, {top: 5, right: 5, bottom: 5, left: 5})
+
+    _config.clip = _config.clip === undefined || _config.clip === true
+
 
     // Margin for adjusting the x1-scale range
     // Example: { x1: {left: 5, right: 5} }
     // Without this margin, the outer bars on a bar chart may be half off the chart.
-    var minRangeMargins = {},
-        axisGroups = []
+    var minRangeMargins = {}
+
+    /*
+        allAxesWithLayoutInfo
+        chartBase manages the layout of axes. There may be more than one axis on each
+        orientation (Left, Right, Bottom, Top}. As axes are added (via traits), the
+        chart margins are adjusted to accommodate each axis.
+        Each array element contains the following:
+            axisGroup: The SVG g element for the axis and axis label
+            orient: left, right, top, bottom
+            rect: d3.trait.Rect
+     */
+    var allAxesWithLayoutInfo = []
 
     var MIN_RANGE_MARGIN_DEFAULT = {left: 0, right: 0, top: 0, bottom: 0}
     function initMinRangeMargin( axis) {
         if( ! minRangeMargins[axis])
             minRangeMargins[axis] = trait.utils.clone( MIN_RANGE_MARGIN_DEFAULT)
+    }
+
+    function isMinRangeMargin( axis) {
+        if( ! minRangeMargins[axis])
+            return false
+
+        var current = minRangeMargins[axis]
+
+        if( d3.trait.utils.isX( axis))
+            return current.left !== 0 || current.right !== 0
+        else
+            return current.top !== 0 || current.bottom !== 0
     }
 
     // Whomever needs the largest margins will get their way.
@@ -1551,8 +1813,6 @@ function _chartBase( _super, _config) {
 
         var current = minRangeMargins[axis],
             changed = false;
-
-        console.log( "=============== rangeMargin=" + rangeMargin + " left=" + rangeMargin.left)
 
         if( rangeMargin.left && current.left < rangeMargin.left) {
             current.left = rangeMargin.left
@@ -1664,13 +1924,6 @@ function _chartBase( _super, _config) {
                 sizeAttrs = getChartSizeAttrs( element, sizeFromElement, width, height)
 
             select = d3.select(element)
-//            width = element.parentElement.offsetWidth || width
-//            height = element.parentElement.offsetHeight || height
-            //width = sizeFromElement ? element.offsetWidth || width : width
-            //height = sizeFromElement ? element.offsetHeight || height : height
-
-//            chartWidth = width - margin.left - margin.right
-//            chartHeight = height - margin.top - margin.bottom
 
             if( !element._svg) {
                 element._svg = d3.select(element)
@@ -1686,7 +1939,9 @@ function _chartBase( _super, _config) {
                 chartWidth = size.width - margin.left - margin.right
                 chartHeight = size.height - margin.top - margin.bottom
 
-                var clipId = appendClipPathDef( element, element._svgDefs)
+                var clipId = null
+                if( _config.clip)
+                    clipId = appendClipPathDef( element, element._svgDefs)
 
                 // Outer container group for charts, axes, labels, etc.
                 element._container = element._svg.append('g').classed('container-group', true)
@@ -1695,7 +1950,8 @@ function _chartBase( _super, _config) {
                 element._chartGroup = element._container.append('g').classed('chart-group', true);
 
                 // Clip all chart innards to chartWidth and chartHeight
-                element._chartGroup.attr("clip-path", "url(#" + clipId + ")")
+                if( _config.clip)
+                    element._chartGroup.attr("clip-path", "url(#" + clipId + ")")
 
 
                 this._svg.on("mousemove", function() {
@@ -1735,17 +1991,16 @@ function _chartBase( _super, _config) {
                 })
             }
 
-            console.log( "chartBase w=" + width + ", h=" + height + " cW=" + chartWidth + ", cH=" + chartHeight)
+            //console.log( "chartBase w=" + width + ", h=" + height + " cW=" + chartWidth + ", cH=" + chartHeight)
 
-            //if( !sizeFromElement) {
-                element._svg.transition()
-                    .duration(duration)
-                    .attr({width: width, height: height})
-            //}
+            element._svg.transition()
+                .duration(duration)
+                .attr({width: width, height: height})
             element._svg.select('.chart-group')
                 .attr( 'transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-            element._chartGroupClipPathRect.attr("width", chartWidth).attr("height", chartHeight)
+            if( _config.clip)
+                element._chartGroupClipPathRect.attr("width", chartWidth).attr("height", chartHeight)
 
             duration = 500;
         })
@@ -1848,14 +2103,14 @@ function _chartBase( _super, _config) {
 
     };
 
-    function findAxisByGroup( group) {
-        var i, axis,
-            length = axisGroups.length
+    function findAxisWithLayoutInfo( axisGroup) {
+        var i, axisWithLayoutInfo,
+            length = allAxesWithLayoutInfo.length
 
         for( i = 0; i < length; i++) {
-            axis = axisGroups[i]
-            if( axis.group === group)
-                return axis
+            axisWithLayoutInfo = allAxesWithLayoutInfo[i]
+            if( axisWithLayoutInfo.axisGroup === axisGroup)
+                return axisWithLayoutInfo
         }
         return null
     }
@@ -1902,59 +2157,94 @@ function _chartBase( _super, _config) {
         }
         return updatedMargin
     }
+    function updateAxesExtentsForChartMarginTop( axes) {
+        var updatedOrigin = false
+        axes.forEach( function( axis) {
+            if( axis.rect.minY() < margin.top) {
+                axis.rect.origin.y = margin.top
+                updatedOrigin = true;
+            }
+        })
+        return updatedOrigin
+    }
+    function updateAxesExtentsForChartMarginLeft( axes) {
+        var updatedOrigin = false
+        axes.forEach( function( axis) {
+            if( axis.rect.minX() < margin.left) {
+                axis.rect.origin.x = margin.left
+                updatedOrigin = true;
+            }
+        })
+        return updatedOrigin
+    }
     function updateAxesForChartMargin( axes, orient) {
-        var axisMargin,
-            updatedOrigin = false
+        var updatedOrigin = false,
+            edge = 0,
+            delta = 0
 
         if( axes.length <= 0)
             return updatedOrigin
 
         switch( orient) {
             case 'left':
+                updatedOrigin = updateAxesExtentsForChartMarginTop( axes)
+                // If the chart's left margin is more than the axes width,
+                // shift the axes up against the left edge.
+                edge = axes[ axes.length-1].rect.maxX()
+                if( edge < margin.left) {
+                    delta = margin.left - edge
+                    axes.forEach( function( axis) {
+                        axis.rect.origin.x += delta;
+                    })
+                    updatedOrigin = true;
+                }
+                break;
             case 'right':
-                axes.forEach( function( axis) {
-                    if( axis.rect.minY() < margin.top) {
-                        axis.rect.origin.y = margin.top
-                        updatedOrigin = true;
-                    }
-                })
+                // If the chart's right margin is more than the axes width,
+                // shift the axes up against the right edge.
+                updatedOrigin = updateAxesExtentsForChartMarginTop( axes)
+                edge = axes[0].rect.minX()
+                if( edge > width - margin.right) {
+                    delta = width - margin.right - edge
+                    axes.forEach( function( axis) {
+                        axis.rect.origin.x += delta;
+                    })
+                    updatedOrigin = true;
+                }
                 break;
             case 'top':
-            case 'bottom':
-                axes.forEach( function( axis) {
-                    if( axis.rect.minX() < margin.left) {
-                        axis.rect.origin.x = margin.left
-                        updatedOrigin = true;
-                    }
-                })
+                // If the chart's top margin is more than the axes height,
+                // shift the axes up against the top edge.
+                updatedOrigin = updateAxesExtentsForChartMarginLeft( axes)
+                edge = axes[ axes.length-1].rect.maxY()
+                if( edge < margin.top) {
+                    delta = margin.top - edge
+                    axes.forEach( function( axis) {
+                        axis.rect.origin.y += delta;
+                    })
+                    updatedOrigin = true;
+                }
                 break;
-
+            case 'bottom':
+                updatedOrigin = updateAxesExtentsForChartMarginLeft( axes)
+                // If the chart's bottom margin is more than the axes height,
+                // shift the axes up against the bottom edge.
+                edge = axes[0].rect.minY()
+                if( edge > height - margin.bottom) {
+                    delta = height - margin.bottom - edge
+                    axes.forEach( function( axis) {
+                        axis.rect.origin.y += delta;
+                    })
+                    updatedOrigin = true;
+                }
+                break;
             default:
         }
         return updatedOrigin
     }
-    function relayoutAxes() {
-        var axes, key,
-            updatedMargin = false,
-            rect = new d3.trait.Rect( 0, 0, width, height ),
-            orients = [ 'left', 'right', 'top', 'bottom'],
-            axesByOrient = {}
-
-        orients.forEach( function( orient) {
-            axes = axisGroups.filter( function( e) {return e.orient === orient} )
-            d3.trait.layout.byOrientation( axes, rect, orient)
-            updatedMargin = updatedMargin || updateChartMarginForAxis( axes, orient)
-            axesByOrient[orient] = axes
-        })
-        for( key in axesByOrient) {
-            axes = axesByOrient[key]
-            updateAxesForChartMargin( axes, key)
-        }
-
-        if( updatedMargin)
-            updateChartSize()
-    }
-    function makeRect( orient, widthOrHeight) {
+    function makeAxisRectWithProperAnchor( orient, widthOrHeight) {
+        // The left axis (for example) is drawn correctly when translated to the left edge
+        // of the chart; therefore, the anchor is on the right side of the rect.
         switch( orient) {
             case 'left': return new d3.trait.Rect( 0, 0, widthOrHeight, 0, 1, 0);
             case 'right': return new d3.trait.Rect( 0, 0, widthOrHeight, 0);
@@ -1963,20 +2253,41 @@ function _chartBase( _super, _config) {
             default: return  new d3.trait.Rect();
         }
     }
-    chartBase.layoutAxis = function( group, orient, widthOrHeight) {
-        var axisGroup = findAxisByGroup( group ),
-            rect = makeRect( orient, widthOrHeight)
+    function relayoutAxes() {
+        var axesWithLayoutInfo, key,
+            updatedMargin = false,
+            rect = new d3.trait.Rect( 0, 0, width, height ),
+            orients = [ 'left', 'right', 'top', 'bottom'],
+            axesByOrient = {}
 
-        if( ! axisGroup) {
-            axisGroup = {group: group, orient: orient, rect: rect}
-            axisGroups.push( axisGroup)
+        orients.forEach( function( orient) {
+            axesWithLayoutInfo = allAxesWithLayoutInfo.filter( function( e) {return e.orient === orient} )
+            d3.trait.layout.byOrientation( axesWithLayoutInfo, rect, orient)
+            updatedMargin = updatedMargin || updateChartMarginForAxis( axesWithLayoutInfo, orient)
+            axesByOrient[orient] = axesWithLayoutInfo
+        })
+        for( key in axesByOrient) {
+            axesWithLayoutInfo = axesByOrient[key]
+            updateAxesForChartMargin( axesWithLayoutInfo, key)
+        }
+
+        if( updatedMargin)
+            updateChartSize()
+    }
+    chartBase.layoutAxis = function( axisGroup, orient, widthOrHeight) {
+        var axisWithLayoutInfo = findAxisWithLayoutInfo( axisGroup ),
+            rect = makeAxisRectWithProperAnchor( orient, widthOrHeight)
+
+        if( ! axisWithLayoutInfo) {
+            axisWithLayoutInfo = {axisGroup: axisGroup, orient: orient, rect: rect}
+            allAxesWithLayoutInfo.push( axisWithLayoutInfo)
             relayoutAxes()
-        } else if( axisGroup.orient !== orient || axisGroup.rect.size !== rect.size) {
-            axisGroup.orient = orient
-            axisGroup.rect = rect
+        } else if( axisWithLayoutInfo.orient !== orient || axisWithLayoutInfo.rect.size !== rect.size) {
+            axisWithLayoutInfo.orient = orient
+            axisWithLayoutInfo.rect = rect
             relayoutAxes()
         }
-        axisGroup.group.attr ( 'transform', 'translate(' + axisGroup.rect.origin.x + ',' + axisGroup.rect.origin.y + ')');
+        axisWithLayoutInfo.axisGroup.attr ( 'transform', 'translate(' + axisWithLayoutInfo.rect.origin.x + ',' + axisWithLayoutInfo.rect.origin.y + ')');
     }
 
     // Return a list of points in focus.
@@ -2131,6 +2442,7 @@ function _chartBase( _super, _config) {
     }
 
     chartBase.minRangeMargin = minRangeMargin
+    chartBase.isMinRangeMargin = isMinRangeMargin
 
     chartBase.minRangeMarginLeft = function( axis, marginLeft) {
         if( !arguments.length) return 0
@@ -2604,8 +2916,78 @@ trait.chart.line = _chartLine
         return focus
     }
 
+    /**
+     * Return the minimum distance between each data point that is within
+     * the indicesExtent. The indicesExtent is typically the data indices
+     * that are currently visible on the chart. The distance used is the
+     * scale's range, not the domain space.
+     *
+     * @param data          Array of data.
+     * @param indicesExtent Extent of indices used to calculate minimum distance.
+     * @param accessor      Data accessor
+     * @param scale         Scale for data
+     * @returns Minimum distance as a number
+     */
+    function minDistanceBetween( data, indicesExtent, accessor, scale) {
+        var range = scale.range(), //Number.MAX_VALUE,
+            min = range[range.length-1] - range[0],
+            length = data.length
+
+        if( length < 2 || indicesExtent.length < 2)
+            return min
+
+        var i = indicesExtent[0],
+            lastIndex = Math.min( length-1, indicesExtent[1])
+
+        if( i < 0 || i >= length)
+            return min
+
+        var current,
+            last = scale( accessor( data[i], i))
+
+        i++
+        for( ; i <= lastIndex; i++) {
+            current = scale( accessor( data[i], i))
+            min = Math.min( min, current-last)
+            last = current
+        }
+
+        return min
+    }
+
+    /**
+     * Return the extent of indices withing the domain extent. This is typicaly
+     * used to return the indices that are currently visible on the chart.
+     *
+     * @param data         Array of data
+     * @param accessor     Data accessor
+     * @param domainExtent Domain extent. Array with 0 being min and 1 being max.
+     * @returns Indices extent with array 0 being first and array 1 being last.
+     */
+    function dataIndicesExtentForDomainExtent( data, accessor, domainExtent) {
+        if( data.length <= 0)
+            return null
+
+        var min = d3.trait.utils.extentMin( domainExtent),
+            max = d3.trait.utils.extentMax( domainExtent )
+
+        var bisector = d3.bisector( accessor ),
+            biLeft = bisector.left,
+            biRight = bisector.right,
+            firstIndex = biLeft( data, min ),
+            lastIndexPlusOne = biRight( data, max)
+
+        //return {first: firstIndex, lastPlusOne: lastIndexPlusOne}
+        return [firstIndex, lastIndexPlusOne-1]
+    }
+
+
+
     trait.chart.utils.updatePathWithTrend = updatePathWithTrend
     trait.chart.utils.configFocus = configFocus
+    trait.chart.utils.minDistanceBetween = minDistanceBetween
+    trait.chart.utils.dataIndicesExtentForDomainExtent = dataIndicesExtentForDomainExtent
+
 
 }(d3, d3.trait));
 
@@ -2829,9 +3211,15 @@ trait.control.brush = _controlBrush
                     foci.forEach( function( item, index, array) {
                         //console.log( "foci: " + item.point.x + " distance: " + item.distance)
 
-                        var seriesIndex = _data.indexOf( item.series),
-                            ttip = cache.tooltips[ seriesIndex],
-                            formattedText = formatDate( _config.x1( item.item)) + " " + _config.y1(item.item)
+                        var formattedText,
+                          seriesIndex = _data.indexOf( item.series),
+                          ttip = cache.tooltips[ seriesIndex],
+                          xValue = formatDate( _config.x1( item.item) ),
+                          yValue = _config.y1(item.item )
+
+                        if( _config.formatY)
+                          yValue = _config.formatY( yValue)
+                        formattedText = xValue + " " + yValue
 
                         if( ! ttip) {
                             ttip = { newby: true}
@@ -2879,8 +3267,8 @@ trait.control.brush = _controlBrush
                         var calloutPointerHalfHeight = getCalloutPointerHalfHeight( item.rect.size.height)
                         var calloutPath = getCalloutPath( item.rect.size.width, item.rect.size.height, radius, calloutPointerHalfHeight, item.rect.anchor, offsetY)
 
-                        var textMargin = calloutPointerHalfHeight * 2 + margin,
-                            tx = item.rect.anchor.x < 0.5 ? textMargin : -item.rect.size.width - textMargin
+                        var textMargin = calloutPointerHalfHeight * 2 + margin + radius,
+                            tx = item.rect.anchor.x < 0.5 ? textMargin : -item.rect.size.width - margin - radius
 
                         ttip.text.attr ( 'transform', 'translate(' + tx + ',' + 0 + ')' )
 
@@ -3030,6 +3418,59 @@ trait.legend.series = _legendSeries
 
 (function (d3, trait) {
 
+    function minFromData( data, access, defaultValue) {
+        var min = d3.min( data, function(s) { return d3.min( access.series(s), access.data); })
+        if( ! min)
+            min = defaultValue ? defaultValue : 0
+        return min
+    }
+
+    function maxFromData( data, access, defaultValue) {
+        var max = d3.max( data, function(s) { return d3.max( access.series(s), access.data); })
+        if( ! max)
+            max = defaultValue ? defaultValue : 0
+        return max
+    }
+
+    /**
+     * Return the extent for all data in all series, example: [min, max] .
+     * If the data in each series is empty, return the supplied default or [0,1]
+     * if min === max, return [min-1, max+1]
+     *
+     * @param data     Multiple series of data
+     * @param access   Accessors {series: function, data: function}
+     * @param defaultValue A default in case there is no data otherwise [0,1] is returned
+     * @returns  The extent of all data in an array of the form [min,max]
+     */
+    function extentFromData( data, access, defaultValue) {
+        var extents, min, max
+
+        // Get array of extents for each series.
+        extents = data.map( function(s) { return d3.extent( access.series(s), access.data)})
+        min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
+        max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
+
+        if( ! min && ! max)
+            return defaultValue ? defaultValue : [0,1]
+
+        if( min === max) {
+            min -= 1
+            max += 1
+        }
+        return [min, max]
+    }
+
+    if( ! trait.utils)
+        trait.utils = {}
+
+    trait.utils.minFromData = minFromData
+    trait.utils.maxFromData = maxFromData
+    trait.utils.extentFromData = extentFromData
+
+}(d3, d3.trait));
+
+(function (d3, trait) {
+
 var TRACKING_NONE = "none"
 
 // Force domain to follow current wall-time (i.e. domain max = current time).
@@ -3084,7 +3525,7 @@ function makeDomainConfig( config) {
 }
 
 
-    /**
+/**
  * Return an object with interval and count or null
  *
  * { interval: d3.time.minute,
@@ -3101,23 +3542,6 @@ function makeIntervalFromConfig( config) {
             interval: config.interval,
             count: config.intervalCount || 1
         }
-}
-
-function minFromData( data, access) {
-    return d3.min( data, function(s) { return d3.min( access.series(s), access.data); })
-}
-function maxFromData( data, access) {
-    return d3.max( data, function(s) { return d3.max( access.series(s), access.data); })
-}
-function extentFromData( data, access) {
-    var extents, min, max
-
-    // Get array of extents for each series.
-    extents = data.map( function(s) { return d3.extent( access.series(s), access.data)})
-    min = d3.min( extents, function(e) { return e[0] }) // the minimums of each extent
-    max = d3.max( extents, function(e) { return e[1] }) // the maximums of each extent
-
-    return [min, max]
 }
 
 // trendDomain: { interval: d3.time.month, count: 1 }
@@ -3161,13 +3585,13 @@ function getDomainTrend( trend, data, access) {
             // tracking is domain-max or none. In either case, since a time interval
             // is specified, we'll do domain-max
             //
-            max = maxFromData( data, access)
+            max = trait.utils.maxFromData( data, access)
             min = getTrendMin( max, trend.domain)
             domain = [min, max]
 
         } else {
 
-            domain = extentFromData( data, access)
+            domain = trait.utils.extentFromData( data, access)
         }
     }
     return domain
@@ -3194,11 +3618,11 @@ function getDomain( domainConfig, data, access) {
     if( domainConfig.trend)
         domain = getDomainTrend( domainConfig, data, access)
     else if( domainConfig.domainMin != null)
-        domain = [domainConfig.domainMin, maxFromData( data, access)]
+        domain = [domainConfig.domainMin, trait.utils.maxFromData( data, access)]
     else if( domainConfig.domainMax != null)
-        domain = [minFromData( data, access), domainConfig.domainMax]
+        domain = [trait.utils.minFromData( data, access), domainConfig.domainMax]
     else
-        domain = extentFromData( data, access)
+        domain = trait.utils.extentFromData( data, access)
 
     return domain
 }
@@ -3250,7 +3674,7 @@ function updateScale( scale, range, domainConfig, data, access) {
                 // is specified, we'll do domain-max
                 //
 
-                max = maxFromData( data, access)
+                max = trait.utils.maxFromData( data, access)
 
                 // The scale is translated off to the left.
                 // Reset domain with oldMax to get rid of the part not visible.
@@ -3268,13 +3692,13 @@ function updateScale( scale, range, domainConfig, data, access) {
                 scale.range( [range[0], newRangeMax])
 
             } else {
-                dataDomain = extentFromData( data, access)
+                dataDomain = trait.utils.extentFromData( data, access)
                 scale.domain( dataDomain)
             }
         }
 
     } else {
-        dataDomain = extentFromData( data, access)
+        dataDomain = trait.utils.extentFromData( data, access)
         scale.domain( dataDomain)
     }
 
@@ -3339,7 +3763,7 @@ function _scaleTime( _super,  _config) {
             // TODO: nice overlaps wth interval. Maybe it's one or the other?
             if( _config.nice)
                 scale.nice( _config.nice) // start and end on month. Ex Jan 1 00:00 to Feb 1 00:00
-            scale.range( d3.trait.utils.getChartRange( self, scaleName))
+            scale.range( d3.trait.utils.getScaleRange( self, scaleName))
         })
     }
     scaleTime[scaleName] = function() {
@@ -3356,7 +3780,7 @@ function _scaleTime( _super,  _config) {
 
         // Reset the range to the physical chart coordinates. We'll use this range to
         // calculate newRangeMax below, then we'll extend the range to that.
-        var range = d3.trait.utils.getChartRange( _super, scaleName)
+        var range = d3.trait.utils.getScaleRange( _super, scaleName)
 
         updateScale( scale, range, domainConfig, filteredData, access)
 
@@ -3398,23 +3822,29 @@ function _scaleLinear( _super,  _config) {
             filteredData = _config.seriesFilter ? _data.filter( _config.seriesFilter) : _data
 
             scale.domain( getDomain( domainConfig, filteredData, access))
-            scale.range( d3.trait.utils.getChartRange( self, scaleName))
+            scale.range( d3.trait.utils.getScaleRange( self, scaleName))
 
         })
     }
     scaleLinear[scaleName] = function() {
         return scale;
     };
+    scaleLinear[scaleName + 'Domain'] = function( newDomain) {
+        domainConfig.domain = newDomain
+        scale.domain( newDomain)
+        // TODO: domain updated event?
+    }
     scaleLinear.update = function( type, duration) {
         this._super( type, duration)
-        var range = d3.trait.utils.getChartRange( _super, scaleName)
+        var range = d3.trait.utils.getScaleRange( _super, scaleName)
         updateScale( scale, range, domainConfig, filteredData, access)
 
         return this;
     };
 
 
-    _super.onChartResized( scaleName, scaleLinear)
+    _super.onChartResized( 'scaleLinear-' + scaleName, scaleLinear)
+    _super.onRangeMarginChanged( 'scaleLinear-' + scaleName, scaleLinear)
 
     return scaleLinear;
 }

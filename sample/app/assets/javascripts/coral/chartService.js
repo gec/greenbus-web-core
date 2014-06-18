@@ -107,7 +107,7 @@ define([
 
         chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3} )
 //            .trait( d3.trait.legend.series)
-          .trait( d3.trait.focus.tooltip )
+          .trait( d3.trait.focus.tooltip, {formatY: d3.format('.2f')})
 
         return chartTraits
       }
