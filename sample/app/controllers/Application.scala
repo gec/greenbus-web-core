@@ -49,12 +49,17 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 
   def index = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
+    Redirect( routes.Application.appsOperator)
   }
 
-  def analyst = AuthenticatedPageAction { (request, session) =>
-    Logger.debug( "Application.analyst")
-    Ok(views.html.analyst("Coral Sample"))
+  def appsOperator = AuthenticatedPageAction { (request, session) =>
+    Logger.debug( "Application.appsOperator")
+    Ok(views.html.operator("Coral Operator"))
+  }
+
+  def appsAdmin = AuthenticatedPageAction { (request, session) =>
+    Logger.debug( "Application.appsAdmin")
+    Ok(views.html.index("Coral Admin"))
   }
 
   def chart = AuthenticatedPageAction { (request, session) =>
@@ -69,8 +74,8 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     val navMenu = if( name.equals( "root")) {
 
       val applicationsMenu = List[NavigationElement](
-        NavigationItem( "Home", "home", "#/"),
-        NavigationItem( "Analyst", "analyst", "/apps/analyst/#/")
+        NavigationItem( "Operator", "operator", "/apps/operator/#/"),
+        NavigationItem( "Admin", "admin", "/apps/admin/#/")
       )
       val sessionMenu = List[NavigationElement](
         NavigationItem( "Logout", "logout", "#/logout")
@@ -109,7 +114,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
       NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
     )
   }
-  def coralMenusAnalysis = {
+  def coralMenusOperator = {
     val subMenus = List[NavigationElement](
       NavigationItemSource( "All Solar", "allsolar", "/measurements/allsolar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
       NavigationItemSource( "All Energy Storage", "allces", "/allces/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
@@ -129,7 +134,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 
     val navMenu = name match {
       case "admin" => coralMenusAdmin
-      case "analysis" => coralMenusAnalysis
+      case "operator" => coralMenusOperator
       case _ =>
         List[NavigationElement](
           NavigationHeader( "Unknown menu '" + name + "'")

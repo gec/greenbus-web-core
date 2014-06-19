@@ -1,6 +1,6 @@
 @(title: String)
 
-@main(title, routes.Assets.at("javascripts/analyst")) {
+@main(title, routes.Assets.at("javascripts/operator")) {
 <div class="statusBanner">
     <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
         <div class="statusBlock">
@@ -17,7 +17,7 @@
     <div class="row" style="margin-top: 60px;">
         <div class="col-md-2">
             <div class="well" style="background-color-: transparent">
-                <nav-tree href="/coral/menus/analysis">
+                <nav-tree href="/coral/menus/operator">
                     <abn-tree tree-data="navTree"
                     icon-expand       = "fa fa-caret-right"
                     icon-collapse     = "fa fa-caret-down"

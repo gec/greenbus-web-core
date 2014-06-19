@@ -81,7 +81,7 @@ define([
         $scope.userName = $cookies.userName
 
         $scope.getActiveClass = function( item) {
-            return ( item.route === $location.path()) ? "active" : ""
+            return ( $location.absUrl().indexOf( item.route) >= 0) ? "active" : ""
         }
 
         function onSuccess( json) {
