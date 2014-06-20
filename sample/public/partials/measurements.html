@@ -43,7 +43,6 @@
                     <th>Quality</th>
                     <th>Time</th>
                     <th>type</th>
-                    <th>ID</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,10 +64,9 @@
                     <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{point.currentMeasurement.value}}</td>
                     <td>{{point.unit}}</td>
-                    <td>{{point.currentMeasurement.shortQuality}}</td>
+                    <td style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
                     <td>{{ point.pointType }}</td>
-                    <td>{{ point.id }}</td>
                 </tr>
             </tbody>
         </table>

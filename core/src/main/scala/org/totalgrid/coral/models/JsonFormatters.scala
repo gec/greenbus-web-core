@@ -104,8 +104,10 @@ object JsonFormatters {
       case Quality.Validity.INVALID => "Invalid"
       case Quality.Validity.QUESTIONABLE => "Questionable"
     }
-
-    overall + " (" + list.reverse.mkString("; ") + ")"
+    if( list.isEmpty)
+      overall
+    else
+      overall + " (" + list.reverse.mkString(", ") + ")"
   }
 
 
@@ -292,6 +294,7 @@ object JsonFormatters {
         "type" -> o.getType.toString,
         "unit" -> o.getUnit,
         "time" -> o.getTime,
+        "validity" -> o.getQuality.getValidity.name,
         "shortQuality" -> shortQuality(o),
         "longQuality" -> longQuality(o)
       )

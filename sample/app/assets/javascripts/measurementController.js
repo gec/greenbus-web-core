@@ -418,7 +418,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
         value: "-",
         time: null,
         shortQuality: "-",
-        longQuality: "-"
+        longQuality: "-",
+        validity: "NOTLOADED"
       }
     $scope.points.forEach( function ( point ) {
       point.checked = CHECKMARK_UNCHECKED

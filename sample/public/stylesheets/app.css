@@ -5,6 +5,11 @@
     color: #999999;
 }
 
+.validity-good {color: #9de09d; font-size:1.4em;}
+.validity-invalid {color: #b22222; font-size:1.4em;}
+.validity-questionable {color: #f57900; font-size:1.4em;}
+.validity-notloaded {font-size:1.4em;}
+
 .coral-comms-enabled-up {color: green}
 .coral-comms-enabled-down {color: #b22222}
 .coral-comms-enabled-error {color: #b22222}

@@ -186,6 +186,18 @@ angular.module('ReefAdmin.filters', []).
         // Search each element in the 'objects' array for key values containing searchText
         return window.encodeURI
     }).
+    filter('validityIcon', function() {
+        return function(validity) {
+            switch( validity) {
+                case "GOOD": return "glyphicon glyphicon-ok validity-good";
+                case "QUESTIONABLE": return "glyphicon glyphicon-question-sign validity-questionable";
+                case "NOTLOADED": return "validity-notloaded"
+                case "INVALID":
+                default:
+                  return "glyphicon glyphicon-exclamation-sign validity-invalid";
+            }
+        };
+    }).
     filter('pointTypeImage', function() {
         return function(type, unit) {
             var image
