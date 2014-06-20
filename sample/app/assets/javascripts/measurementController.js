@@ -43,6 +43,12 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   $scope.checkAllState = CHECKMARK_UNCHECKED
   $scope.checkCount = 0
   $scope.charts = []
+
+  // Search
+  $scope.searchText = ""
+  $scope.sortColumn = "name"
+  $scope.reverse = false
+
   var navId = $routeParams.navId,
       depth = coralRest.queryParameterFromArrayOrString( "depth", $routeParams.depth ),
     equipmentIdsQueryParams = coralRest.queryParameterFromArrayOrString( "equipmentIds", $routeParams.equipmentIds )

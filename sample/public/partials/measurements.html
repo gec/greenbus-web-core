@@ -7,7 +7,7 @@
             <h2>Measurements</h2>
         </div>
         <div class="col-md-7" style="margin-top: 12px;">
-            <input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;margin-top: 5px;margin-left:20px;">
+            <input type="text"  class="form-control input-lg" placeholder="search any column" ng-model="searchText" style="height: 100%;">
             <!--<button class="btn btn-info" ng-click="search()" style="height: 100%; width: 60px; margin-bottom: 10px;"><i class="glyphicon glyphicon-search icon-white"></i></button>-->
         </div>
     </div>
@@ -47,7 +47,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="point in points">
+                <tr ng-repeat="point in points | filter:searchText | orderBy:sortColumn">
                     <td>
                         <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                             <div ng-class="point.checked | checkboxClass"></div>
