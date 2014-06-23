@@ -45,6 +45,16 @@ class Timer( var name: String, loggerType: Timer.LogType = Timer.TRACE) {
     log( f"Timer.$name   total:${now-timeStart}%4d  delta:${now-timeLast}%4d $message")
     timeLast = now
   }
+
+  /**
+   * The timer has ended with an error. Log the end time as an error.
+   * @param message The message to log.
+   */
+  def error( message: String) = {
+    val now  = System.currentTimeMillis
+    Logger.error( f"Timer.$name   total:${now-timeStart}%4d  delta:${now-timeLast}%4d $message")
+    timeLast = now
+  }
 }
 
 
