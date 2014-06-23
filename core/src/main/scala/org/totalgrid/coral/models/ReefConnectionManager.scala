@@ -42,6 +42,7 @@ import java.util.UUID
 import org.totalgrid.coral.util.Timer
 import akka.pattern.AskTimeoutException
 import org.totalgrid.coral.reefpolyfill.{FrontEndServicePF, FrontEndService}
+import java.util.concurrent.TimeoutException
 
 
 object ReefConnectionManager {
@@ -137,24 +138,33 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
   }
 
   def login( userName: String, password: String) = {
+    val savedSender = sender
 
-    val (status, session) = loginReefSession( userName, password)
+    val future = loginReefSession( userName, password)
+    future onSuccess{
+      case (status, session) =>
+        if( status == UP & session.isDefined) {
 
-    if( status == UP & session.isDefined) {
+          session.get.headers.get( ReefConnection.tokenHeader) match {
+            case Some( authToken) =>
+              //authTokenToSession += ( authToken -> session.get )
+              Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
+              savedSender ! authToken
+            case None =>
+              //TODO: Reset the status
+              Logger.debug( "ReefConnectionManager.login failure because of missing AuthToken from Session: ")
+              savedSender ! AuthenticationFailure( REEF_FAILURE)
+          }
+        } else {
+          Logger.debug( "ReefConnectionManager.login failure: " + status)
+          savedSender ! AuthenticationFailure( status)
+        }
+    }
 
-      session.get.headers.get( ReefConnection.tokenHeader) match {
-        case Some( authToken) =>
-          //authTokenToSession += ( authToken -> session.get )
-          Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
-          sender ! authToken
-        case None =>
-          //TODO: Reset the status
-          Logger.debug( "ReefConnectionManager.login failure because of missing AuthToken from Session: ")
-          sender ! AuthenticationFailure( REEF_FAILURE)
-      }
-    } else {
-      Logger.debug( "ReefConnectionManager.login failure: " + status)
-      sender ! AuthenticationFailure( status)
+    future onFailure {
+      case ex: AnyRef =>
+        Logger.error( "Error logging into Reef. Exception: " + ex)
+        savedSender ! AuthenticationFailure( REEF_FAILURE)
     }
   }
 
@@ -355,28 +365,51 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     }
   }
 
-  private def loginReefSession( userName: String, password: String) : (ConnectionStatus, Option[Session]) = {
+  private def loginReefSession( userName: String, password: String) : Future[(ConnectionStatus, Option[Session])] = {
 
-    if( connectionStatus != AMQP_UP)
-      return (connectionStatus, None)
+    val timer = new Timer( "loginReefSession", Timer.INFO)
+
+    if( connectionStatus != AMQP_UP) {
+      timer.end( s"connectionStatus != AMQP_UP, connectionStatus = $connectionStatus")
+      return Future.successful( (connectionStatus, None))
+    }
 
     // Set the client by sending a message to ReefClientActor
     try {
       Logger.info( "Logging into Reef")
-      val sessionFromLogin = Await.result( connection.get.login( userName, password), 5000.milliseconds)
-      ( UP, Some[Session](sessionFromLogin))
-    } catch {
-      case ex: UnauthorizedException => {
-        Logger.error( "Error logging into Reef. Exception: " + ex)
-        ( AUTHENTICATION_FAILURE, None)
+      val future = connection.get.login( userName, password)
+
+      future.map {
+        case sessionFromLogin =>
+          timer.end( s"Got login session from Reef")
+          ( UP, Some[Session](sessionFromLogin))
+      } recover {
+        case ex: UnauthorizedException =>
+          // Normal path for unauthorized.
+          timer.end( s"Login unauthorized: Exception: $ex")
+          ( AUTHENTICATION_FAILURE, None)
+        case ex: BadRequestException =>
+          timer.error( s"Login returned BadRequestException: Exception: $ex")
+          ( AUTHENTICATION_FAILURE, None)
+        case ex: ReefServiceException =>
+          timer.error( s"Login returned ReefServiceException: Exception: $ex")
+          ( REEF_FAILURE, None)
+        case ex: TimeoutException =>
+          timer.error( s"Login failed with TimeoutException: $ex")
+          ( REEF_FAILURE, None)
+        case ex: AnyRef =>
+          timer.error( s"Login returned AnyRef: $ex")
+          ( REEF_FAILURE, None)
       }
+
+    } catch {
       case ex: ReefServiceException => {
-        Logger.error( "Error logging into Reef. Exception: " + ex)
-        ( REEF_FAILURE, None)
+        timer.error( s"Login returned ReefServiceException: Catch Exception: $ex")
+        Future.successful( ( REEF_FAILURE, None))
       }
       case ex: Throwable => {
-        Logger.error( "Error logging into Reef. Exception: " + ex)
-        ( REEF_FAILURE, None)
+        timer.error( s"Login Catch AnyRef: $ex")
+        Future.successful( ( REEF_FAILURE, None))
       }
     }
 
