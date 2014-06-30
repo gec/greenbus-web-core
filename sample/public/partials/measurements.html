@@ -33,7 +33,7 @@
                                 <div ng-class="checkAllState | checkboxClass"></div>
                             </div>
                         </button>
-                        <button class="btn btn-default text-muted" ng-click="chartAdd(-1)" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
+                        <button class="btn btn-default text-muted" ng-click="chartAddSelectedPoints()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
 
                     </th>
                     <!--<th>Name</th>-->
@@ -61,7 +61,7 @@
                             {{point.name}}
                         </div>
                     </td>
-                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td style="text-align: right"><a href="" ng-click="chartAddPointById(point.id)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{point.currentMeasurement.value}}</td>
                     <td>{{point.unit}}</td>
                     <td style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>

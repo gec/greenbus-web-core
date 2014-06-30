@@ -215,19 +215,20 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     meas.unsubscribeToMeasurementHistory( point, chart )
   }
 
-  $scope.chartAdd = function ( index ) {
-    var points = []
+  $scope.chartAddPointById = function( id) {
+    var point = findPoint( id)
 
-    if( index < 0 ) {
-      // Add all measurements that are checked
-      points = $scope.points.filter( function ( m ) {
-        return m.checked === CHECKMARK_CHECKED
-      } )
+    if( point )
+      coralRequest.push( 'coral.request.addChart', [point])
+    else
+      console.error( 'Can\'t find point by id: ' + id)
+  }
 
-    } else {
-      // Add one measurement
-      points.push( $scope.points[ index] )
-    }
+  $scope.chartAddSelectedPoints = function() {
+    // Add all measurements that are checked
+    var points = $scope.points.filter( function ( m ) {
+      return m.checked === CHECKMARK_CHECKED
+    } )
 
     if( points.length > 0 ) {
       coralRequest.push( 'coral.request.addChart', points)
