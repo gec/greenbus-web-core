@@ -82,7 +82,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
       )
 
       List[NavigationElement](
-        NavigationItem( "Coral", "applications", "#/", children = applicationsMenu),
+        NavigationItem( "Dashboard", "applications", "#/", children = applicationsMenu),
         NavigationItem( "", "session", "", children = sessionMenu)
       )
     } else {
