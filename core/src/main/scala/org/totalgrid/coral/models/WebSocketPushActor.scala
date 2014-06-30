@@ -439,7 +439,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   private def cancelSubscription( id: String) = {
     Logger.info( "WebSocketPushActor receive Unsubscribe " + id)
     subscriptionIdsMap.get(id) foreach{ subscription =>
-//TODO:      subscription.cancel()
+      Logger.info( "WebSocketPushActor canceling subscription " + id)
+      subscription.cancel()
       subscriptionIdsMap = subscriptionIdsMap - id
     }
   }

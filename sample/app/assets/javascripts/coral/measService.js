@@ -67,7 +67,7 @@ define([
          * @param subscriber
          */
         self.unsubscribeToMeasurementHistory = function ( point, subscriber) {
-            console.log( "meas.subscribeToMeasurementHistory " );
+            console.log( "meas.unsubscribeToMeasurementHistory " );
 
             var measurementHistory = pointMeasurements[ point.id]
             if( measurementHistory)
