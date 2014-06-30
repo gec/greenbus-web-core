@@ -310,6 +310,37 @@
     background-image: url('../images/standby24x36.png');
 }
 
+.coral-table-2header > thead > tr > th {
+    border-bottom: 2px solid #ddd;
+    border-top: none;
+    padding-top: 0;
+}
+.coral-table-2header > thead > tr:first-child > th {
+    border-bottom: none;
+    padding-bottom: 0;
+    padding-top: 5px;
+}
+.coral-table-2header > thead > tr:first-child > th.coral-cell-highlight-top {
+    border-top: 2px solid #ddd;
+    text-align: center;
+    /*background-color: #eee;*/
+}
+.coral-cell-highlight-top {
+    border-radius: 15px 15px 0 0;
+    border-top: 2px solid #ddd;
+    border-right: 2px solid #ddd;
+    border-left: 2px solid #ddd;
+}
+.coral-cell-highlight {
+    background-color: #eff;
+}
+.coral-cell-highlight-left {
+    border-left: 2px solid #ddd;
+}
+.coral-cell-highlight-right {
+    border-right: 2px solid #ddd;
+}
+
 /*
 .reef-icon-charging {
     display: inline-block;

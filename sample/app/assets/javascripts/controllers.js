@@ -341,7 +341,8 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
             case "%SOC":
                 value = formatNumberNoDecimal( value);
                 break;
-            case "Capacity":
+            case "CapacityEnergy":
+            case "CapacityPower":
                 value = formatNumberValue( value) + " " + info.unit;
                 break;
             case "Charging":
@@ -407,7 +408,8 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
     function makeCes( eq) {
         return {
             name: eq.name,
-            Capacity: "",
+            CapacityEnergy: "",
+            CapacityPower: "",
             Standby: "",
             Charging: "",
             "%SOC": "",
@@ -417,7 +419,7 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
         }
     }
 
-    var POINT_TYPES =  ["%SOC", "Charging", "Standby", "Capacity"]
+    var POINT_TYPES =  ["%SOC", "Charging", "Standby", "CapacityEnergy", "CapacityPower"]
     function getInterestingType( types) {
         for( var index = types.length-1; index >= 0; index--) {
             var typ = types[index]
@@ -425,7 +427,9 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
                 case "%SOC":
                 case "Charging":
                 case "Standby":
-                case "Capacity":
+//                case "Capacity":
+                case "CapacityPower": // kW
+                case "CapacityEnergy": // kWh
                     return typ
                 default:
             }
@@ -469,7 +473,7 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
                     {
                         "name": "MG1.CES1.CapacitykWh",
                         "id": "585b3e36-1826-4d7b-b538-d2bb71451d76",
-                        "types": ["Capacity", "Point"]
+                        "types": ["CapacityEnergy", "Point"]
                     },
                     {
                         "name": "MG1.CES1.ChgDischgRate",
