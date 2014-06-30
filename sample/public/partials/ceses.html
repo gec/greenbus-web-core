@@ -18,26 +18,24 @@
             <thead>
                 <tr>
                     <th></th>
-                    <th colspan="2" class="coral-cell-highlight coral-cell-highlight-top">Nameplate Capacity</a></th>
-                    <th style="padding-left: 16px;">Charge / Discharge</th>
+                    <th>Charge / Discharge</th>
                     <th colspan="3"></th>
+                    <th colspan="2" class="coral-cell-highlight coral-cell-highlight-top">Nameplate Capacity</a></th>
                 </tr>
                 <tr>
                     <th><a href="" ng-click="sortColumn = 'name'; reverse=!reverse">Device Name</a></th>
-                    <th class="coral-cell-highlight coral-cell-highlight-left"><a href="" ng-click="sortColumn = 'CapacityPower'; reverse=!reverse">Power</a></th>
-                    <th class="coral-cell-highlight coral-cell-highlight-right"><a href="" ng-click="sortColumn = 'CapacityEnergy'; reverse=!reverse">Energy</a></th>
-                    <th style="padding-left: 16px;">Rate</th>
+                    <th>Rate</th>
                     <th><a href="" ng-click="sortColumn = 'state'; reverse=!reverse">State</a></th>
                     <th title="State of Charge %" style="text-align: center">SOC %</th>
                     <th></th>
+                    <th class="coral-cell-highlight coral-cell-highlight-left"><a href="" ng-click="sortColumn = 'CapacityPower'; reverse=!reverse">Power</a></th>
+                    <th class="coral-cell-highlight coral-cell-highlight-right"><a href="" ng-click="sortColumn = 'CapacityEnergy'; reverse=!reverse">Energy</a></th>
                 </tr>
             </thead>
             <tbody>
                 <tr ng-repeat="ces in ceses | filter:searchText | orderBy:sortColumn:reverse">
                     <td>{{ces.name}}</td>
-                    <td class="coral-cell-highlight coral-cell-highlight-left">{{ces.CapacityPower}}</td>
-                    <td class="coral-cell-highlight coral-cell-highlight-right">{{ces.CapacityEnergy}}</td>
-                    <td style="padding-left: 16px;">{{ces.Charging}}</td>
+                    <td>{{ces.Charging}}</td>
                     <td><img class="ces-state-icon" src="{{ces.state | essStateIcon}}" title="{{ces.state | essStateDescription}}" style="margin-top:2px"/></td>
                     <td style="width: 60px">
                         <div class="battery-wrapper" title="{{ces.state | essStateDescription}}" >
@@ -49,6 +47,8 @@
                         </div>
                     </td>
                     <td>{{ces['%SOC']}}%</td>
+                    <td class="coral-cell-highlight coral-cell-highlight-left">{{ces.CapacityPower}}</td>
+                    <td class="coral-cell-highlight coral-cell-highlight-right">{{ces.CapacityEnergy}}</td>
                 </tr>
             </tbody>
         </table>
