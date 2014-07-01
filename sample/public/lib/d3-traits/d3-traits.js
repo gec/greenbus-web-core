@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-06-18
+/*! d3-traits - v0.0.1 - 2014-07-01
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function (d3) {
@@ -1251,9 +1251,28 @@ d3.trait.utils = {
                     .attr( "d", function( d) {
                         return "M0,0L" + scaleForUpdate(d) + ",0";
                     })
-                lastDomainMax = d3.trait.utils.extentMax( domain)
+
+                if( d3.trait.utils.isData( _data, _config.seriesData))
+                  lastDomainMax = d3.trait.utils.extentMax( domain)
 
             })
+        }
+
+        function getScaleForUpdate() {
+
+          // |<------- scale ------>|
+          //   |<--scaleForUpdate-->|
+          var domain = scale.domain() // original scale
+          var domainMin = d3.trait.utils.extentMin( domain)
+          var domainMax = d3.trait.utils.extentMax( domain)
+          if( lastDomainMax) {
+            var lastDomainMaxTime = lastDomainMax.getTime()
+            if( lastDomainMaxTime > domainMin.getTime()) {
+              var delta = domainMax.getTime() - lastDomainMaxTime
+              domainMin = new Date( domainMin.getTime() + delta )
+            }
+          }
+          return [domainMin, domainMax]
         }
 
         axisMonth.update = function( type, duration) {
@@ -1261,12 +1280,9 @@ d3.trait.utils = {
 
             scaleForUpdate.range( d3.trait.utils.getScaleRange( _super, c.name))
 
-            var domain = scale.domain() // original scale
-            var domainMax = d3.trait.utils.extentMax( domain)
-            var delta = domainMax.getTime() - lastDomainMax.getTime()
-            var min = new Date( domain[0].getTime() + delta)
-            scaleForUpdate.domain( [min, domainMax])
-            lastDomainMax = domainMax
+            var domainForUpdate = getScaleForUpdate()
+            scaleForUpdate.domain( domainForUpdate)
+            lastDomainMax = d3.trait.utils.extentMax( domainForUpdate)
 
             // slide the x-axis left for trends
             if( duration === 0) {
@@ -2560,7 +2576,10 @@ function _chartLine( _super, _config) {
                 .style({opacity: 0})
                 .remove();
 
-            lastDomainMax = d3.trait.utils.extentMax( x1.domain())
+            // Leave lastDomainMax == undefined if chart starts with no data.
+
+            if( d3.trait.utils.isData( filteredData, _config.seriesData))
+                lastDomainMax = d3.trait.utils.extentMax( x1.domain())
         })
     }
 
@@ -2860,6 +2879,30 @@ trait.chart.line = _chartLine
 
 (function (d3, trait) {
 
+    function rangeTranslate(  lastDomainMax, domain, scale) {
+      if( ! lastDomainMax)
+        return 0
+
+      //   |<-------- range ------->|
+      //      |<-- visible range -->|
+
+      var domainMax = d3.trait.utils.extentMax( domain)
+      var domainMin = d3.trait.utils.extentMin( domain)
+
+      var lastRangeMax =  scale(lastDomainMax)
+      var rangeMin = scale( domainMin)
+      if( lastRangeMax < rangeMin)
+        return 0
+      else
+        return lastRangeMax - scale( domainMax)
+    }
+
+    function simplePathRedraw( series, attrD) {
+      series.selectAll("path")
+        .attr("d", attrD)
+        .attr("transform", null)
+    }
+
     /**
      * Update the paths with current data and scale. If trending, slide the new
      * data onto the chart from the right.
@@ -2868,7 +2911,7 @@ trait.chart.line = _chartLine
      * @param duration If available, the duration for the update in millisecods
      * @param scale
      * @param series The series list to update.
-     * @param lastDomainMax
+     * @param lastDomainMax Domain max from last trend update. Can be undefined if chart starts with no data.
      * @returns domainMax
      */
     function updatePathWithTrend( type, duration, scale, series, attrD, lastDomainMax) {
@@ -2876,29 +2919,35 @@ trait.chart.line = _chartLine
         // TODO: The scale.range() needs to be wider, so we draw the new line off the right
         // then translate it to the left with a transition animation.
 
-        var domainMax = d3.trait.utils.extentMax( scale.domain())
+        var domain = scale.domain()
+        var domainMax = d3.trait.utils.extentMax( domain)
 
-        // redraw the line and no transform
         if( type === "trend") {
-            var translateX = scale(lastDomainMax) - scale( domainMax)
 
-            series.attr( "transform", null)
-            series.selectAll("path")
-                .attr("d", attrD)
+            var translateX = rangeTranslate( lastDomainMax, domain, scale)
 
-            // slide the line left
-            if( duration === 0 || !duration) {
-                series.attr("transform", "translate(" + translateX + ")")
-            } else {
-                series.transition()
-                    .duration( duration)
-                    .ease("linear")
-                    .attr("transform", "translate(" + translateX + ")")
-                //.each("end", tick);
+            if( translateX !== 0) {
+
+              series.attr( "transform", null)
+              series.selectAll("path")
+                  .attr("d", attrD)
+
+              // slide the line left
+              if( duration === 0 || !duration) {
+                  series.attr("transform", "translate(" + translateX + ")")
+              } else {
+                  series.transition()
+                      .duration( duration)
+                      .ease("linear")
+                      .attr("transform", "translate(" + translateX + ")")
+                  //.each("end", tick);
+              }
+            }  else {
+              simplePathRedraw( series, attrD)
             }
+
         } else {
-            series.selectAll("path")
-                .attr("d", attrD)
+          simplePathRedraw( series, attrD)
         }
 
         return domainMax
@@ -3171,12 +3220,7 @@ trait.control.brush = _controlBrush
      * For example a line chart with two series can return two times.
      *
      * Configure
-     *  Closest x & y
-     *  Closest in x
-     *  Point within distance. Distance can be in domain or range.
-     *
-     *  distance: 6  -- x & y range
-     *  axis: 'x'
+     *  formatY -- d3.format function.
      */
     function _tooltip( _super, _config, _id) {
 
