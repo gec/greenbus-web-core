@@ -68,7 +68,10 @@ define([
 
         unitMapKeys.forEach( function ( key, index ) {
           axis = 'y' + (index + 1)
-          config[axis] = function ( d ) { return d.value; }
+          if( key === 'raw')
+            config[axis] = function ( d ) { return d.value ? 1 : 0; }
+          else
+            config[axis] = function ( d ) { return d.value; }
         })
         return config
       }
@@ -100,8 +103,9 @@ define([
             },
             orient = index === 0 ? 'left' : 'right'
 
+          var interpolate = unit === 'raw' ? 'step-after' : 'linear'
           chartTraits = chartTraits.trait( d3.trait.scale.linear, { axis: axis, seriesFilter: filter, unit: unit } )
-            .trait( d3.trait.chart.line, { interpolate: "linear", seriesFilter: filter, yAxis: axis} )
+            .trait( d3.trait.chart.line, { interpolate: interpolate, seriesFilter: filter, yAxis: axis} )
             .trait( d3.trait.axis.linear, { axis: axis, orient: orient, extentTicks: true, label: unit} )
         })
 

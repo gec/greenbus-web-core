@@ -23,6 +23,8 @@ define( 'coral/MeasurementHistory',
 ], function() {
     'use strict';
 
+    var regexTrue = new RegExp('^true$', 'i');  // case insensitive
+
     /**
      * Manage one subscription for a single point which may have multiple subscribers.
      * Update the subscribers associated with this point when new measurements come in.
@@ -36,6 +38,7 @@ define( 'coral/MeasurementHistory',
         this.subscriptionId = null
         this.subscribers = [] // {subscriber:, notify:} -- subscribers that display this point
         this.measurements = []
+
     }
 
     MeasurementHistory.prototype.subscribe = function( scope, timeFrom, limit, subscriber, notify) {
@@ -109,17 +112,23 @@ define( 'coral/MeasurementHistory',
     }
 
     MeasurementHistory.prototype.onMeasurement = function( measurement) {
+        measurement.time = new Date( measurement.time)
+        if( measurement.type === "BOOL") {
 
-        var value = parseFloat( measurement.value)
-        if( ! isNaN( value)) {
-            measurement.value = value
-            measurement.time = new Date( measurement.time)
-            //console.log( "onMeasurement measurements " + this.point.name + " " + measurement.time + " " + measurement.value)
-//            this.point.measurements.push( measurement)
-            this.measurements.push( measurement)
+          measurement.value = regexTrue.test( measurement.value)
+
         } else {
+
+          var value = parseFloat( measurement.value)
+          if( ! isNaN( value)) {
+            measurement.value = value
+            //console.log( "onMeasurement measurements " + this.point.name + " " + measurement.time + " " + measurement.value)
+          } else {
             console.error( "onMeasurement " + this.point.name + " time=" + measurement.time + " value='" + measurement.value + "' -- value is not a number.")
+            return
+          }
         }
+        this.measurements.push( measurement)
     }
 
     MeasurementHistory.prototype.notifySubscribers = function() {
