@@ -214,7 +214,11 @@ define([
                 default:
             }
 
-            var name = parent ? stripParentName( entity.name, parent.name) : entity.name
+            var name = entity.name
+            if( entity.parentName)
+              name = stripParentName( name, entity.parentName)
+            else if( parent)
+              name = stripParentName( name, parent.parentName)
 
             return {
                 label: name,
@@ -236,9 +240,9 @@ define([
             return ra
         }
 
-        self.getTreeNodes = function( sourceUrl, scope, successListener) {
+        self.getTreeNodes = function( sourceUrl, scope, parent, successListener) {
             coralRest.get( sourceUrl, null, scope, function( entityWithChildrenList) {
-                var treeNodes = entityChildrenListToTreeNodes( entityWithChildrenList)
+                var treeNodes = entityChildrenListToTreeNodes( entityWithChildrenList, parent)
                 successListener( treeNodes)
             })
         }
@@ -307,7 +311,7 @@ define([
         }
 
         function loadTreeNodesFromSource( parentTree, index, child) {
-            coralNav.getTreeNodes( child.sourceUrl, $scope, function( newTreeNodes) {
+            coralNav.getTreeNodes( child.sourceUrl, $scope, child, function( newTreeNodes) {
                 switch( child.insertLocation) {
                     case "CHILDREN":
                         // Insert the resultant children before any existing static children.
@@ -372,6 +376,7 @@ define([
                             sourceUrl = child.sourceUrl
                         child.id = child.id + '.' + node.id
                         child.route = child.route + '.' + node.id;
+                        child.parentName = node.label
                         // The child is a copy. We need to put it in the cache.
                         // TODO: We need better coordination with coralNav. This works, but I think it's a kludge
                         // TODO: We didn't remove the old treeNode from the cache. It might even have a listener that will fire.
