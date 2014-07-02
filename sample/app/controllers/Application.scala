@@ -116,14 +116,15 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
   }
   def coralMenusOperator = {
     val subMenus = List[NavigationElement](
-      NavigationItemSource( "All Solar", "allsolar", "/measurements/allsolar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
-      NavigationItemSource( "All Energy Storage", "allces", "/allces/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
-      NavigationItemSource( "All Generator", "allgenerator", "/measurements/allgenerator", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", CHILDREN),
-      NavigationItemSource( "All Load", "allload", "/measurements/allload", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", CHILDREN)
+      NavigationItemSource( "Equipment", "equipment", "/measurements/equipment", "/models/1/equipment/$parent/descendants?depth=1", CHILDREN),
+      NavigationItemSource( "Solar", "solar", "/measurements/solar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
+      NavigationItemSource( "Energy Storage", "ceses", "/ceses/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
+      NavigationItemSource( "Generator", "generator", "/measurements/generator", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", CHILDREN),
+      NavigationItemSource( "Load", "load", "/measurements/load", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", CHILDREN)
     )
     List[NavigationElement](
 //      NavigationItem( "Dashboard", "dashboard", "#/dashboard"),
-      NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=3&rootTypes=Root", REPLACE, selected=true, children=subMenus),
+      NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=1&rootTypes=Root", REPLACE, selected=true, children=subMenus),
       NavigationItem( "Endpoints", "endpoints", "/endpoints"),
       NavigationItem( "Events", "events", "/events"),
       NavigationItem( "Alarms", "alarms", "/alarms")

@@ -185,8 +185,14 @@ define([
                 return ContainerType.EquipmentLeaf
         }
 
+        function stripParentName( childName, parentName) {
+          if( parentName && childName.lastIndexOf(parentName, 0) === 0)
+            return childName.substr( parentName.length + 1) // plus 1 for the dot delimeter
+          else
+            return childName
+        }
 
-        function entityToTreeNode( entityWithChildren) {
+        function entityToTreeNode( entityWithChildren, parent) {
             // Could be a simple entity.
             var entity = entityWithChildren.entity || entityWithChildren
 
@@ -208,20 +214,22 @@ define([
                 default:
             }
 
+            var name = parent ? stripParentName( entity.name, parent.name) : entity.name
+
             return {
-                label: entity.name,
+                label: name,
                 id: entity.id,
                 type: 'item',
                 types: entity.types,
                 containerType: containerType,
                 route: route,
-                children: entityWithChildren.children ? entityChildrenListToTreeNodes( entityWithChildren.children) : []
+                children: entityWithChildren.children ? entityChildrenListToTreeNodes( entityWithChildren.children, entity) : []
             }
         }
-        function entityChildrenListToTreeNodes( entityWithChildrenList) {
+        function entityChildrenListToTreeNodes( entityWithChildrenList, parent) {
             var ra = []
             entityWithChildrenList.forEach( function( entityWithChildren) {
-                var treeNode = entityToTreeNode( entityWithChildren)
+                var treeNode = entityToTreeNode( entityWithChildren, parent)
                 ra.push( treeNode)
                 equipmentIdToTreeNodeCache.put( treeNode.id, treeNode)
             })
@@ -315,6 +323,14 @@ define([
 
         }
 
+        function safeCopy( o) {
+          var clone = angular.copy( o);
+          // Angular adds uid to all objects. uid cannot be a duplicate.
+          // Angular will generate a uid for this object on next digest.
+          delete clone.uid;
+          return clone
+        }
+
         /**
          * Replace parentTree[index] with newTreeNodes, but copy any current children and insert them
          * after the new tree's children.
@@ -352,10 +368,10 @@ define([
                 if( oldChildren && oldChildren.length > 0) {
                     var i2
                     for( i2 = 0; i2 < oldChildren.length; i2++) {
-                        var child = angular.copy( oldChildren[i2] ),
+                        var child = safeCopy( oldChildren[i2] ),
                             sourceUrl = child.sourceUrl
                         child.id = child.id + '.' + node.id
-                        child.route = child.route + '.' + node.id
+                        child.route = child.route + '.' + node.id;
                         // The child is a copy. We need to put it in the cache.
                         // TODO: We need better coordination with coralNav. This works, but I think it's a kludge
                         // TODO: We didn't remove the old treeNode from the cache. It might even have a listener that will fire.

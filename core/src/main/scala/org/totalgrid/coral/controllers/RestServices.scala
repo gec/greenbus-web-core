@@ -187,11 +187,16 @@ trait RestServices extends ReefAuthentication {
       val idToEntityWithChildrenMap = toIdToEntityWithChildrenMap( entities)
       val rootEntitiesWithChildren = idToEntityWithChildrenMap.values.toSeq
 
-      val f = getChildTreeBreadthFirst( service, rootEntitiesWithChildren, idToEntityWithChildrenMap, 1, depth)
-      f.map { rootEntities =>
-        logTree( "Final1 ", rootEntities, 1)
-        logTree( "Final2 ", rootEntitiesWithChildren, 1)
-        Ok( Json.toJson( rootEntitiesWithChildren))
+      if( depth > 1) {
+
+        val f = getChildTreeBreadthFirst( service, rootEntitiesWithChildren, idToEntityWithChildrenMap, 1, depth)
+        f.map { rootEntities =>
+          logTree( "Final1 ", rootEntities, 1)
+          logTree( "Final2 ", rootEntitiesWithChildren, 1)
+          Ok( Json.toJson( rootEntitiesWithChildren))
+        }
+      } else {
+        Future.successful( Ok( Json.toJson( rootEntitiesWithChildren)))
       }
 
 //      f.onSuccess {

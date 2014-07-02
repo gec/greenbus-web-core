@@ -90,7 +90,7 @@ define([
           when('/measurements', {templateUrl: '/partials/measurements.html', controller: 'MeasurementControl'}).
           when('/measurements/:navId', {templateUrl: '/partials/measurements.html', controller: 'MeasurementControl'}).
           when('/chart', {templateUrl: '/partials/chart.html', controller: 'ChartControl'}).
-          when('/allces/:id', {templateUrl: '/partials/ceses.html', controller: 'CesesControl'}).
+          when('/ceses/:id', {templateUrl: '/partials/ceses.html', controller: 'CesesControl'}).
           when('/entities', {templateUrl: '/partials/entities.html', controller: 'EntityControl'}).
           when('/entities/:id/:name', {templateUrl: '/partials/entitydetail.html', controller: 'EntityDetailControl'}).
           when('/points', {templateUrl: '/partials/points.html', controller: 'PointControl'}).
