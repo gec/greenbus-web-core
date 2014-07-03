@@ -426,10 +426,10 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       point.checked = CHECKMARK_UNCHECKED
       point.currentMeasurement = currentMeasurement
       pointIds.push( point.id )
-      if( !point.pointType || !point.unit )
-        console.error( "------------- point: " + point.name + " point.pointType '" + point.pointType + "' or point.unit '" + point.unit + "' is empty or null." )
-      if( !point.unit )
-        point.unit = 'raw'
+      if( typeof point.pointType !== 'string')
+        console.error( "------------- point: " + point.name + " point.pointType '" + point.pointType + "' is empty or null." )
+      if( typeof point.unit !== 'string')
+        point.unit = ''
 
     })
     return pointIds

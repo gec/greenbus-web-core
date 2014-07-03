@@ -111,12 +111,25 @@ define( 'coral/MeasurementHistory',
         this.notifySubscribers()
     }
 
+    var ValueMap = {
+
+      Normal: 0,    Alarm: 1,
+      Disabled: 0,  Enabled: 1,
+      Open: 0,      Closed: 1,
+      Stop: 0,      Automatic: 1, Manual: 2,
+      Inactive: 0,  Active: 1,
+      Charging: 0,  Discharging: 1, Standby: 2, Smoothing: 3, VAr: 4, Peak: 5  // 'VAr Control', 'Peak Shaving'
+    }
     MeasurementHistory.prototype.onMeasurement = function( measurement) {
         measurement.time = new Date( measurement.time)
         if( measurement.type === "BOOL") {
 
-          measurement.value = regexTrue.test( measurement.value)
+          measurement.value = regexTrue.test( measurement.value) ? 1 : 0
 
+        } else if( measurement.type  === "STRING") {
+          var firstWord = measurement.value.split( ' ')[0]
+          if( ValueMap.hasOwnProperty( firstWord))
+            measurement.value = ValueMap[firstWord]
         } else {
 
           var value = parseFloat( measurement.value)

@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-07-01
+/*! d3-traits - v0.0.1 - 2014-07-03
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function (d3) {
@@ -219,6 +219,7 @@ function Trait( _trait, _config, _super) {
     self.config = _config
     self._super = _super
     self.index = -1
+    self.__leafTrait = null
 
 
     function makeTraitId( name, index) { return "_" + name + "_" + index }
@@ -243,11 +244,23 @@ function Trait( _trait, _config, _super) {
 //        return self
 //    }
 
-    self.call = function( _selection) {
+    self.call = function( _selection, leafTrait) {
+        if( ! leafTrait)
+          leafTrait = this
+        if( ! this.__leafTrait)
+          this.__leafTrait = leafTrait
+
         if( this._super)
-            this._super.call( _selection)
+          this._super.call( _selection, leafTrait)
         _selection.call( imp)
         return imp
+    }
+
+    self.callTraits = function( _selection) {
+        if( this.__leafTrait)
+          return this.__leafTrait.call( _selection)
+        else
+          return this
     }
 
     function makeVirtual( name, fn, _superFn) {
@@ -371,6 +384,7 @@ function Trait( _trait, _config, _super) {
 
 
     imp.call = self.call
+    imp.callTraits = self.callTraits
     imp.trait = self.trait
     imp.getImp = self.getImp
     imp.config = self.config
@@ -1168,7 +1182,6 @@ d3.trait.utils = {
             return this;
         }
 
-        _super.onChartResized( 'axisLinear-' + c.name, axisLinear)
         _super.onRangeMarginChanged( 'axisLinear-' + c.name, axisLinear)
 
         return axisLinear;
@@ -1376,7 +1389,6 @@ function _chartArea( _super, _config) {
     };
 
     d3.rebind(chartArea, dispatch, 'on');
-    _super.onChartResized( 'chartArea', chartArea)
 
     return chartArea;
 
@@ -1629,8 +1641,6 @@ function _chartBar( _super,  _config) {
             barDimensions = getBarDimensions( filteredSeries, _config.seriesData, _config.x1, c, x1, chartWidth)
 
             if( barDimensions.minRangeMargin || barDimensions.domainExtent) {
-                // Turn off notify so we don't reenter chartBar() on changing scale.
-                _super.onChartResized ( 'chartBar', function () { } )
 
                 if ( barDimensions.minRangeMargin ) {
                     self.minRangeMargin ( 'x1', barDimensions.minRangeMargin )
@@ -1639,9 +1649,6 @@ function _chartBar( _super,  _config) {
                 }
 
                 barDimensions = getBarDimensions ( filteredSeries, _config.seriesData, _config.x1, c, x1, chartWidth)
-
-                // Turn notify back on.
-                _super.onChartResized ( 'chartBar', self )
             }
 
             if( !group) {
@@ -1734,7 +1741,6 @@ function _chartBar( _super,  _config) {
     };
 
     d3.rebind(chartBar, dispatch, 'on');
-    _super.onChartResized( 'chartBar', chartBar)
 //    _super.onRangeMarginChanged( 'chartBar', chartBar)
 
     return chartBar;
@@ -2081,7 +2087,7 @@ function _chartBase( _super, _config) {
         //console.log( "baseChart.updateChartSize chartWidth=" + chartWidth + ", chartHeight=" + chartHeight)
         if( prev.chartWidth !== chartWidth || prev.chartHeight !== chartHeight) {
             if( selection)
-                selection.call( chartBase)
+              chartBase.callTraits( selection)
             dispatch.chartResized()
         }
     }
@@ -2559,7 +2565,7 @@ function _chartLine( _super, _config) {
             series.selectAll( "path")
                 .transition()
                 .duration( 500)
-                .attr("d", function(d) { return line( _config.seriesData(d)); })
+                .attr("d", function(d) { return line( getDataInRange( _config.seriesData(d), x1, _config.x1 )); })
 
             // ENTER
             series.enter()
@@ -2708,8 +2714,6 @@ function _chartLine( _super, _config) {
 
         return foci
     }
-
-    _super.onChartResized( 'chartLine', chartLine)
 
     return chartLine;
 
@@ -2866,7 +2870,6 @@ trait.chart.line = _chartLine
         };
 
         d3.rebind(chartScatter, dispatch, 'on');
-        _super.onChartResized( 'chartScatter', chartScatter)
         _super.onRangeMarginChanged( 'chartScatter', chartScatter)
 
         return chartScatter;
@@ -3106,7 +3109,6 @@ function _controlBrush( _super, _config) {
     };
 
     d3.rebind(controlBrush, dispatch, 'on');
-    _super.onChartResized( 'controlBrush', controlBrush)
 
     return controlBrush;
 
@@ -3450,7 +3452,6 @@ function _legendSeries( _super, _config) {
     }
 
     d3.rebind(legendSeries, dispatch, 'on');
-    _super.onChartResized( 'legendSeries', legendSeries)
 
     return legendSeries;
 
@@ -3832,7 +3833,6 @@ function _scaleTime( _super,  _config) {
     };
 
 
-    _super.onChartResized( 'scaleTime' + scaleName, scaleTime)
     _super.onRangeMarginChanged( 'scaleTime-' + scaleName, scaleTime)
 
     return scaleTime;
@@ -3887,7 +3887,6 @@ function _scaleLinear( _super,  _config) {
     };
 
 
-    _super.onChartResized( 'scaleLinear-' + scaleName, scaleLinear)
     _super.onRangeMarginChanged( 'scaleLinear-' + scaleName, scaleLinear)
 
     return scaleLinear;
