@@ -271,7 +271,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     Logger.debug( "WebSocketPushActor.subscribeToEndpoints " + subscribe.id)
 
     val uuids = subscribe.endpointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
-    val query = EntitySubscriptionQuery.newBuilder().addAllUuids( uuids)
+    val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
     val result = service.subscribeToEndpointWithComms( query.build)
 
     result onSuccess {

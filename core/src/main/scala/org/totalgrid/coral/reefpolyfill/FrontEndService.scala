@@ -159,7 +159,7 @@ trait FrontEndServicePF {
     def start(handler : scala.Function1[A, scala.Unit]) : scala.Unit
   }
 
-  def subscribeToEndpointWithComms(request: EntitySubscriptionQuery, headers: Map[String, String] = Map()): Future[(Seq[EndpointWithComms], Subscription[EndpointWithCommsNotification])] = {
+  def subscribeToEndpointWithComms(request: EndpointSubscriptionQuery, headers: Map[String, String] = Map()): Future[(Seq[EndpointWithComms], Subscription[EndpointWithCommsNotification])] = {
 
     val endpointSubscriptionQuery  = EndpointSubscriptionQuery.newBuilder().addAllUuids( request.getUuidsList).build()
     frontEndService.subscribeToEndpoints( endpointSubscriptionQuery, headers).flatMap {
@@ -278,9 +278,9 @@ class FrontEndService( protected val frontEndService: service.FrontEndService, p
 
   override def deletePoints(ids: Seq[ReefUUID], headers: Map[String, String]): Future[Seq[Point]] = frontEndService.deletePoints( ids, headers)
 
-  override def subscribeToFrontEndConnectionStatuses(endpoints: EntitySubscriptionQuery) = frontEndService.subscribeToFrontEndConnectionStatuses( endpoints)
+  override def subscribeToFrontEndConnectionStatuses(endpoints: EndpointSubscriptionQuery) = frontEndService.subscribeToFrontEndConnectionStatuses( endpoints)
 
-  override def subscribeToFrontEndConnectionStatuses(endpoints: EntitySubscriptionQuery, headers: Map[String, String]) = frontEndService.subscribeToFrontEndConnectionStatuses( endpoints, headers)
+  override def subscribeToFrontEndConnectionStatuses(endpoints: EndpointSubscriptionQuery, headers: Map[String, String]) = frontEndService.subscribeToFrontEndConnectionStatuses( endpoints, headers)
 
   override def deleteEndpoints(ids: Seq[ReefUUID]): Future[Seq[Endpoint]] = frontEndService.deleteEndpoints( ids)
 

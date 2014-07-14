@@ -314,7 +314,7 @@ object JsonFormatters {
     def writes( o: PointMeasurementValues): JsValue = {
       Json.obj(
         "point" -> Json.obj(
-          "id" -> o.getPoint.getValue
+          "id" -> o.getPointUuid.getValue
         ),
         "measurements" -> o.getValueList.toList
       )
@@ -329,7 +329,7 @@ object JsonFormatters {
     def writes( o: PointMeasurementValue): JsValue = {
       Json.obj(
         "point" -> Json.obj(
-          "id" -> o.getPoint.getValue
+          "id" -> o.getPointUuid.getValue
         ),
         "measurement" -> o.getValue              // one measurement
       )

@@ -26,7 +26,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import java.io.IOException
-import org.totalgrid.reef.client.ReefConnection
+import org.totalgrid.reef.client.{ReefHeaders, ReefConnection}
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
 import org.totalgrid.msg.amqp.util.LoadingException
@@ -145,7 +145,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
       case (status, session) =>
         if( status == UP & session.isDefined) {
 
-          session.get.headers.get( ReefConnection.tokenHeader) match {
+          session.get.headers.get( ReefHeaders.tokenHeader()) match {
             case Some( authToken) =>
               //authTokenToSession += ( authToken -> session.get )
               Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
@@ -174,7 +174,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     }
 
     val newSession = cachedSession.get.spawn
-    newSession.addHeader( ReefConnection.tokenHeader, authToken)
+    newSession.addHeader( ReefHeaders.tokenHeader, authToken)
 
     validationTiming match {
 
