@@ -77,7 +77,7 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
         case _ => pushActor ! UnknownMessage( messageName)
       }
 
-    }.mapDone { _ =>
+    }.map { _ =>
       pushActor ! Quit
     }
 

@@ -122,7 +122,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
    * @param action
    * @return
    */
-  def AuthenticatedPageAction( action: (Request[AnyContent], ServiceClient) => SimpleResult): Action[AnyContent] = {
+  def AuthenticatedPageAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
         case Some( ( authToken, serviceClient)) =>
@@ -145,7 +145,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   /**
    * Action for Ajax request.
    */
-  def ReefClientAction( action: (Request[AnyContent], ServiceClient) => SimpleResult): Action[AnyContent] = {
+  def ReefClientAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
         case Some( ( token, serviceClient)) =>
@@ -167,7 +167,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   /**
    * Action for Ajax request.
    */
-  def ReefClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[SimpleResult]): Action[AnyContent] = {
+  def ReefClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[Result]): Action[AnyContent] = {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
