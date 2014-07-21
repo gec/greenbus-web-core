@@ -11,7 +11,7 @@ import play.api.test.PlaySpecification
 import org.totalgrid.msg.Session
 import org.totalgrid.reef.client.service.{LoginService, EntityService}
 import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
-import org.totalgrid.reef.client.ReefConnection
+import org.totalgrid.reef.client.{ReefHeaders, ReefConnection}
 import org.totalgrid.coral.models.AuthenticationMessages.ServiceClientFailure
 import scala.concurrent.Future
 
@@ -79,7 +79,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
 
         val authToken = "someAuthToken"
         val session = mock[Session]
-        session.headers returns Map[String,String]( ReefConnection.tokenHeader -> authToken)
+        session.headers returns Map[String,String]( ReefHeaders.tokenHeader() -> authToken)
 
         val reefConnection = reefConnectionMock
         reefConnection.login( anyString, anyString) returns Future.successful( session)

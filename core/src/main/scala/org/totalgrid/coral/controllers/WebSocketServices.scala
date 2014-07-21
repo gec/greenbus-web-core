@@ -43,29 +43,29 @@ trait WebSocketServices extends ConnectionManagerRef {
    * Setup a WebSocket. The connectionManager is responsible for authentication
    * before replying with WebSocketChannels.
    */
-  def getWebSocket( authToken: String) = WebSocket.async[JsValue] { request  =>
+  def getWebSocket( authToken: String) = WebSocket.tryAccept[JsValue] { request  =>
     (connectionManager ? WebSocketOpen( authToken, PREVALIDATED)).map {
       case WebSocketChannels( iteratee, enumerator) =>
         Logger.debug( "getWebSocket WebSocketChannels returned from WebSocketOpen")
-        (iteratee, enumerator)
+        Right( (iteratee, enumerator))
       case WebSocketError( status) =>
         Logger.debug( "getWebSocket WebSocketChannels returned WebSocketError " + status)
-        errorResult( status)
+        Left( ServiceUnavailable( Json.obj("error" -> status)))
     }
   }
 
-  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {
-    // Connection error
-    Logger.error( "getWebSocket.webSocketResultError ERROR: " + status)
-
-    // A finished Iteratee sending EOF
-    val iteratee = Done[JsValue,Unit]((),Input.EOF)
-
-    // Send an error and close the socket
-    val enumerator =  Enumerator[JsValue](Json.obj("error" -> status)).andThen(Enumerator.enumInput(Input.EOF))
-
-    (iteratee,enumerator)
-  }
+//  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {
+//    // Connection error
+//    Logger.error( "getWebSocket.webSocketResultError ERROR: " + status)
+//
+//    // A finished Iteratee sending EOF
+//    val iteratee = Done[JsValue,Unit]((),Input.EOF)
+//
+//    // Send an error and close the socket
+//    val enumerator =  Enumerator[JsValue](Json.obj("error" -> status)).andThen(Enumerator.enumInput(Input.EOF))
+//
+//    (iteratee,enumerator)
+//  }
 
 
 }
