@@ -2,16 +2,17 @@
 
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="en"> <!-- no ng-app here. With RequireJS, call angular.bootstrap() manually at bottom of each app.js, login.js, etc. -->
     <head>
         <title>@title</title>
-        <link rel="stylesheet" href="@routes.Assets.at("lib/bootstrap/css/bootstrap.css")">
-        <link rel="stylesheet" href="@routes.Assets.at("lib/bootstrap3/css/bootstrap-glyphicons.css")">
+        <link rel="stylesheet" href="@routes.Assets.at("lib/bootstrap3/css/bootstrap.css")">
+        <link rel="stylesheet" href="@routes.Assets.at("lib/font-awesome/css/font-awesome.css")">
         <link rel="stylesheet" href="@routes.Assets.at("lib/d3-traits/d3-traits.css")">
+        <link rel="stylesheet" href="@routes.Assets.at("lib/angular-bootstrap-nav-tree/abn_tree.css")">
         <link rel="stylesheet" href="@routes.Assets.at("stylesheets/app.css")">
         <link rel="shortcut icon" type="image/png" href="@routes.Assets.at("images/favicon.png")">
     </head>
-    <body>
+    <body role="document">
         @content
 
         <script src="http://code.jquery.com/jquery-latest.js"></script>

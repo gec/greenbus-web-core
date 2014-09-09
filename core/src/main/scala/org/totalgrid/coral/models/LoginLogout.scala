@@ -43,28 +43,28 @@ trait LoginLogout extends Authentication {
   /**
    * Return the login page content
    */
-  def loginPageContent( request: RequestHeader): SimpleResult
+  def loginPageContent( request: RequestHeader): Result
 
   /**
    * Return the index page content
    */
-  def indexPageContent( request: RequestHeader): SimpleResult
+  def indexPageContent( request: RequestHeader): Result
 
   /**
    * Redirect the user to the index page (because they're already logged in).
    */
-  def redirectToIndex(request: RequestHeader, authToken: String): SimpleResult
+  def redirectToIndex(request: RequestHeader, authToken: String): Result
 
   /**
    * Redirect the user to the login page (because they're not logged in).
    */
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): SimpleResult
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result
 
   /**
    * Ajax reply for successful login. Store the cookie so the index page
    * can pick it up.
    */
-  def loginSuccess(request: RequestHeader, authToken: String): SimpleResult = {
+  def loginSuccess(request: RequestHeader, authToken: String): Result = {
     Ok( Json.obj( authTokenName -> authToken))
       .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
   }
@@ -72,21 +72,21 @@ trait LoginLogout extends Authentication {
   /**
    * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginJsError(request: RequestHeader, error: JsError): SimpleResult
+  def loginJsError(request: RequestHeader, error: JsError): Result
 
   /**
    * Ajax reply for successful logout
    *
    * @see deleteLogin
    */
-  def logoutSuccess(request: RequestHeader): SimpleResult
+  def logoutSuccess(request: RequestHeader): Result
 
   /**
    * Ajax reply for failed logout
    *
    * @see deleteLogin
    */
-  def logoutFailure(request: RequestHeader): SimpleResult
+  def logoutFailure(request: RequestHeader): Result
 
 
   /**
@@ -95,16 +95,14 @@ trait LoginLogout extends Authentication {
    * Check if the user is already logged in. If so, call redirectToIndex.
    * If not logged in, call loginPageContent.
    */
-  def getLoginOrAlreadyLoggedIn = Action { implicit request: RequestHeader =>
+  def getLoginOrAlreadyLoggedIn = Action.async { implicit request: RequestHeader =>
 
-    Async {
-      authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
-        case Some( ( token, service)) =>
-          redirectToIndex( request, token)
-        case None =>
-          // No authToken found or invalid authToken
-          loginPageContent( request)
-      }
+    authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
+      case Some( ( token, service)) =>
+        redirectToIndex( request, token)
+      case None =>
+        // No authToken found or invalid authToken
+        loginPageContent( request)
     }
   }
 
@@ -115,18 +113,16 @@ trait LoginLogout extends Authentication {
    *
    * @see loginDataReads
    */
-  def postLogin = Action( parse.json) { request =>
+  def postLogin = Action.async( parse.json) { request =>
     request.body.validate( loginDataReads).map { login =>
-      Async {
         loginFuture( login).map {
           case Right( authToken) =>
             loginSuccess( request, authToken)
           case Left( failure) =>
             authenticationFailure( request, failure)
         }
-      }
     }.recoverTotal { error =>
-      loginJsError( request, error)
+      Future.successful[Result]( loginJsError( request, error))
     }
   }
 

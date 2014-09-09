@@ -18,9 +18,10 @@
  */
 // No package. Just the root context. It's what play wants.
 
+import org.totalgrid.msg.Session
 import play.api._
 import controllers.Application
-import org.totalgrid.reef.client.Client
+import org.totalgrid.reef.client.ReefConnection
 import play.api.Application
 import play.api.libs.concurrent.Akka
 import play.api.libs.iteratee.Concurrent
@@ -34,10 +35,10 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
   import ConnectionStatus._
   import WebSocketMessages._
 
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, client : Client): WebSocketChannels = {
+  def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
     // Create a pushChannel that the new actor will use for push
     val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
-    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( clientStatus, Some(client), pushChannel)) /*, name = actorName*/) // Getting two with the same name
+    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel, ReefServiceFactoryDefault)) /*, name = actorName*/) // Getting two with the same name
     val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
     WebSocketChannels( iteratee, enumerator)
   }
@@ -48,8 +49,9 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
  * @author Flint O'Brien
  */
 object Global extends GlobalSettings {
+  import ReefConnectionManager.ReefConnectionManagerServiceFactorySingleton
 
-  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ClientPushActorFactory)), "ReefConnectionManager")
+  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ReefConnectionManagerServiceFactorySingleton, ClientPushActorFactory)), "ReefConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)
@@ -57,6 +59,7 @@ object Global extends GlobalSettings {
     Logger.info( "Application starting...")
     Logger.info( "Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
+    Application.reefServiceFactory = ReefServiceFactoryDefault
     Logger.info( "Application started")
 
     /*

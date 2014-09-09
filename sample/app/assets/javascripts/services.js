@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien
  */
 define([
     'authentication/service',
@@ -178,26 +180,12 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
     }
 
-    self.subscribeToMeasurementsByNames = function ( $scope, names, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
+    self.subscribeToMeasurements = function ( $scope, pointIds, successListener, errorListener) {
+        console.log( "reef.subscribeToMeasurements " );
 
         var json = {
-            subscribeToMeasurementsByNames: {
-                "names": names
-            }
-        }
-        return subscription.subscribe( json, $scope, successListener, errorListener)
-    }
-
-
-    self.subscribeToMeasurementHistoryByUuid = function ( $scope, pointUuid, since, limit, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
-
-        var json = {
-            subscribeToMeasurementHistoryByUuid: {
-                "pointUuid": pointUuid,
-                "since": since,
-                "limit": limit
+            subscribeToMeasurements: {
+                "pointIds": pointIds
             }
         }
         return subscription.subscribe( json, $scope, successListener, errorListener)
@@ -217,10 +205,10 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
 
 
     self.SubscribeToRecentEvents = function ( $scope, limit, successListener, errorListener) {
-        console.log( "reef.subscribeToMeasurementsByNames " );
+        console.log( "reef.subscribeToMeasurements " );
 
         var json = {
-            subscribeToMeasurementsByNames: {
+            subscribeToMeasurements: {
                 "limit": limit
             }
         }
@@ -232,14 +220,29 @@ var ReefService = function( $rootScope, $timeout, $http, $location, authenticati
         subscription.unsubscribe( subscriptionId)
     }
 
-
+    self.queryParameterFromArrayOrString = function( parameter, arrayOrString) {
+        var parameterEqual = parameter + "="
+        var query = ""
+        if( angular.isArray( arrayOrString)) {
+            arrayOrString.forEach( function( value, index) {
+                if( index == 0)
+                    query = parameterEqual + value
+                else
+                    query = query + "&" + parameterEqual + value
+            })
+        } else {
+            if( arrayOrString && arrayOrString.length > 0)
+                query = parameterEqual + arrayOrString
+        }
+        return query
+    }
 }
 
 
 return angular.module('ReefAdmin.services', ["authentication.service", "coral.subscription"]).
-    factory('reef', function( $rootScope, $timeout, $http, $location, authentication, subscription){
+    factory('reef', ['$rootScope', '$timeout', '$http', '$location', 'authentication', 'subscription', function( $rootScope, $timeout, $http, $location, authentication, subscription){
         return new ReefService( $rootScope, $timeout, $http, $location, authentication, subscription);
-    })
+    }])
     .directive('alarmBanner', function(){
         return {
             restrict: 'E', // Element name

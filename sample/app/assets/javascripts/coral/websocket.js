@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien
  */
 define([
     'angular'
@@ -22,7 +24,7 @@ define([
     'use strict';
 
     angular.module('coral.websocket', []).
-        factory('websocketFactory', function($window) {
+        factory('websocketFactory', ['$window', function($window) {
             var wsClass;
 
             if ('WebSocket' in $window)
@@ -37,6 +39,6 @@ define([
             return wsClass
                 ? function(url) { return new wsClass(url); }
                 : undefined;
-        })
+        }])
 
 });// end RequireJS define

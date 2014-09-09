@@ -19,14 +19,18 @@
 package org.totalgrid.coral.models
 
 import play.api.libs.json._
-import org.totalgrid.reef.client.service.proto.Model.{Command, Point, Entity}
+import play.api.libs.json.Writes._
+import play.api.libs.functional.syntax._
+import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Events.Event
-import org.totalgrid.reef.client.service.proto.Alarms.Alarm
-import org.totalgrid.reef.client.service.proto.Measurements.{Quality, Measurement}
-import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
-import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
+import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
+import org.totalgrid.reef.client.service.proto.Measurements._
+
+//import org.totalgrid.reef.client.service.proto.FEP.{CommChannel, Endpoint, EndpointConnection}
+//import org.totalgrid.reef.client.service.proto.Application.ApplicationConfig
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
+import org.totalgrid.reef.client.service.proto.FrontEnd._
+import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 
 /**
  *
@@ -100,8 +104,10 @@ object JsonFormatters {
       case Quality.Validity.INVALID => "Invalid"
       case Quality.Validity.QUESTIONABLE => "Questionable"
     }
-
-    overall + " (" + list.reverse.mkString("; ") + ")"
+    if( list.isEmpty)
+      overall
+    else
+      overall + " (" + list.reverse.mkString(", ") + ")"
   }
 
 
@@ -118,8 +124,8 @@ object JsonFormatters {
     def writes( o: Agent): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "permissions" -> o.getPermissionSetsList.map( _.getName).toList
+        "id" -> o.getUuid.getValue,
+        "permissions" -> o.getPermissionSetsList.toList
       )
   }
 
@@ -132,11 +138,11 @@ object JsonFormatters {
     }
     def writes( o: Permission): JsValue =
       Json.obj(
-        "id" -> o.getId.getValue,
+        //"id" -> o.getId.getValue,
         "allow" -> o.getAllow,
-        "actions" -> o.getVerbList.toList,
-        "resources" -> o.getResourceList.toList,
-        "selectors" -> o.getSelectorList.map( selectorString).toList
+        "actions" -> o.getActionsList.toList,
+        "resources" -> o.getResourcesList.toList,
+        "selectors" -> o.getSelectorsList.map( selectorString).toList
       )
   }
 
@@ -144,7 +150,7 @@ object JsonFormatters {
     def writes( o: PermissionSet): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "permissions" -> o.getPermissionsList.toList
       )
   }
@@ -164,24 +170,24 @@ object JsonFormatters {
   }
 
   // TODO: ApplicationConfig proto should be renamed to Application
-  implicit val applicationConfigWrites = new Writes[ApplicationConfig] {
-    def writes( o: ApplicationConfig): JsValue =
-      Json.obj(
-        "name" -> o.getInstanceName,
-        "uuid" -> o.getUuid.getValue,
-        "version" -> o.getVersion,
-        "timesOutAt" -> o.getTimesOutAt,
-        "online" -> o.getOnline,
-        "agent" -> o.getUserName,
-        "capabilities" -> o.getCapabilitesList.toList
-      )
-  }
+//  implicit val applicationConfigWrites = new Writes[ApplicationConfig] {
+//    def writes( o: ApplicationConfig): JsValue =
+//      Json.obj(
+//        "name" -> o.getInstanceName,
+//        "id" -> o.getUuid.getValue,
+//        "version" -> o.getVersion,
+//        "timesOutAt" -> o.getTimesOutAt,
+//        "online" -> o.getOnline,
+//        "agent" -> o.getUserName,
+//        "capabilities" -> o.getCapabilitesList.toList
+//      )
+//  }
 
   implicit val entityWrites = new Writes[Entity] {
     def writes( o: Entity): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "types" -> o.getTypesList.toList
       )
   }
@@ -190,47 +196,86 @@ object JsonFormatters {
     def writes( o: Command): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
+        "id" -> o.getUuid.getValue,
         "commandType" -> o.getType.name,
         "displayName" -> o.getDisplayName,
-        "endpoint" -> o.getEndpoint.getName
+        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
   }
 
-  implicit val commChannelWrites = new Writes[CommChannel] {
-    def writes( o: CommChannel): JsValue =
+//  implicit val commChannelWrites = new Writes[CommChannel] {
+//    def writes( o: CommChannel): JsValue =
+//      Json.obj(
+//        "name" -> o.getName,
+//        "id" -> o.getUuid.getValue,
+//        "state" -> o.getState.toString
+//      )
+//  }
+
+  /** Use EndpointWithComms until Reef includes comms with standard Endpoint */
+//  implicit val endpointWrites = new Writes[Endpoint] {
+//    def writes( o: Endpoint): JsValue =
+//      Json.obj(
+//        "name" -> o.getName,
+//        "id" -> o.getUuid.getValue,
+//        "protocol" -> o.getProtocol,
+//        "enabled" -> !o.getDisabled
+//      )
+//  }
+
+  implicit val endpointCommStatusWrites = new Writes[EndpointCommStatus] {
+    def writes( o: EndpointCommStatus): JsValue =
       Json.obj(
-        "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "state" -> o.getState.toString
+        "status" -> o.status.name,
+        "lastHeartbeat" -> o.lastHeartbeat
       )
   }
 
-  implicit val endpointWrites = new Writes[Endpoint] {
-    def writes( o: Endpoint): JsValue =
-      Json.obj(
-        "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "protocol" -> o.getProtocol,
-        "autoAssigned" -> o.getAutoAssigned,
-        "channel" -> o.getChannel
+  implicit val endpointWithCommsWrites = new Writes[EndpointWithComms] {
+    def writes( o: EndpointWithComms): JsValue =
+      JsObject(
+        List(
+          Some("id" -> JsString(o.id.getValue)),
+          Some( "name" -> JsString(o.name)),
+          o.protocol.map( "protocol" -> JsString(_)),       // If None, don't include key
+          o.enabled.map( "enabled" -> JsBoolean(_)),        // If None, don't include key
+          o.commStatus.map( "commStatus" -> Json.toJson(_)) // If None, don't include key
+        ).flatten
       )
   }
-
-  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
-    def writes( o: EndpointConnection): JsValue = {
-      val ep = o.getEndpoint
-      Json.obj(
-        "name" -> ep.getName,
-        "id" -> o.getId.getValue,
-        "state" -> o.getState.toString,
-        "enabled" -> o.getEnabled,
-        "endpoint" -> o.getEndpoint,
-        "fep" -> o.getFrontEnd.getAppConfig.getInstanceName,
-        "routed" -> o.getRouting.hasServiceRoutingKey
-      )
+  implicit val endpointWithCommsSeqWrites = new Writes[Seq[EndpointWithComms]] {
+    def writes( o: Seq[EndpointWithComms]): JsValue = {
+      Json.toJson( o)
     }
   }
+  lazy val endopintWithCommsPushWrites = new PushWrites( "endpoint", endpointWithCommsWrites)
+  lazy val endopintWithCommsSeqPushWrites = new PushWrites( "endpoint", endpointWithCommsSeqWrites)
+
+
+  implicit val endpointWithCommsNotificationWrites = new Writes[EndpointWithCommsNotification] {
+    def writes( o: EndpointWithCommsNotification): JsValue =
+      Json.obj(
+        "eventType" -> o.eventType.name,
+        "endpoint" -> o.endpoint
+      )
+  }
+  lazy val endopintWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
+
+
+  //  implicit val endpointConnectionWrites = new Writes[EndpointConnection] {
+//    def writes( o: EndpointConnection): JsValue = {
+//      val ep = o.getEndpoint
+//      Json.obj(
+//        "name" -> ep.getName,
+//        "id" -> o.getId.getValue,
+//        "state" -> o.getState.toString,
+//        "enabled" -> o.getEnabled,
+//        "endpoint" -> o.getEndpoint,
+//        "fep" -> o.getFrontEnd.getAppConfig.getInstanceName,
+//        "routed" -> o.getRouting.hasServiceRoutingKey
+//      )
+//    }
+//  }
 
 
   implicit val measurementWrites = new Writes[Measurement] {
@@ -243,12 +288,13 @@ object JsonFormatters {
         case Measurement.Type.NONE => "" // or perhaps JsNull?
       }
       Json.obj(
-        "name" -> o.getName,
-        "pointUuid" -> o.getPointUuid.getValue,
+        //"name" -> o.getName,
+        //"pointUuid" -> o.getPointUuid.getValue,
         "value" -> measValue.toString,
         "type" -> o.getType.toString,
         "unit" -> o.getUnit,
         "time" -> o.getTime,
+        "validity" -> o.getQuality.getValidity.name,
         "shortQuality" -> shortQuality(o),
         "longQuality" -> longQuality(o)
       )
@@ -257,10 +303,75 @@ object JsonFormatters {
   lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
 
 
-  implicit val measurementsWrites = new Writes[List[Measurement]] {
-    def writes( o: List[Measurement]): JsValue = Json.toJson( o)
+//  implicit val measurementValuesWrites = new Writes[List[Measurement]] {
+//    def writes( o: List[Measurement]): JsValue = Json.toJson( o)
+//  }
+
+  /**
+   * One point with many values
+   */
+  implicit val pointWithMeasurementsWrites = new Writes[PointMeasurementValues] {
+    def writes( o: PointMeasurementValues): JsValue = {
+      Json.obj(
+        "point" -> Json.obj(
+          "id" -> o.getPointUuid.getValue
+        ),
+        "measurements" -> o.getValueList.toList
+      )
+    }
   }
-  lazy val measurementsPushWrites = new PushWrites( "measurements", measurementsWrites)
+  lazy val pointWithMeasurementsPushWrites = new PushWrites( "pointWithMeasurements", pointWithMeasurementsWrites)
+
+  /**
+   * One point and one measurement.
+   */
+  implicit val pointMeasurementWrites = new Writes[PointMeasurementValue] {
+    def writes( o: PointMeasurementValue): JsValue = {
+      Json.obj(
+        "point" -> Json.obj(
+          "id" -> o.getPointUuid.getValue
+        ),
+        "measurement" -> o.getValue              // one measurement
+      )
+    }
+  }
+
+  val pointMeasurementArrayWrapperWrites = new Writes[PointMeasurementValue] {
+    def writes( o: PointMeasurementValue): JsValue = {
+      // Array of one measurement
+      Json.arr( pointMeasurementWrites.writes( o))
+    }
+  }
+  lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementArrayWrapperWrites)
+
+  /**
+   * Seq of PointMeasurementValue. Each measurement can be a different point
+   */
+  implicit val pointMeasurementsWrites = new Writes[Seq[PointMeasurementValue]] {
+    def writes( o: Seq[PointMeasurementValue]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val pointMeasurementsPushWrites = new PushWrites( "measurements", pointMeasurementsWrites)
+
+
+  /**
+   * Push array with one point and one measurement.
+   */
+  implicit val pointMeasurementNotificationWrites = new Writes[MeasurementNotification] {
+    def writes( o: MeasurementNotification): JsValue = {
+      Json.arr(
+        Json.obj(
+          "point" -> Json.obj(
+            "id" -> o.getPointUuid.getValue,
+            "name" -> o.getPointName
+          ),
+          "measurement" -> o.getValue              // one measurement
+        )
+      )
+    }
+  }
+  lazy val pointMeasurementNotificationPushWrites = new PushWrites( "measurements", pointMeasurementNotificationWrites)
 
 
   implicit val eventWrites = new Writes[Event] {
@@ -271,14 +382,21 @@ object JsonFormatters {
         "eventType" -> o.getEventType,
         "alarm" -> o.getAlarm,
         "severity" -> o.getSeverity,
-        "agent" -> o.getUserId,
-        "entity" -> o.getEntity.getName,
+        "agent" -> o.getAgent,
+        "entity" -> o.getEntity.getValue, // TODO: need entity name
         "message" -> o.getRendered,
         "time" -> o.getTime
       )
     }
   }
   lazy val eventPushWrites = new PushWrites( "event", eventWrites)
+
+  implicit val eventSeqWrites = new Writes[Seq[Event]] {
+    def writes( o: Seq[Event]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val eventSeqPushWrites = new PushWrites( "event", eventSeqWrites)
 
   implicit val alarmWrites = new Writes[Alarm] {
     def writes( o: Alarm): JsValue = {
@@ -291,39 +409,93 @@ object JsonFormatters {
   }
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
 
+  implicit val alarmSeqWrites = new Writes[Seq[Alarm]] {
+    def writes( o: Seq[Alarm]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val alarmSeqPushWrites = new PushWrites( "alarm", alarmSeqWrites)
+
   implicit val pointWrites = new Writes[Point] {
     def writes( o: Point): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "uuid" -> o.getUuid.getValue,
-        "valueType" -> o.getType.name,
+        "id" -> o.getUuid.getValue,
+        "pointType" -> o.getPointType.name,
+        "types" -> o.getTypesList.toList,
         "unit" -> o.getUnit,
-        "endpoint" -> o.getEndpoint.getName
+        "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
   }
 
-  implicit val pointWithTypesWrites = new Writes[PointWithTypes] {
-    def writes( o: PointWithTypes): JsValue =
-      Json.obj(
-        "name" -> o.point.getName,
-        "uuid" -> o.point.getUuid.getValue,
-        "valueType" -> o.point.getType.name,     // ANALOG, COUNTER, STATUS
-        "unit" -> o.point.getUnit,
-        "endpoint" -> o.point.getEndpoint.getName,
-        "types" -> o.types
-      )
-  }
-
-  implicit val equipmentWithPointsWithTypesWrites = new Writes[EquipmentWithPointsWithTypes] {
-    def writes( o: EquipmentWithPointsWithTypes): JsValue = {
+  implicit val equipmentWithPointsWrites = new Writes[EquipmentWithPoints] {
+    def writes( o: EquipmentWithPoints): JsValue = {
       Json.obj(
         "name" -> o.equipment.getName,
-        "uuid" -> o.equipment.getUuid.getValue,
+        "id" -> o.equipment.getUuid.getValue,
         "types" -> o.equipment.getTypesList.toList,
-        "points" -> o.pointsWithTypes
+        "points" -> o.points
       )
     }
   }
-  lazy val equipmentWithPointsWithTypesPushWrites = new PushWrites( "equipmentWithPointsWithTypes", equipmentWithPointsWithTypesWrites)
+  lazy val equipmentWithPointsPushWrites = new PushWrites( "equipmentWithPoints", equipmentWithPointsWrites)
+
+
+//  implicit val entityWithChildrenWrites = new Writes[EntityWithChildren] {
+//    def writes( o: EntityWithChildren): JsValue =
+//      Json.obj(
+//        "entity" -> o.entity,
+//        "children" -> o.children
+//      )
+//  }
+
+  implicit lazy val entityWithChildrenWrites: Writes[EntityWithChildren] = (
+    (__ \ "entity").write[Entity] and
+      (__ \ "children").lazyWrite(Writes.seq[EntityWithChildren](entityWithChildrenWrites))
+  ) (unlift(EntityWithChildren.unapply))
+
+
+  /**
+   * FrontEndConnectionStatus.
+   */
+  implicit val frontEndConnectionStatusWrites = new Writes[FrontEndConnectionStatus] {
+    def writes( o: FrontEndConnectionStatus): JsValue = {
+      Json.obj(
+        "eventType" -> "MODIFIED",     // see FrontEndConnectionStatusNotification.EventType: ADDED, MODIFIED, REMOVED
+        "name" -> o.getEndpointName,
+        "id" -> o.getEndpointUuid.getValue,
+        "status" -> o.getState.name,
+        "lastHeartbeat" -> o.getUpdateTime
+      )
+    }
+  }
+  lazy val frontEndConnectionStatusPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusWrites)
+
+  /**
+   * FrontEndConnectionStatusNotification.
+   */
+  implicit val frontEndConnectionStatusNotificationWrites = new Writes[FrontEndConnectionStatusNotification] {
+    def writes( o: FrontEndConnectionStatusNotification): JsValue = {
+      Json.obj(
+        "eventType" -> o.getEventType.name,     // ADDED, MODIFIED, REMOVED
+        "name" -> o.getValue.getEndpointName,
+        "id" -> o.getValue.getEndpointUuid.getValue,
+        "status" -> o.getValue.getState.name,
+        "lastHeartbeat" -> o.getValue.getUpdateTime
+      )
+    }
+  }
+  lazy val frontEndConnectionStatusNotificationPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusNotificationWrites)
+
+  /**
+   * Seq of FrontEndConnectionStatus.
+   */
+  implicit val frontEndConnectionStatusSeqWrites = new Writes[Seq[FrontEndConnectionStatus]] {
+    def writes( o: Seq[FrontEndConnectionStatus]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+  lazy val frontEndConnectionStatusSeqPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusSeqWrites)
+
 
 }

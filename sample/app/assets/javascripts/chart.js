@@ -34,7 +34,7 @@ require.config({
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] },
-        "d3-tratis" : { deps: ["d3"] }
+        "d3-traits" : { deps: ["d3"] }
     },
     priority: [
         "angular"
@@ -54,7 +54,7 @@ define([
     'coral/eventService',
     'coral/navigation'
 
-], function( angular, authentication) {
+], function( angular) {
 'use strict';
 
 

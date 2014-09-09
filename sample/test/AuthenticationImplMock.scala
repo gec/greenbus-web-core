@@ -88,41 +88,41 @@ trait AuthenticationImplMock extends Authentication {
       return Future( Left( ServiceClientFailure( "bad authToken '" + authToken + "'")))
   }
 
-  def loginPageContent( request: RequestHeader): SimpleResult = Ok( "loginPageContent")
-  def indexPageContent( request: RequestHeader): SimpleResult = Ok( "indexPageContent")
+  def loginPageContent( request: RequestHeader): Result = Ok( "loginPageContent")
+  def indexPageContent( request: RequestHeader): Result = Ok( "indexPageContent")
 
   /**
    * Ajax reply for failed login or the user is not logged in and tries to access a protected resource.
    */
-  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): SimpleResult = Unauthorized(  Json.obj( "error" -> failure.message))
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result = Unauthorized(  Json.obj( "error" -> failure.message))
 
   /**
    * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginJsError(request: RequestHeader, error: JsError): SimpleResult = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
+  def loginJsError(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutSuccess(request: RequestHeader): SimpleResult = Ok( "logoutSuccess")
+  def logoutSuccess(request: RequestHeader): Result = Ok( "logoutSuccess")
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutFailure(request: RequestHeader): SimpleResult = Unauthorized( Json.obj( "error" -> "Logout failed"))
+  def logoutFailure(request: RequestHeader): Result = Unauthorized( Json.obj( "error" -> "Logout failed"))
 
   /**
    * Redirect the user to the index page (because they're already logged in).
    */
-  def redirectToIndex(request: RequestHeader, authToken: String): SimpleResult = Redirect( routes.Application.index)
+  def redirectToIndex(request: RequestHeader, authToken: String): Result = Redirect( routes.Application.index)
 
   /**
    * Redirect the user to the login page (because they're not logged in).
    */
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationImplMock#AuthenticationFailure): SimpleResult = Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationImplMock#AuthenticationFailure): Result = Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
 
 
-  def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => SimpleResult): Action[AnyContent] = {
+  def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
         case Some( ( token, serviceClient)) =>

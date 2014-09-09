@@ -1,0 +1,96 @@
+@(title: String)
+
+@main(title, routes.Assets.at("javascripts/operator")) {
+<div class="statusBanner">
+    <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
+        <div class="statusBlock">
+            <div class="statusBox">
+                <div class=statusText><strong>Not connected. </strong> {{status.description}}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<nav-bar-top href="/menus/root"></nav-bar-top>
+
+<div class="container-fluid" ng-controller="MenuControl">
+    <div class="row" style="margin-top: 60px;">
+        <div class="col-md-2">
+            <div class="well" style="overflow-x:scroll;">
+                <nav-tree href="/coral/menus/operator">
+                    <abn-tree tree-data="navTree"
+                    icon-expand       = "fa fa-caret-right"
+                    icon-collapse     = "fa fa-caret-down"
+                    initial-selection = "All Equipment"
+                    on-select         = "menuSelect(branch)"></abn-tree>
+                </nav-tree>
+            </div>
+        </div>
+        <div class="col-md-10">
+            @*<div class="row">*@
+                @*<div class="col-md-10">*@
+                    @*<ul class="breadcrumb" ng-show="currentMenuItem != 'loading'">*@
+                        @*<li ng-repeat="crumb in breadcrumbs" ng-class="{ active: !crumb.url }">*@
+                            @*<span ng-hide="crumb.url">{{crumb.name}}</span>*@
+                            @*<a ng-show="crumb.url" href="{{crumb.url}}">{{crumb.name}}</a>*@
+                            @*<span ng-show="crumb.url" class="divider">/</span>*@
+                        @*</li>*@
+                    @*</ul>*@
+                @*</div>*@
+            @*</div>*@
+
+            <div class="row">
+                <div class="col-md-10">
+
+                    <div ng-view></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="navbar-fixed-bottom invisible" ng-controller="ChartsController">
+            <div class="coral-chart" ng-repeat="chart in charts">
+                <div class="coral-win" >
+                    <div class="coral-win-titlebar clearfix">
+                        <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
+                        <div class="coral-win-actions">
+                            <a href="" ng-click=""><i class="glyphicon glyphicon-minus icon-white" style="margin-top: 5px"></i></a>
+                            <a href="" ng-click="chartPopout($index)"><i class="glyphicon glyphicon-share-alt icon-white"></i></a>
+                            <a href="" ng-click="chartRemove($index)"><i class="glyphicon glyphicon-remove icon-white"></i></a>
+                        </div>
+                    </div>
+                    <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
+                        <li class="coral-legend" ng-repeat="point in chart.points">
+                            <div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">
+                                <span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>
+                                <a class="coral-remove" href="" ng-click="removePoint( chart, point)"><span class="glyphicon glyphicon-remove"></span></a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="coral-win-container">
+                        <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
+                            <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--
+        <div class="span10 navbar-fixed-bottom" style="margin-left: 17.02127659574468%; padding-left: 1.068%; background-color: lightgray">
+            <alarm-banner limit="3"></alarm-banner>
+        </div>
+        -->
+    </div>
+
+
+
+    <hr>
+
+    <footer>
+        <p>&copy; Green Energy Corp 2013</p>
+    </footer>
+
+</div>
+
+}

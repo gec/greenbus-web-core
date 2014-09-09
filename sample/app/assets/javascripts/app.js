@@ -25,6 +25,7 @@ require.config({
         'ui-utils': '../lib/angular-ui/ui-utils.min',
         'd3': '../lib/d3/d3.v3.min',
         'd3-traits': '../lib/d3-traits/d3-traits',
+        'abn-tree': '../lib/angular-bootstrap-nav-tree/abn_tree_directive',
         text: '../lib/require/text'
     },
     baseUrl: '/javascripts',
@@ -34,7 +35,8 @@ require.config({
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] },
-        "d3-tratis" : { deps: ["d3"] }
+        "abn-tree" : { deps: ["angular"] },
+        "d3-traits" : { deps: ["d3"] }
     },
     priority: [
         "angular"
@@ -45,6 +47,7 @@ define([
     'angular',
     'angular-route',
     'd3',
+    'abn-tree',
     'filters',
     'authentication/service',
     'authentication/interceptor',
@@ -53,9 +56,10 @@ define([
     'directives',
     'services',
     'coral/eventService',
-    'coral/navigation'
+    'coral/navigation',
+    'coral/measService'
 
-], function( angular, authentication) {
+], function( angular) {
 'use strict';
 
 
@@ -69,31 +73,32 @@ define([
             'controllers',
             'chartController',
             'coral.event',
-            'coral.navigation'
+            'coral.navigation',
+            'coral.meas'
         ]).
       config(['$routeProvider', function($routeProvider) {
         "use strict";
         $routeProvider.
-          when('/logout', {templateUrl: 'partials/login.html', controller: 'LogoutControl'}).
-          when('/measurements', {templateUrl: 'partials/measurements.html', controller: 'MeasurementControl'}).
-          when('/chart', {templateUrl: 'partials/chart.html', controller: 'ChartControl'}).
-          when('/esses', {templateUrl: 'partials/esses.html', controller: 'EssesControl'}).
-          when('/entities', {templateUrl: 'partials/entities.html', controller: 'EntityControl'}).
-          when('/entities/:name', {templateUrl: 'partials/entitydetail.html', controller: 'EntityDetailControl'}).
-          when('/points', {templateUrl: 'partials/points.html', controller: 'PointControl'}).
-          when('/points/:name', {templateUrl: 'partials/pointdetail.html', controller: 'PointDetailControl'}).
-          when('/commands', {templateUrl: 'partials/commands.html', controller: 'CommandControl'}).
-          when('/commands/:name', {templateUrl: 'partials/commanddetail.html', controller: 'CommandDetailControl'}).
-          when('/endpointconnections', {templateUrl: 'partials/endpoints.html', controller: 'EndpointControl'}).
-          when('/endpointconnections/:name', {templateUrl: 'partials/endpointdetail.html', controller: 'EndpointDetailControl'}).
-          when('/applications', {templateUrl: 'partials/applications.html', controller: 'ApplicationControl'}).
-          when('/applications/:name', {templateUrl: 'partials/applicationdetail.html', controller: 'ApplicationDetailControl'}).
-          when('/events', {templateUrl: 'partials/events.html', controller: 'EventControl'}).
-          when('/alarms', {templateUrl: 'partials/alarms.html', controller: 'AlarmControl'}).
-          when('/agents', {templateUrl: 'partials/agents.html', controller: 'AgentControl'}).
-          when('/agents/:name', {templateUrl: 'partials/agentdetail.html', controller: 'AgentDetailControl'}).
-          when('/permissionsets', {templateUrl: 'partials/permissionsets.html', controller: 'PermissionSetControl'}).
-          when('/permissionsets/:name', {templateUrl: 'partials/permissionsetdetail.html', controller: 'PermissionSetDetailControl'}).
+          when('/logout', {templateUrl: '/partials/login.html', controller: 'LogoutControl'}).
+          when('/measurements', {templateUrl: '/partials/measurements.html', controller: 'MeasurementControl'}).
+          when('/chart', {templateUrl: '/partials/chart.html', controller: 'ChartControl'}).
+          when('/ceses', {templateUrl: '/partials/ceses.html', controller: 'EssesControl'}).
+          when('/entities', {templateUrl: '/partials/entities.html', controller: 'EntityControl'}).
+          when('/entities/:id/:name', {templateUrl: '/partials/entitydetail.html', controller: 'EntityDetailControl'}).
+          when('/points', {templateUrl: '/partials/points.html', controller: 'PointControl'}).
+          when('/points/:id/:name', {templateUrl: '/partials/pointdetail.html', controller: 'PointDetailControl'}).
+          when('/commands', {templateUrl: '/partials/commands.html', controller: 'CommandControl'}).
+          when('/commands/:name', {templateUrl: '/partials/commanddetail.html', controller: 'CommandDetailControl'}).
+          when('/endpointconnections', {templateUrl: '/partials/endpoints.html', controller: 'EndpointControl'}).
+          when('/endpointconnections/:name', {templateUrl: '/partials/endpointdetail.html', controller: 'EndpointDetailControl'}).
+          when('/applications', {templateUrl: '/partials/applications.html', controller: 'ApplicationControl'}).
+          when('/applications/:name', {templateUrl: '/partials/applicationdetail.html', controller: 'ApplicationDetailControl'}).
+          when('/events', {templateUrl: '/partials/events.html', controller: 'EventControl'}).
+          when('/alarms', {templateUrl: '/partials/alarms.html', controller: 'AlarmControl'}).
+          when('/agents', {templateUrl: '/partials/agents.html', controller: 'AgentControl'}).
+          when('/agents/:name', {templateUrl: '/partials/agentdetail.html', controller: 'AgentDetailControl'}).
+          when('/permissionsets', {templateUrl: '/partials/permissionsets.html', controller: 'PermissionSetControl'}).
+          when('/permissionsets/:name', {templateUrl: '/partials/permissionsetdetail.html', controller: 'PermissionSetDetailControl'}).
           otherwise({redirectTo: '/entities'});
       }]);
 

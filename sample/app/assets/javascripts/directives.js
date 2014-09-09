@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien
  */
 define([
     'd3-traits'
@@ -93,7 +95,6 @@ angular.module('ReefAdmin.directives', []).
                 el.addEventListener(
                     'dragstart',
                     function(e) {
-                        console.debug( "dragstart " + scope.ident)
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('Text', scope.ident);
                         this.classList.add('drag');

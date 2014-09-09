@@ -8,23 +8,23 @@
             <div class="coral-win-titlebar clearfix">
                 <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
                 <div class="coral-win-actions">
-                    <a href="" ng-click="chartRemove()"><i class="icon-remove icon-white"></i></a>
+                    <a href="" ng-click="chartRemove()"><i class="glyphicon glyphicon-remove icon-white"></i></a>
                 </div>
             </div>
             <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
                 <li class="coral-legend" ng-repeat="point in chart.points">
-                    <div class="coral-icon-text draggable" draggable ident="point.uuid" source="chart" on-drag-success="onDragSuccess">
-                        <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}} {{$parent.point.measurements.length}}</span>
-                        <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
+                    <div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">
+                        <span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>
+                        <a class="coral-remove" href="" ng-click="removePoint( point)"><span class="glyphicon glyphicon-remove"></span></a>
                     </div>
                 </li>
             </ul>
             <div id="chart-container" class="coral-win-container" style="height: 100%">
                 <div class="coral-loading-overlay" ng-show="loading">
-                    <div ng-include src="'partials/loadingprogress.html'"></div>
+                    <div ng-include src="'/partials/loadingprogress.html'"></div>
                 </div>
                 <div class="coral-win-content" ng-hide="loading" droppable target="chart" on-drop="onDropPoint">
-                    <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 100%"></div>
+                    <div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 100%"></div>
                 </div>
             </div>
         </div>

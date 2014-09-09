@@ -19,7 +19,7 @@
 define([
     'angular',
     'angular-cookies'
-], function( angular, $cookies) {
+], function( angular) {
 'use strict';
 
 
@@ -210,8 +210,8 @@ return angular.module( 'authentication.service', [
     'ngCookies'
 ])
 
-.factory('authentication', function( $rootScope, $timeout, $http, $location, $cookies, $window){
+.factory('authentication', [ '$rootScope', '$timeout', '$http', '$location', '$cookies', '$window', function( $rootScope, $timeout, $http, $location, $cookies, $window){
     return new AuthenticationService( $rootScope, $timeout, $http, $location, $cookies, $window)
-});
+}]);
 
 }); // end RequireJS define

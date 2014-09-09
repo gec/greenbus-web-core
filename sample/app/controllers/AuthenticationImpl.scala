@@ -71,38 +71,38 @@ trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
   }
 
 
-  def loginPageContent( request: RequestHeader): SimpleResult = Ok( "loginPageContent")
-  def indexPageContent( request: RequestHeader): SimpleResult = Ok( "indexPageContent")
+  def loginPageContent( request: RequestHeader): Result = Ok( "loginPageContent")
+  def indexPageContent( request: RequestHeader): Result = Ok( "indexPageContent")
 
   /**
    * Where to redirect the user after a successful login.
    */
-  def authenticationFailure(request: RequestHeader, loginFailure: AuthenticationFailure): SimpleResult = Unauthorized( views.html.login("Logout failed"))
+  def authenticationFailure(request: RequestHeader, loginFailure: AuthenticationFailure): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * Ajax reply for missing JSON or JSON parsing error.
    */
-  def loginJsError(request: RequestHeader, error: JsError): SimpleResult = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
+  def loginJsError(request: RequestHeader, error: JsError): Result = BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutSuccess(request: RequestHeader): SimpleResult = Ok( "logoutSuccess")
+  def logoutSuccess(request: RequestHeader): Result = Ok( "logoutSuccess")
 
   /**
    * Where to redirect the user after logging out
    */
-  def logoutFailure(request: RequestHeader): SimpleResult = Unauthorized( views.html.login("Logout failed"))
+  def logoutFailure(request: RequestHeader): Result = Unauthorized( views.html.login("Logout failed"))
 
   /**
    * If the user is not logged in and tries to access a protected resource then redirect them as follows:
    */
-  def authenticationFailed(request: RequestHeader): SimpleResult = Unauthorized( views.html.login("Unauthorized"))
+  def authenticationFailed(request: RequestHeader): Result = Unauthorized( views.html.login("Unauthorized"))
   //Unauthorized( "unauthorized!")
 
 
 
-  def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => SimpleResult): Action[AnyContent] = {
+  def AuthenticatedAction( f: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
         case Some( ( token, serviceClient)) =>

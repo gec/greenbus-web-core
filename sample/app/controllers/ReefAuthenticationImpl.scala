@@ -34,29 +34,29 @@ trait ReefAuthenticationImpl extends ReefAuthentication {
   import ConnectionStatus._
 
 
-  def loginPageContent( request: RequestHeader): SimpleResult = {
+  def loginPageContent( request: RequestHeader): Result = {
     Logger.debug( "ReefAuthenticationImpl.loginPageContent")
     Ok( views.html.login( "loginPageContent"))
   }
 
-  def indexPageContent( request: RequestHeader): SimpleResult = Ok( views.html.index( "indexPageContent"))
+  def indexPageContent( request: RequestHeader): Result = Ok( views.html.index( "indexPageContent"))
 
-  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): SimpleResult =
+  def redirectToLogin(request: RequestHeader, failure: AuthenticationFailure): Result =
     Redirect( routes.Application.getLoginOrAlreadyLoggedIn)
 
-  def redirectToIndex(request: RequestHeader, authToken: String): SimpleResult =
+  def redirectToIndex(request: RequestHeader, authToken: String): Result =
     Redirect( routes.Application.index)
 
-  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): SimpleResult =
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result =
     Unauthorized(  Json.obj( "error" -> failure.status))
 
-  def logoutSuccess(request: RequestHeader): SimpleResult =
+  def logoutSuccess(request: RequestHeader): Result =
     Ok( Json.obj( "success" -> true))
 
-  def logoutFailure(request: RequestHeader): SimpleResult =
+  def logoutFailure(request: RequestHeader): Result =
     Unauthorized( Json.obj( "error" -> AUTHTOKEN_UNRECOGNIZED))
 
-  def loginJsError(request: RequestHeader, error: JsError): SimpleResult =
+  def loginJsError(request: RequestHeader, error: JsError): Result =
     BadRequest( "invalidRequest " + JsError.toFlatJson(error))
 
 }

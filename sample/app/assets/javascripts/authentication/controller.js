@@ -29,13 +29,13 @@ define([
 
     // The LoginFormController provides the behaviour behind a reusable form to allow users to authenticate.
     // This controller and its template (partials/login.html) are used in a modal dialog box by the authentication service.
-    // $dialog is from ui-bootstrap
-    .controller('LoginController', function($scope, authentication, $dialog) {
+    // $modal is from ui-bootstrap
+    .controller('LoginController', ['$scope', 'authentication', '$modal', function($scope, authentication, $modal) {
 
         $scope.error = null
         $scope.status = authentication.getStatus()
-        $scope.userName = null
-        $scope.password = null
+        $scope.userName = ''
+        $scope.password = ''
         var mainScope = $scope
 
         function errorListener( description) {
@@ -45,32 +45,36 @@ define([
 
 
         // the dialog is injected in the specified controller
-        function ModalController($scope, dialog, error){
+        var ModalController = ['$scope', '$modalInstance', 'userName', 'password', 'error', function($scope, $modalInstance, userName, password, error){
+//        var ModalController = function($scope, $modalInstance, userName, password, error){
             // private scope just for this controller.
+            $scope.userName = userName
+            $scope.password = password
             $scope.error = error
-            $scope.userName = mainScope.userName
-            $scope.password = mainScope.password
             $scope.login = function(){
                 // Can only pass one argument.
-                dialog.close( {userName: $scope.userName, password: $scope.password});   // calls then()
+                // Angular-UI is not right. 'this' is where the scope variables are.
+                $modalInstance.close( {userName: this.userName, password: this.password});   // calls then()
             };
-        }
+//        }
+        }]
 
 
         function openDialog(){
             var modalOptions = {
-                backdrop: true,
-                keyboard: false,
-                backdropClick: false,
+                backdrop: 'static', // don't close when clicking outside of model.
+                keyboard: false, // escape does not close dialog
                 templateUrl:  'partials/loginmodal.html',
                 controller: ModalController,
                 resolve: {
                     // Pass these to ModalController
-                    error: function(){ return angular.copy($scope.error); }
+                    error: function(){ return angular.copy( $scope.error) },  //TODO: Does this still need copy?
+                    userName: function(){ return angular.copy( $scope.userName) },
+                    password: function(){ return angular.copy( $scope.password) }
                 }
             };
-            var d = $dialog.dialog( modalOptions);
-            d.open().then(function( result) {
+            var d = $modal.open( modalOptions);
+            d.result.then(function( result) {
                 // Save the result to the main scope
                 mainScope.userName = result.userName
                 mainScope.password = result.password
@@ -81,6 +85,6 @@ define([
         $scope.openDialog = openDialog
         openDialog()
 
-    });
+    }]);
 
 }); // end RequireJS define

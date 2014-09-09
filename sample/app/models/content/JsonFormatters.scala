@@ -119,7 +119,20 @@ object JsonFormatters {
         "type" -> "item",
         "label" -> o.label,
         "id" -> o.id,
-        "url" -> o.url,
+        "route" -> o.route,
+        "selected" -> o.selected,
+        "children" -> o.children
+      )
+  }
+  implicit val navigationItemSourceWrites = new Writes[NavigationItemSource] {
+    def writes( o: NavigationItemSource): JsValue =
+      Json.obj(
+        "type" -> "item",
+        "label" -> o.label,
+        "id" -> o.id,
+        "route" -> o.route,
+        "sourceUrl" -> o.sourceUrl,
+        "insertLocation" -> o.insertLocation.toString,
         "selected" -> o.selected,
         "children" -> o.children
       )
@@ -130,6 +143,7 @@ object JsonFormatters {
         case item: NavigationDivider => navigationDividerWrites.writes( item)
         case item: NavigationHeader => navigationHeaderWrites.writes( item)
         case item: NavigationItem => navigationItemWrites.writes( item)
+        case item: NavigationItemSource => navigationItemSourceWrites.writes( item)
       }
   }
 

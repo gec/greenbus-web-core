@@ -47,15 +47,15 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
 
         // NOTE: messages sent to pushActor are actually JsResult[T]
 
-        case "subscribeToMeasurementsByNames" =>
-          subscribeToMeasurementsByNamesReads.reads( data)
+        case "subscribeToMeasurements" =>
+          subscribeToMeasurementsReads.reads( data)
             .map( request => pushActor ! request)
-            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementsByNames", jsError))
+            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurements", jsError))
 
-        case "subscribeToMeasurementHistoryByUuid" =>
-          subscribeToMeasurementHistoryByUuidReads.reads( data)
+        case "subscribeToMeasurementHistory" =>
+          subscribeToMeasurementHistoryReads.reads( data)
             .map( request => pushActor ! request)
-            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementHistoryByUuid", jsError))
+            .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementHistory", jsError))
 
         case "subscribeToActiveAlarms" =>
           subscribeToActiveAlarmsReads.reads( data)
@@ -67,12 +67,17 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
             .map( request => pushActor ! request)
             .recoverTotal( jsError => pushActor ! MessageError( "subscribeToRecentEvents", jsError))
 
+        case "subscribeToEndpoints" =>
+          subscribeToEndpointsReads.reads( data)
+            .map( request => pushActor ! request)
+            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToEndpoints", jsError))
+
         case "unsubscribe" => pushActor ! Unsubscribe( data.as[String])
         case "close" => pushActor ! Quit
         case _ => pushActor ! UnknownMessage( messageName)
       }
 
-    }.mapDone { _ =>
+    }.map { _ =>
       pushActor ! Quit
     }
 

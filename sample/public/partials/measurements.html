@@ -2,38 +2,38 @@
 
 
 <div>
-    <div class="row-fluid">
-        <div class="span3">
+    <div class="row">
+        <div class="col-md-3">
             <h2>Measurements</h2>
         </div>
-        <div class="span7" style="margin-top: 12px;">
-            <input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;margin-top: 5px;margin-left:20px;">
-            <!--<button class="btn btn-info" ng-click="search()" style="height: 100%; width: 60px; margin-bottom: 10px;"><i class="icon-search icon-white"></i></button>-->
+        <div class="col-md-7" style="margin-top: 12px;">
+            <input type="text"  class="form-control input-lg" placeholder="search any column" ng-model="searchText" style="height: 100%;">
+            <!--<button class="btn btn-info" ng-click="search()" style="height: 100%; width: 60px; margin-bottom: 10px;"><i class="glyphicon glyphicon-search icon-white"></i></button>-->
         </div>
     </div>
-    <!--<div class="row-fluid">-->
-        <!--<div class="span12">-->
-            <!--<button class="btn" ng-click="checkUncheckAll()">-->
+    <!--<div class="row">-->
+        <!--<div class="col-md-12">-->
+            <!--<button class="btn btn-default" ng-click="checkUncheckAll()">-->
                 <!--<div class="coral-checkbox-container" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">-->
                     <!--<div ng-class="checkAllState | checkboxClass"></div>-->
                 <!--</div>-->
             <!--</button>-->
-            <!--<button class="btn text-muted" ng-click="showChart()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>-->
+            <!--<button class="btn btn-default text-muted" ng-click="showChart()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>-->
             <!--&lt;!&ndash;<input type="text" placeholder="search any column" ng-model="searchText" style="height: 100%; width: 360px;margin-top: 5px;margin-bottom:0px;">&ndash;&gt;-->
         <!--</div>-->
     <!--</div>-->
 
     <div>
-        <table class="table table-condensed">
+        <table class="table table-condensed" ng-show="points.length > 0">
             <thead>
                 <tr>
                     <th colspan="2" style="padding-bottom: 12px;">
-                        <button class="btn" ng-click="checkUncheckAll()">
+                        <button class="btn btn-default" ng-click="checkUncheckAll()">
                             <div class="coral-checkbox-container" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                                 <div ng-class="checkAllState | checkboxClass"></div>
                             </div>
                         </button>
-                        <button class="btn text-muted" ng-click="chartAdd(-1)" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
+                        <button class="btn btn-default text-muted" ng-click="chartAddSelectedPoints()" ng-show="checkCount>0" style="width: 60px; margin-left: 14px"><span class="glyphicon glyphicon-stats"></span></button>
 
                     </th>
                     <!--<th>Name</th>-->
@@ -43,11 +43,10 @@
                     <th>Quality</th>
                     <th>Time</th>
                     <th>type</th>
-                    <th>UUID</th>
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="point in points">
+                <tr ng-repeat="point in points | filter:searchText | orderBy:sortColumn">
                     <td>
                         <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                             <div ng-class="point.checked | checkboxClass"></div>
@@ -57,51 +56,50 @@
                         <!--</div>-->
                     </td>
                     <td>
-                        <div class="coral-icon-text draggable" draggable ident="point.uuid">
-                            <img class="coral-icon" src="{{ $parent.point.valueType | pointTypeImage: $parent.point.unit }}" width="14px" height="14px" title="{{ $parent.point.valueType | pointTypeText: $parent.point.unit }}"/>
-                            {{$parent.point.name}}
+                        <div class="coral-icon-text draggable" draggable ident="point.id">
+                            <img class="coral-icon" src="{{ point.pointType | pointTypeImage: point.unit }}" width="14px" height="14px" title="{{ point.pointType | pointTypeText: point.unit }}"/>
+                            {{point.name}}
                         </div>
                     </td>
-                    <td style="text-align: right"><a href="" ng-click="chartAdd($index)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
+                    <td style="text-align: right"><a href="" ng-click="chartAddPointById(point.id)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
                     <td style="text-align: right">{{point.currentMeasurement.value}}</td>
                     <td>{{point.unit}}</td>
-                    <td>{{point.currentMeasurement.shortQuality}}</td>
+                    <td style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                    <td>{{ point.valueType }}</td>
-                    <td>{{ point.uuid }}</td>
+                    <td>{{ point.pointType }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
-    <div ng-include src="'partials/loadingprogress.html'"></div>
+    <div ng-include src="'/partials/loadingprogress.html'"></div>
 
-    <div class="navbar-fixed-bottom invisible">
-        <div class="coral-chart" ng-repeat="chart in charts">
-            <div class="coral-win" >
-                <div class="coral-win-titlebar clearfix">
-                    <p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>
-                    <div class="coral-win-actions">
-                        <a href="" ng-click=""><i class="icon-minus icon-white" style="margin-top: 5px"></i></a>
-                        <a href="" ng-click="chartPopout($index)"><i class="icon-share-alt icon-white"></i></a>
-                        <a href="" ng-click="chartRemove($index)"><i class="icon-remove icon-white"></i></a>
-                    </div>
-                </div>
-                <ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">
-                    <li class="coral-legend" ng-repeat="point in chart.points">
-                        <div class="coral-icon-text draggable" draggable ident="point.uuid" source="chart" on-drag-success="onDragSuccess">
-                            <span class="coral-legend-text" style="border-bottom-color: {{ $parent.$parent.chart.traits.color($parent.point) }}">{{$parent.point.name}}</span>
-                            <a class="coral-remove" href="" ng-click="$parent.removePoint( $parent.chart, $parent.point)"><span class="glyphicon glyphicon-remove"></span></a>
-                        </div>
-                    </li>
-                </ul>
-                <div class="coral-win-container">
-                    <div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">
-                        <div chart="$parent.chart.traits" data="$parent.chart.points" selection="$parent.chart.selection"  style="height: 150px"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!--<div class="navbar-fixed-bottom invisible">-->
+        <!--<div class="coral-chart" ng-repeat="chart in charts">-->
+            <!--<div class="coral-win" >-->
+                <!--<div class="coral-win-titlebar clearfix">-->
+                    <!--<p class="coral-win-title"><span class="glyphicon glyphicon-stats" style="top: 0; vertical-align: top; margin-right:4px"></span> <span>{{ chart.name }}</span></p>-->
+                    <!--<div class="coral-win-actions">-->
+                        <!--<a href="" ng-click=""><i class="glyphicon glyphicon-minus icon-white" style="margin-top: 5px"></i></a>-->
+                        <!--<a href="" ng-click="chartPopout($index)"><i class="glyphicon glyphicon-share-alt icon-white"></i></a>-->
+                        <!--<a href="" ng-click="chartRemove($index)"><i class="glyphicon glyphicon-remove icon-white"></i></a>-->
+                    <!--</div>-->
+                <!--</div>-->
+                <!--<ul class="nav nav-pills" style="margin-bottom: 5px; font-size: 86%">-->
+                    <!--<li class="coral-legend" ng-repeat="point in chart.points">-->
+                        <!--<div class="coral-icon-text draggable" draggable ident="point.id" source="chart" on-drag-success="onDragSuccess">-->
+                            <!--<span class="coral-legend-text" style="border-bottom-color: {{ $parent.chart.traits.color(point) }}">{{point.name}}</span>-->
+                            <!--<a class="coral-remove" href="" ng-click="removePoint( chart, point)"><span class="glyphicon glyphicon-remove"></span></a>-->
+                        <!--</div>-->
+                    <!--</li>-->
+                <!--</ul>-->
+                <!--<div class="coral-win-container">-->
+                    <!--<div class="coral-win-content" droppable target="chart" on-drop="onDropPoint">-->
+                        <!--<div chart="chart.traits" data="chart.points" selection="chart.selection"  style="height: 150px"></div>-->
+                    <!--</div>-->
+                <!--</div>-->
+            <!--</div>-->
+        <!--</div>-->
+    <!--</div>-->
 </div>
 

@@ -30,42 +30,59 @@ import play.api.libs.functional.syntax._
 import models.content._
 import play.api.libs.json.JsArray
 import scala.Some
+import org.totalgrid.coral.models.{ReefServiceFactory, ReefServiceFactoryImpl}
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 
   import models.content.JsonFormatters._
   import models.content.Content._
+  import models.content.Content.InsertLocation._
 
   //implicit val timeout = Timeout(2 seconds)
 
-  // reefConnectionManager is assigned by Global.
-  var reefConnectionManager: ActorRef = null
+  // reefConnectionManager is assigned by Global. Ugly, but can't ask Gloabal _object_ because we need mocked Global during testing.
+  var reefConnectionManager: ActorRef = _
   def connectionManager: ActorRef = reefConnectionManager
+  var reefServiceFactory: ReefServiceFactory = _
+  def serviceFactory: ReefServiceFactory = reefServiceFactory
 
-  def index = AuthenticatedPageAction { (request, client) =>
+
+  def index = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.index")
-    Ok(views.html.index("Coral Sample"))
+    Redirect( routes.Application.appsOperator)
   }
 
-  def chart = AuthenticatedPageAction { (request, client) =>
+  def appsOperator = AuthenticatedPageAction { (request, session) =>
+    Logger.debug( "Application.appsOperator")
+    Ok(views.html.operator("Coral Operator"))
+  }
+
+  def appsAdmin = AuthenticatedPageAction { (request, session) =>
+    Logger.debug( "Application.appsAdmin")
+    Ok(views.html.index("Coral Admin"))
+  }
+
+  def chart = AuthenticatedPageAction { (request, session) =>
     Logger.debug( "Application.chart")
     Ok(views.html.chart("Coral Sample"))
   }
 
 
   def getMenus( name: String) = ReefClientAction { (request, client) =>
+    Logger.debug( s"/menus/$name")
 
     val navMenu = if( name.equals( "root")) {
 
       val applicationsMenu = List[NavigationElement](
-        NavigationItem( "Home", "home", "#/")
+        NavigationItem( "Operator", "operator", "/apps/operator/#/"),
+        NavigationItem( "Admin", "admin", "/apps/admin/#/")
       )
       val sessionMenu = List[NavigationElement](
         NavigationItem( "Logout", "logout", "#/logout")
       )
 
       List[NavigationElement](
-        NavigationItem( "Coral", "applications", "#/", children = applicationsMenu),
+        NavigationItem( "Dashboard", "applications", "#/", children = applicationsMenu),
         NavigationItem( "", "session", "", children = sessionMenu)
       )
     } else {
@@ -78,33 +95,53 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Ok( Json.toJson( navMenu))
   }
 
+  def coralMenusAdmin = {
+    List[NavigationElement](
+      NavigationHeader( "Model"),
+      NavigationItem( "Entities", "entities", "#/entities", selected=true),
+      NavigationItem( "Points", "points", "#/points"),
+      NavigationItem( "Commands", "commands", "#/commands"),
+      NavigationHeader( "Data"),
+      NavigationItem( "CES", "esses", "#/esses"),
+      NavigationItem( "Measurements", "measurements", "#/measurements"),
+      NavigationItem( "Events", "events", "#/events"),
+      NavigationItem( "Alarms", "alarms", "#/alarms"),
+      NavigationHeader( "Components"),
+      NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
+      NavigationItem( "Applications", "applications", "#/applications"),
+      NavigationHeader( "Auth"),
+      NavigationItem( "Agents", "agents", "#/agents"),
+      NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+    )
+  }
+  def coralMenusOperator = {
+    val subMenus = List[NavigationElement](
+      NavigationItemSource( "Equipment", "equipment", "/measurements/equipment", "/models/1/equipment/$parent/descendants?depth=1", CHILDREN),
+      NavigationItemSource( "Solar", "solar", "/measurements/solar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", CHILDREN),
+      NavigationItemSource( "Energy Storage", "ceses", "/ceses/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", CHILDREN),
+      NavigationItemSource( "Generator", "generator", "/measurements/generator", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", CHILDREN),
+      NavigationItemSource( "Load", "load", "/measurements/load", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", CHILDREN)
+    )
+    List[NavigationElement](
+//      NavigationItem( "Dashboard", "dashboard", "#/dashboard"),
+      NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=1&rootTypes=Root", REPLACE, selected=true, children=subMenus),
+      NavigationItem( "Endpoints", "endpoints", "/endpoints"),
+      NavigationItem( "Events", "events", "/events"),
+      NavigationItem( "Alarms", "alarms", "/alarms")
+    )
+  }
   def getCoralMenus( name: String) = ReefClientAction { (request, client) =>
+    Logger.debug( s"/coral/menus/$name")
 
-    val navMenu = if( name.equals( "root")) {
-
-      List[NavigationElement](
-        NavigationHeader( "Model"),
-        NavigationItem( "Entities", "entities", "#/entities", selected=true),
-        NavigationItem( "Points", "points", "#/points"),
-        NavigationItem( "Commands", "commands", "#/commands"),
-        NavigationHeader( "Data"),
-        NavigationItem( "CES", "esses", "#/esses"),
-        NavigationItem( "Measurements", "measurements", "#/measurements"),
-        NavigationItem( "Events", "events", "#/events"),
-        NavigationItem( "Alarms", "alarms", "#/alarms"),
-        NavigationHeader( "Components"),
-        NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
-        NavigationItem( "Applications", "applications", "#/applications"),
-        NavigationHeader( "Auth"),
-        NavigationItem( "Agents", "agents", "#/agents"),
-        NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
-      )
-    } else {
-
-      List[NavigationElement](
-        NavigationHeader( "Unknown menu '" + name + "'")
-      )
+    val navMenu = name match {
+      case "admin" => coralMenusAdmin
+      case "operator" => coralMenusOperator
+      case _ =>
+        List[NavigationElement](
+          NavigationHeader( "Unknown menu '" + name + "'")
+        )
     }
+
 
     Ok( Json.toJson( navMenu))
   }

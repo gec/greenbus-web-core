@@ -15,6 +15,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations under
  * the License.
+ *
+ * Author: Flint O'Brien
  */
 define([
     '../authentication/service'
@@ -63,6 +65,7 @@ define([
                 $rootScope.$apply(function () {
 
                     if( message.type === "ConnectionStatus") {
+                        console.debug( 'onMessage.ConnectionStatus ' + message.data)
                         handleReefConnectionStatus( message.data)
                         return
                     }
@@ -73,6 +76,7 @@ define([
                         return
                     }
 
+//                    console.debug( 'onMessage message.subscriptionId=' + message.subscriptionId + ", message.type=" + message.type)
 
                     var listener = getListenerForMessage( message)
                     if( listener && listener.message)
@@ -129,7 +133,7 @@ define([
             //webSocket.close()
             console.log( "webSocket.handleError message.error: " + message.error)
             if( message.jsError)
-                console.log( "webSocket.handleError message.jsError: " + message.jsError)
+                console.error( "webSocket.handleError message.jsError: " + message.jsError)
 
             var listener = getListenerForMessage( message);
             if( listener && listener.error)
@@ -285,7 +289,7 @@ define([
 
 
     return angular.module('coral.subscription', ["authentication.service"]).
-        factory('websocketFactory', function($window) {
+        factory('websocketFactory', ['$window', function($window) {
             var wsClass;
 
             if ('WebSocket' in $window)
@@ -300,9 +304,9 @@ define([
             return wsClass
                 ? function(url) { return new wsClass(url); }
                 : undefined;
-        }).
-        factory('subscription', function( $rootScope, $location, authentication, websocketFactory){
+        }]).
+        factory('subscription', ['$rootScope', '$location', 'authentication', 'websocketFactory', function( $rootScope, $location, authentication, websocketFactory){
             return new SubscriptionService( $rootScope, $location, authentication, websocketFactory);
-        })
+        }])
 
 });// end RequireJS define

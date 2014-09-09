@@ -3,7 +3,7 @@
 
 <div>
 
-    <h2>Points</h2>
+    <h2>{{equipmentName}}<span style="font-weight: lighter;">Points</span></h2>
 
     <div>
         <table class="table table-condensed">
@@ -17,8 +17,8 @@
             </thead>
             <tbody>
                 <tr ng-repeat="point in points">
-                    <td><a href="#/points/{{point.uuid | encodeURI}}">{{point.name}}</a></td>
-                    <td>{{point.valueType}}</td>
+                    <td><a href="#/points/{{point.id | encodeURI}}/{{point.name | encodeURI}}">{{point.name}}</a></td>
+                    <td>{{point.pointType}}</td>
                     <td>{{point.unit}}</td>
                     <td>{{point.endpoint}}</td>
                 </tr>
@@ -26,6 +26,6 @@
         </table>
     </div>
 
-    <div ng-include src="'partials/loadingprogress.html'"></div>
+    <div ng-include src="'/partials/loadingprogress.html'"></div>
 </div>
 

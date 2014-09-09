@@ -80,7 +80,27 @@ angular.module('ReefAdmin.filters', []).
             }
         };
     }).
-    filter('essBatteryStandby', function() {
+    filter('commStatusIcon', function() {
+        function getCss( enabled, statusString) {
+            if( enabled)
+                return 'coral-comms-enabled-' + statusString
+            else
+                return 'coral-comms-disabled-' + statusString
+        }
+        return function(status, enabled) {
+            var klass
+            switch( status) {
+                case 'Up': klass = 'glyphicon glyphicon-arrow-up ' + getCss( enabled, 'up'); break;
+                case 'Down': klass = 'glyphicon glyphicon-arrow-down ' + getCss( enabled, 'down'); break;
+                case 'Error': klass = 'glyphicon glyphicon-exclamation-sign ' + getCss( enabled, 'error'); break;
+                case 'Unknown':
+                default:
+                    klass = 'glyphicon glyphicon-question-sign ' + getCss( enabled, 'unknown');
+            }
+            return klass
+        };
+    }).
+    filter('cesBatteryStandby', function() {
         return function(standby) {
             return ( standby === "OffAvailable" || standby === "true")
         };
@@ -90,7 +110,7 @@ angular.module('ReefAdmin.filters', []).
             return simpleStandby === "Standby" ? "label label-warning" : ""
         };
     }).
-    filter('essBatteryCharging', function() {
+    filter('cesBatteryCharging', function() {
         return function(standby, charging) {
             if( standby === "OffAvailable" || standby === "true")
                 return false
@@ -105,11 +125,11 @@ angular.module('ReefAdmin.filters', []).
     filter('essStateIcon', function() {
         return function(state) {
             if( state === "standby")
-                return "images/standby14.png"
+                return "/images/standby29x16.png"
             else if( state === "charging")
-                return "images/charging14.png"
+                return "/images/charging29x16.png"
             else if( state === "discharging")
-                return "images/discharging14.png"
+                return "/images/discharging29x16.png"
             else
                 return ""
         };
@@ -119,7 +139,7 @@ angular.module('ReefAdmin.filters', []).
             return state + " state";
         };
     }).
-    filter('essBatterySocChargedClass', function() {
+    filter('cesBatterySocChargedClass', function() {
         return function(soc, state) {
             var classes = ( soc > 10 ) ? "battery-soc charged" : "battery-soc charged alarmed"
             if( state === "standby" )
@@ -127,7 +147,7 @@ angular.module('ReefAdmin.filters', []).
             return classes
         };
     }).
-    filter('essBatterySocUnchargedClass', function() {
+    filter('cesBatterySocUnchargedClass', function() {
         return function(soc, state) {
             var classes = null
             if( soc === null || soc === "" )
@@ -166,17 +186,29 @@ angular.module('ReefAdmin.filters', []).
         // Search each element in the 'objects' array for key values containing searchText
         return window.encodeURI
     }).
+    filter('validityIcon', function() {
+        return function(validity) {
+            switch( validity) {
+                case "GOOD": return "glyphicon glyphicon-ok validity-good";
+                case "QUESTIONABLE": return "glyphicon glyphicon-question-sign validity-questionable";
+                case "NOTLOADED": return "validity-notloaded"
+                case "INVALID":
+                default:
+                  return "glyphicon glyphicon-exclamation-sign validity-invalid";
+            }
+        };
+    }).
     filter('pointTypeImage', function() {
         return function(type, unit) {
             var image
 
             if( unit === "raw") {
-                image = "../images/pointRaw.png"
+                image = "../../images/pointRaw.png"
             } else {
                 switch( type) {
-                    case "ANALOG": image = "../images/pointAnalog.png"; break;
-                    case "STATUS": image = "../images/pointStatus.png"; break;
-                    default: image = "../images/pointRaw.png";
+                    case "ANALOG": image = "../../images/pointAnalog.png"; break;
+                    case "STATUS": image = "../../images/pointStatus.png"; break;
+                    default: image = "../../images/pointRaw.png";
                 }
             }
 

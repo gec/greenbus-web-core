@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import org.totalgrid.coral.util.Timer
 
 
 /**
@@ -82,7 +82,7 @@ trait Authentication {
   /**
    * Ajax reply for failed login or the user is not logged in and tries to access a protected resource.
    */
-  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): SimpleResult
+  def authenticationFailure(request: RequestHeader, failure: AuthenticationFailure): Result
 
 
   def getAuthToken( request: RequestHeader, authTokenLocation: AuthTokenLocation): Option[String] = {
@@ -102,13 +102,21 @@ trait Authentication {
    * Authenticate the request by using the authToken.
    */
   def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, ServiceClient)]] = {
+//    val timer = new Timer( "TIMER: AAR Authentication.authenticateRequest validationTiming: " + validationTiming)
+
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
         getService( authToken, validationTiming).map {
-          case Right( service) => Some((authToken, service))
-          case Left( failure) => None
+          case Right( session) =>
+//            timer.end( "Right( session) validationTiming: " + validationTiming)
+            Some((authToken, session))
+          case Left( failure) =>
+//            timer.end( "None validationTiming: " + validationTiming)
+            None
         }
-      case None => Future(None)
+      case None =>
+//        timer.end( "No auth token validationTiming: " + validationTiming)
+        Future(None)
     }
   }
 

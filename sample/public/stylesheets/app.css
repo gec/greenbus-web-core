@@ -5,6 +5,19 @@
     color: #999999;
 }
 
+.validity-good {color: #9de09d; font-size:1.4em;}
+.validity-invalid {color: #b22222; font-size:1.4em;}
+.validity-questionable {color: #f57900; font-size:1.4em;}
+.validity-notloaded {font-size:1.4em;}
+
+.coral-comms-enabled-up {color: green}
+.coral-comms-enabled-down {color: #b22222}
+.coral-comms-enabled-error {color: #b22222}
+.coral-comms-enabled-unknown {color: orangered}
+.coral-comms-disabled-up {color: darkgray}
+.coral-comms-disabled-down {color: darkgray}
+.coral-comms-disabled-error {color: darkslategray}
+.coral-comms-disabled-unknown {color: darkslategray}
 
 /*.T-Jo {*/
 .coral-checkbox-container {
@@ -104,10 +117,10 @@
     padding: 10% 25%;
 }
 .coral-checkbox-checked {
-    background: url(../images/checkmark.png) no-repeat -5px -3px;
+    background: url(../../images/checkmark.png) no-repeat -5px -3px;
 }
 .coral-checkbox-partial {
-    background: url(../images/checkmark-partial.png) no-repeat -5px -3px;
+    background: url(../../images/checkmark-partial.png) no-repeat -5px -3px;
 }
 .coral-icon {
     margin-right: 4px;
@@ -214,14 +227,15 @@
     display: block;
     width:50px;
     height: 30px;
-    padding-left: 4px;
-    padding-right: 20px;
+    /*padding-left: 4px;*/
+    /*padding-right: 20px;*/
+    padding: 0
     overflow: visible;
 }
 
-.ess-state-icon {
-    width: 14px;
-    height: 14px;
+.ces-state-icon {
+    width: 29px;
+    height: 16px;
     border: none;
     outline: none;
 }
@@ -294,6 +308,37 @@
     width: 24px;
     height: 36px;
     background-image: url('../images/standby24x36.png');
+}
+
+.coral-table-2header > thead > tr > th {
+    border-bottom: 2px solid #ddd;
+    border-top: none;
+    padding-top: 0;
+}
+.coral-table-2header > thead > tr:first-child > th {
+    border-bottom: none;
+    padding-bottom: 0;
+    padding-top: 5px;
+}
+.coral-table-2header > thead > tr:first-child > th.coral-cell-highlight-top {
+    border-top: 2px solid #ddd;
+    text-align: center;
+    /*background-color: #eee;*/
+}
+.coral-cell-highlight-top {
+    border-radius: 15px 15px 0 0;
+    border-top: 2px solid #ddd;
+    border-right: 2px solid #ddd;
+    border-left: 2px solid #ddd;
+}
+.coral-cell-highlight {
+    background-color: #eff;
+}
+.coral-cell-highlight-left {
+    border-left: 2px solid #ddd;
+}
+.coral-cell-highlight-right {
+    border-right: 2px solid #ddd;
 }
 
 /*

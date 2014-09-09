@@ -23,28 +23,28 @@ define([
                 this.errorListener = errorListener
             }
         }
-        var dialogMock = {
+        var modalMock = {
             result: null,
             modalOptions: "mOpts",
             modalController: null,
             handlePromise: null,
             privateScope: {},
-            dialog: function( modalOptions) {
+            open: function( modalOptions) {
                 this.modalOptions = modalOptions
                 return {
                     open: function() {
                         return {
                             then: function( handlePromise) {
-                                dialogMock.handlePromise = handlePromise
-                                this.modalController = new modalOptions.controller( dialogMock.privateScope, dialogMock, modalOptions.resolve.error())
+                                modalMock.handlePromise = handlePromise
+                                this.modalController = new modalOptions.controller( modalMock.privateScope, modalMock, modalOptions.resolve.error())
                             }
                         }
                     }
                 }
             },
             close: function( result) {
-                dialogMock.result = result
-                dialogMock.handlePromise( result)
+                modalMock.result = result
+                modalMock.handlePromise( result)
             },
 
             clickLoginWith: function( userName, password) {
@@ -57,42 +57,42 @@ define([
 
         beforeEach(function() {
             mocks.module('authentication.controller');
-            spyOn( dialogMock, "dialog").andCallThrough()
-            spyOn( dialogMock, "close").andCallThrough()
+            spyOn( modalMock, "open").andCallThrough()
+            spyOn( modalMock, "close").andCallThrough()
             spyOn( authenticationMock, "login").andCallThrough()
             mocks.inject(function($rootScope, $controller) {
                 scope = $rootScope.$new();
                 loginController = $controller('LoginController', {
                     $scope: scope,
                     authentication: authenticationMock,
-                    $dialog: dialogMock
+                    $modal: modalMock
                 });
             });
         });
 
-        it( 'should open dialog, handle login click, and authenticate successfully', function() {
+        it( 'should open modal dialog, handle login click, and authenticate successfully', function() {
             expect( scope.status).toBe( "some status")
-            expect( dialogMock.dialog).toHaveBeenCalled()
-            expect( dialogMock.modalOptions.templateUrl).toBe( "partials/loginmodal.html")
+            expect( modalMock.open).toHaveBeenCalled()
+            expect( modalMock.modalOptions.templateUrl).toBe( "partials/loginmodal.html")
 
-            dialogMock.clickLoginWith( "userName1", "password1")
-            expect( dialogMock.close).toHaveBeenCalled()
+            modalMock.clickLoginWith( "userName1", "password1")
+            expect( modalMock.close).toHaveBeenCalled()
             expect( authenticationMock.login).toHaveBeenCalledWith( "userName1", "password1", null, jasmine.any(Function))
         })
 
         it( 'should handle authentication error and show user name, password, and error', function() {
 
             scope.error = "some error"
-            dialogMock.clickLoginWith( "userName1", "password1")
-            expect( dialogMock.close).toHaveBeenCalled()
+            modalMock.clickLoginWith( "userName1", "password1")
+            expect( modalMock.close).toHaveBeenCalled()
             expect( authenticationMock.login).toHaveBeenCalledWith( "userName1", "password1", null, jasmine.any(Function))
-            expect( dialogMock.privateScope.error).toBe( null)
+            expect( modalMock.privateScope.error).toBe( null)
 
             authenticationMock.errorListener( "some error")
-            expect( dialogMock.dialog.callCount).toEqual(2)
-            expect( dialogMock.privateScope.error).toBe( "some error")
-            expect( dialogMock.privateScope.userName).toBe( "userName1")
-            expect( dialogMock.privateScope.password).toBe( "password1")
+            expect( modalMock.open.callCount).toEqual(2)
+            expect( modalMock.privateScope.error).toBe( "some error")
+            expect( modalMock.privateScope.userName).toBe( "userName1")
+            expect( modalMock.privateScope.password).toBe( "password1")
         })
     });
 
