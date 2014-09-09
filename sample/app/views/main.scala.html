@@ -16,6 +16,7 @@
         @content
 
         <script src="http://code.jquery.com/jquery-latest.js"></script>
-        @helper.requireJs(core = routes.Assets.at("javascripts/require.js").url, module = appModule.url)
+        <script src="@routes.Assets.at("javascripts/require.js").url" data-main="@appModule.url"></script>       
+@* @helper.requireJs(core = routes.Assets.at("javascripts/require.js").url, module = appModule.url)*@
     </body>
 </html>
