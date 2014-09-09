@@ -11,7 +11,7 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "coral"
-  val playVersion       = "2.3.1"
+  val playVersion       = "2.3.2"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
   val reefVersion       = "0.6.0.M3-SNAPSHOT"
@@ -23,7 +23,8 @@ object ApplicationBuild extends Build {
     scalaVersion       := "2.10.4",
     organization       := "org.totalgrid.coral",
     scalacOptions += "-feature", // show compiler warnings for language features
-    scalacOptions += "-unchecked", // compiler warnings for type aliases and ???
+    scalacOptions += "-unchecked", // show compiler warnings for type aliases and ???
+    scalacOptions += "-deprecation", // show compiler warnings for deprecated features
     resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scala-tools" at "http://repo.typesafe.com/typesafe/scala-tools-releases-cache",
     credentials += Credentials( Path.userHome / ".ivy2" / ".credentials"),
