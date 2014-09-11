@@ -83,6 +83,39 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
         return Object.prototype.toString.call(obj) == '[object String]'
     }
 
+    function httpRequestError( json, statusCode, headers, config) {
+
+      console.error( "coralRequest error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
+      if( statusCode == 0) {
+        setStatus( {
+          status: "APPLICATION_SERVER_DOWN",
+          reinitializing: false,
+          description: "Application server is not responding. Your network connection is down or the application server appears to be down."
+        });
+      } else if (statusCode == 401) {
+        setStatus( {
+          status: "NOT_LOGGED_IN",
+          reinitializing: true,
+          description: "Not logged in."
+        });
+        redirectLocation = $location.url(); // save the current url so we can redirect the user back
+        authentication.redirectToLoginPage( redirectLocation)
+      } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
+        setStatus( {
+          status: "APPLICATION_REQUEST_FAILURE",
+          reinitializing: false,
+          description: "Application server responded with status " + statusCode
+        });
+      } else {
+        setStatus( json);
+      }
+
+      // 404 means it's an internal error and the page will never be found so no use retrying.
+      if( statusCode != 404) {
+        console.error( "coralRest error if( statusCode != 404)")
+      }
+    }
+
     self.get = function ( url, name, $scope, successListener) {
         $scope.loading = true;
         //console.log( "reef.get " + url + " retries:" + retries.get);
@@ -113,7 +146,7 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
             var delay = retries.get < 5 ? 1000 : 10000
 
             $scope.task = $timeout(function () {
-                self.get( url, name, $scope);
+                self.get( url, name, $scope, successListener);
             }, delay);
 
             return;
@@ -143,37 +176,55 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
                     });
                 }
             }).
-            error(function (json, statusCode, headers, config) {
+            error(httpRequestError);
 
-                console.log( "reef.get error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
-                if( statusCode == 0) {
-                    setStatus( {
-                        status: "APPLICATION_SERVER_DOWN",
-                        reinitializing: false,
-                        description: "Application server is not responding. Your network connection is down or the application server appears to be down."
-                    });
-                } else if (statusCode == 401) {
-                    setStatus( {
-                        status: "NOT_LOGGED_IN",
-                        reinitializing: true,
-                        description: "Not logged in."
-                    });
-                    redirectLocation = $location.url(); // save the current url so we can redirect the user back
-                    authentication.redirectToLoginPage( redirectLocation)
-                } else if (statusCode == 404 || statusCode == 500 || (isString( json) && json.length == 0)) {
-                    setStatus( {
-                        status: "APPLICATION_REQUEST_FAILURE",
-                        reinitializing: false,
-                        description: "Application server responded with status " + statusCode
-                    });
-                } else {
-                    setStatus( json);
-                }
+    }
 
-                // 404 means it's an internal error and the page will never be found so no use retrying.
-                if( statusCode != 404) {
-                    console.log( "self.get error if( statusCode != 404)")
-                }
+    self.post = function ( url, data, name, $scope, successListener, failureListener) {
+
+        httpConfig.headers = authentication.getHttpHeaders()
+
+        // encodeURI because objects like point names can have percents in them.
+        $http.post( url, data, httpConfig).
+            success(function(json) {
+                if( name)
+                  $scope[name] = json;
+                console.log( "reef.post success json.length: " + json.length + ", url: " + url);
+
+                if( successListener)
+                    successListener( json)
+            }).
+            error( function( json, statusCode, headers, config) {
+              // 400: Bad Request - request is malformed or missing required fields.
+              // 403: Forbidden - Logged in, but don't have permissions to complete request, resource already locked, etc.
+              if( statusCode === 400 || statusCode === 403)
+                failureListener( json, statusCode, headers, config)
+              else
+                httpRequestError( json, statusCode, headers, config)
+            });
+
+    }
+    self.delete = function ( url, name, $scope, successListener, failureListener) {
+
+        httpConfig.headers = authentication.getHttpHeaders()
+
+        // encodeURI because objects like point names can have percents in them.
+        $http.delete( url, httpConfig).
+            success(function(json) {
+                if( name)
+                  $scope[name] = json;
+                console.log( "reef.delete success json.length: " + json.length + ", url: " + url);
+
+                if( successListener)
+                    successListener( json)
+            }).
+            error( function( json, statusCode, headers, config) {
+            // 400: Bad Request - request is malformed or missing required fields.
+              // 403: Forbidden - Logged in, but don't have permissions to complete request, resource already locked, etc.
+            if( statusCode === 400 || statusCode === 403)
+                failureListener( json, statusCode, headers, config)
+              else
+                httpRequestError( json, statusCode, headers, config)
             });
 
     }

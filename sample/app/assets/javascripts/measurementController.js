@@ -312,6 +312,249 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     $scope.charts.splice( index, 1 )
   }
 
+
+  var CommandNotSelected = 'NotSelected',   // -> Selecting
+      CommandSelecting = 'Selecting',       // -> Selected, NotSelected (unauthorized or failure)
+      CommandSelected = 'Selected',         // -> Executing, NotSelected, Deselecting (user or timeout)
+      CommandDeselecting = 'Deselecting',   // -> Executing, NotSelected (user or timeout)
+      CommandExecuting = 'Executing'        // -> NotSelected (success or failure)
+  var CommandIcons = {
+    NotSelected: 'fa fa-chevron-right',
+    Selecting: 'fa fa-chevron-right fa-spin',
+    Selected: 'fa fa-chevron-left',
+    Deselecting: 'fa fa-chevron-left fa-spin',
+    Executing: 'fa fa-chevron-left'
+  }
+  var ExecuteIcons = {
+    NotSelected: '',
+    Selecting: '',
+    Selected: 'fa fa-sign-in',
+    Deselecting: 'fa fa-sign-in',
+    Executing: 'fa fa-refresh fa-spin'
+  }
+
+  function CommandSet( _point, _commands) {
+    // Control & Setpoint States
+
+    this.point = _point
+    this.commands = _commands
+    this.state = CommandNotSelected
+    this.lock = undefined
+    this.selectedCommand = undefined
+//    this.selectedCommandPending = undefined
+    this.commands.forEach( function( c) {
+      c.selectClasses = CommandIcons[ CommandNotSelected]
+      c.executeClasses = ExecuteIcons[ CommandNotSelected]
+      c.isSetpoint = c.commandType.indexOf('SETPOINT') === 0
+    })
+  }
+
+  CommandSet.prototype.selectToggle = function( command) {
+    switch( this.state) {
+      case CommandNotSelected: this.select( command); break;
+      case CommandSelecting:   break;
+      case CommandSelected:    this.deselectOptionSelect( command); break;
+      case CommandExecuting:   break;
+    }
+    this.point.ignoreRowClick = true
+  }
+
+  CommandSet.prototype.setState = function( state, command) {
+    this.state = state
+    console.log( 'setState from ' + this.state + ' to ' + state)
+    if( command) {
+      command.selectClasses = CommandIcons[this.state]
+      command.executeClasses = ExecuteIcons[this.state]
+      console.log( "setState " + this.state + ', command.classes ' + command.classes)
+    }
+  }
+
+  CommandSet.prototype.select = function( command) {
+    var self = this
+
+    if( this.state !== CommandNotSelected) {
+      console.error( 'CommandSet.select invalid state: ' + this.state)
+      return
+    }
+
+    self.setState( CommandSelecting, command)
+
+    var arg = {
+      accessMode: 'ALLOWED',
+      commandIds: [command.id]
+    }
+    coralRest.post( '/models/1/commandlock', arg, null, $scope,
+      function( data) {
+        self.lock = data
+        self.selectedCommand = command
+        self.setState( CommandSelected, command)
+      },
+      function( ex, statusCode, headers, config) {
+        console.log( 'CommandSet.select ' + ex)
+        self.alertException( ex)
+        self.setState( CommandNotSelected, command)
+      })
+  }
+
+  CommandSet.prototype.deselectOptionSelect = function( command) {
+    var self = this
+
+    if( this.state !== CommandSelected) {
+      console.error( 'CommandSet.deselect invalid state: ' + this.state)
+      return
+    }
+
+    self.setState( CommandDeselecting, self.selectedCommand)
+//    if( self.selectedCommand !== command) {
+//      self.selectedCommandPending = command
+//    }
+
+    coralRest.delete( '/models/1/commandlock/' + self.lock.id, null, $scope,
+      function( data) {
+        delete self.lock;
+        self.setState( CommandNotSelected, self.selectedCommand)
+
+        var saveCommand = self.selectedCommand
+        self.selectedCommand = undefined
+        if( saveCommand !== command) {
+          self.select( command)
+        }
+      },
+      function( ex, statusCode, headers, config) {
+        console.log( 'CommandSet.deselect ' + ex)
+        self.setState( CommandNotSelected, self.selectedCommand)
+        self.selectedCommand = undefined
+        self.alertException( ex)
+
+        var saveCommand = self.selectedCommand
+        self.selectedCommand = undefined
+        if( saveCommand !== command) {
+          self.select( command)
+        }
+      })
+  }
+
+  CommandSet.prototype.execute = function( command, commandIndex) {
+    var self = this
+
+    if( this.state !== CommandSelected) {
+      console.error( 'CommandSet.execute invalid state: ' + this.state)
+      return
+    }
+
+    self.setState( CommandExecuting, command)
+
+    var arg = {}
+    coralRest.post( '/models/1/commands/' + command.id, arg, null, $scope,
+      function( commandResult) {
+        self.alertCommandResult( commandResult)
+        self.setState( CommandSelected, command)
+      },
+      function( ex, statusCode, headers, config) {
+        console.log( 'CommandSet.execute ' + ex)
+        self.setState( CommandSelected, command)
+        self.alertException( ex)
+      })
+
+    this.point.ignoreRowClick = true
+  }
+
+  CommandSet.prototype.closeAlert = function( index) {
+    if( this.alerts)
+      this.alerts.splice( index, 1)
+    this.point.ignoreRowClick = true
+  }
+
+  CommandSet.prototype.alertCommandResult = function( result) {
+    var alert = { message: 'Successful'}
+    alert.type = result.status === 'SUCCESS' ? 'success' : 'danger'
+    if( result.status !== 'SUCCESS') {
+      alert.message = 'ERROR: ' + result.status
+      if( result.error)
+        alert.message += ',  ' + result.error
+    }
+    this.alerts = [ alert ]
+  }
+
+  CommandSet.prototype.alertException = function( ex) {
+    var alert = {
+      type: 'danger',
+      message: ex.exception + ': ' + ex.message
+    }
+    this.alerts = [ alert ]
+  }
+
+  CommandSet.prototype.getCommandTypes = function() {
+    var control = '',
+        setpoint = ''
+
+    this.commands.forEach( function( c) {
+      if( control.length === 0 && c.commandType === 'CONTROL') {
+        control = 'control'
+      } else {
+        if( setpoint.length === 0 && c.commandType.indexOf( 'SETPOINT') === 0)
+          setpoint = 'setpoint'
+      }
+    })
+
+    return control && setpoint ? control + ',' + setpoint : control + setpoint
+  }
+
+
+  $scope.rowClasses = function( point) {
+    return point.expandRow ? 'coral-row-selected' : ''
+  }
+  $scope.commandIconClasses = function( point, command) {
+
+    return point.commandSelected === command ? 'glyphicon glyphicon-chevron-left text-muted'
+      : command.command ? ''
+      :'glyphicon glyphicon-chevron-right text-muted'
+  }
+  $scope.commandClasses = function( point, command) {
+    return point.commandSelected === command ? 'btn btn-default coral-command'
+      : command.command ? 'btn btn-default btn-primary coral-command-execute'
+      :'btn btn-default coral-command'
+  }
+  $scope.pointCommandExecute = function( point, command, commandIndex) {
+    point.ignoreCommandClick = true
+  }
+  $scope.togglePointRowById = function( id) {
+    var point = findPoint( id)
+
+    if( ! point)
+      return
+
+    if( point.ignoreRowClick) {
+      point.ignoreRowClick = false
+      return
+    }
+
+    point.expandRow = ! point.expandRow
+//    point.commands = [
+//      {
+//        label: 'Open'
+//      },
+//      {
+//        label: 'Close'
+//      }
+//    ]
+    point.commandSelected = undefined
+  }
+
+
+  $scope.search = function( point) {
+    var s = $scope.searchText
+    if( s === undefined || s === null || s.length === 0)
+      return true
+    s = s.toLowerCase()
+    var v = '' + point.currentMeasurement.value,
+        foundCommandTypes = point.commandTypes && point.commandTypes.indexOf(s)!==-1,
+        foundName = point.name.toLowerCase().indexOf( s)!==-1
+
+    return foundName || v.toLowerCase().indexOf(s)!==-1 || point.unit.toLowerCase().indexOf( s)!==-1 || point.pointType.toLowerCase().indexOf( s)!==-1 || foundCommandTypes
+  }
+
+
   function onArrayOfPointMeasurement( arrayOfPointMeasurement ) {
     console.debug( "onArrayOfPointMeasurement arrayOfPointMeasurement.length=" + arrayOfPointMeasurement.length)
     arrayOfPointMeasurement.forEach( function ( pm ) {
@@ -420,7 +663,9 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
         time: null,
         shortQuality: "-",
         longQuality: "-",
-        validity: "NOTLOADED"
+        validity: "NOTLOADED",
+        expandRow: false,
+        commandSet: undefined
       }
     $scope.points.forEach( function ( point ) {
       point.checked = CHECKMARK_UNCHECKED
@@ -466,8 +711,49 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     return result
   }
 
+  // commandType: CONTROL, SETPOINT_INT, SETPOINT_DOUBLE, SETPOINT_STRING
+  var exampleControls = [
+    {commandType:  "CONTROL",
+      displayName: "NE_City.PCC_CB.Close",
+      endpoint:    "ba01993f-d32c-43d4-9afc-8e5302ae5de8",
+      id:          "65840820-aa1c-4215-b063-32affaddd465",
+      name:        "NE_City.PCC_CB.Close"
+    },
+    {
+      commandType: "CONTROL",
+      displayName: "NE_City.PCC_CB.Open",
+      endpoint:    "ba01993f-d32c-43d4-9afc-8e5302ae5de8",
+      id:          "45673166-b55f-47e5-8f97-d495b7392a7a",
+      name:        "NE_City.PCC_CB.Open"
+    }
+  ]
 
 
+  /**
+   * UUIDs are 36 characters long. The URL max is 2048
+   * @param pointIds
+   */
+  function getPointsCommands( pointIds ) {
+//    var ids = coralRest.queryParameterFromArrayOrString( "ids", pointIds )
+    var url = '/models/1/points/commands'
+
+    coralRest.post( url, pointIds, null, $scope, function( data) {
+      var point
+      // data is map of pointId -> commands[]
+      for( var pointId in data) {
+        point = findPoint( pointId)
+        if( point) {
+          point.commandSet = new CommandSet( point, data[pointId])
+          point.commandTypes = point.commandSet.getCommandTypes().toLowerCase()
+          console.log( 'commandTypes: ' + point.commandTypes)
+        }
+      }
+    })
+
+  }
+
+  // "NE_City.Big_Hotel.DR2_cntl"
+  // "NE_City.Big_Hotel.DR3_cntl"
 
   if( navId) {
     // If treeNode exists, it's returned immediately. If it's still being loaded,
@@ -501,6 +787,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
       var pointIds = processPointsAndReturnPointIds()
       subscribeToMeasurements( pointIds)
+      getPointsCommands( pointIds)
     })
   }
 

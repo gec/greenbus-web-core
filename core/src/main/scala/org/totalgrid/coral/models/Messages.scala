@@ -49,3 +49,7 @@ object WebSocketMessages {
   case class WebSocketError( status: ConnectionStatus)
   case class WebSocketChannels( iteratee: Iteratee[JsValue, Unit], enumerator: Enumerator[JsValue])
 }
+
+object ExceptionMessages {
+  case class ExceptionMessage( exception: String, message: String)
+}

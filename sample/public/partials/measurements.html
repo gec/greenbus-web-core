@@ -24,7 +24,7 @@
     <!--</div>-->
 
     <div>
-        <table class="table table-condensed" ng-show="points.length > 0">
+        <table class="table table-condensed coral-row-radius" ng-show="points.length > 0">
             <thead>
                 <tr>
                     <th colspan="2" style="padding-bottom: 12px;">
@@ -46,7 +46,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="point in points | filter:searchText | orderBy:sortColumn">
+                <tr style="cursor: pointer;" ng-repeat="point in points | filter:search | orderBy:sortColumn" ng-class="rowClasses(point)" ng-click="togglePointRowById(point.id)">
                     <td>
                         <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                             <div ng-class="point.checked | checkboxClass"></div>
@@ -61,8 +61,27 @@
                             {{point.name}}
                         </div>
                     </td>
-                    <td style="text-align: right"><a href="" ng-click="chartAddPointById(point.id)"><span class="glyphicon glyphicon-stats text-muted"></span></a></td>
-                    <td style="text-align: right">{{point.currentMeasurement.value}}</td>
+                    <td style="text-align: right">
+                        <a href="" ng-click="chartAddPointById(point.id)"><span class="glyphicon glyphicon-stats text-muted" title="Graph measurements"></span></a>
+                        <!--<i class="fa fa-refresh fa-spin"></i>-->
+                    </td>
+                    <td class="coral-value">
+                        <span class="glyphicon glyphicon-edit pull-left text-muted" style="padding-right: 10px; opacity: {{ point.commandSet ? 1 : 0 }}" title="Control or Setpoint"></span>
+                        {{point.currentMeasurement.value}}
+                        <div ng-show="point.expandRow">
+                            <div class="btn-group-vertical coral-commands">
+                                <button type="button" ng-class="commandClasses(point, command)" ng-repeat="command in point.commandSet.commands" ng-click="point.commandSet.selectToggle( command)">
+                                    <!--<i class="fa fa-sign-in text-muted" style="padding-right: .5em;"></i>-->
+                                    {{ command.displayName }} <i ng-class="command.selectClasses"></i>
+
+                                    <div type="button" class="btn btn-default btn-primary coral-command-execute" ng-show="point.commandSet.selectedCommand === command" ng-click="point.commandSet.execute( command, $index)">
+                                        <input type="text" class="form-control" placeholder="?" ng-show="command.isSetpoint">
+                                        Execute <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i></div>
+                                </button>
+                            </div>
+                            <alert ng-repeat="alert in point.commandSet.alerts" type="alert.type" close="point.commandSet.closeAlert($index)" style="text-align: left; white-space: normal;">{{alert.message}}</alert>
+                        </div>
+                    </td>
                     <td>{{point.unit}}</td>
                     <td style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>
                     <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>

@@ -20,13 +20,17 @@
  */
 package org.totalgrid.coral.controllers
 
+import org.totalgrid.coral.models.ExceptionMessages.ExceptionMessage
+import org.totalgrid.reef.client.exception.{ForbiddenException, ReefServiceException, UnauthorizedException, LockedException, BadRequestException}
+import org.totalgrid.reef.client.service.proto.Commands.CommandLock
 import play.api.mvc._
 import play.api.Logger
 import play.api.libs.json._
+import play.api.libs.functional.syntax._
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Model.{EntityEdge, ReefUUID, Entity}
+import org.totalgrid.reef.client.service.proto.Model.{ReefID, EntityEdge, ReefUUID, Entity}
 import org.totalgrid.reef.client.service.{EventService, MeasurementService,EntityService}
-import org.totalgrid.reef.client.service.proto.{EventRequests, EntityRequests}
+import org.totalgrid.reef.client.service.proto._
 import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityRelationshipFlatQuery, EntityQuery, EntityEdgeQuery, EntityKeySet}
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
@@ -88,6 +92,18 @@ trait RestServices extends ReefAuthentication {
     }
 
   }
+
+  def entityEdgesToParentChildrenMap( edges: Seq[EntityEdge]): Map[ReefUUID,List[ReefUUID]] = {
+    edges.foldLeft( Map[ReefUUID,List[ReefUUID]]()) { (map, edge) =>
+      val pointId = edge.getParent
+      val commandId = edge.getChild
+      map.get( pointId) match {
+        case Some( commands) => map + (pointId -> (commandId :: commands))
+        case None => map + ( pointId -> List(commandId))
+      }
+    }
+  }
+
 
   def getChildTreeBreadthFirst( service: EntityService, rootEntitiesWithChildren: Seq[EntityWithChildren], parentEntitiesWithChildrenMap: Map[String,EntityWithChildren], currentDepth: Int, maxDepth: Int): Future[Seq[EntityWithChildren]] = {
     Logger.debug( s"getChildTreeBreadthFirst begin currentDepth/maxDepth $currentDepth / $maxDepth")
@@ -457,6 +473,143 @@ trait RestServices extends ReefAuthentication {
           }
         }
       }
+    }
+  }
+
+  def getPointsCommands( modelId: String)  = ReefClientActionAsync { (request, session) =>
+
+
+    request.body.asJson.map { json =>
+      json.validate[Seq[String]].map{
+        case pointIds =>
+
+
+          val query = EntityEdgeQuery.newBuilder()
+          val reefPointIds = pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+          query.addAllParentUuids( reefPointIds)
+          query
+            .addRelationships( "feedback")
+            .setDepthLimit( 1)  // just the immediate edge.
+            .setPageSize( Int.MaxValue)
+
+          val entityService = serviceFactory.entityService( session)
+          entityService.edgeQuery( query.build).flatMap { edges =>
+
+            val pointIdToCommandIdMap = entityEdgesToParentChildrenMap( edges).filter( m => m._2.length > 0)
+            val feService = serviceFactory.frontEndService( session)
+            val commandIds = edges.map( _.getChild)
+            val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
+
+            feService.getCommands( keySet).map{  commands =>
+              val commandIdCommandMap = commands.foldLeft( Map[ReefUUID, FrontEnd.Command]()) { (map, c) => map + (c.getUuid -> c) }
+              //        val commandIdCommandMap = commands.map{ c => (c.getUuid -> c) }.toMap
+
+
+              val pointIdCommandMap = pointIdToCommandIdMap.map{ case ( pointId, commandIds) =>
+
+                val cs = commandIds.flatMap( commandIdCommandMap.get)
+//                val cs = for( commandId <- commandIds;
+//                              command <- commandIdCommandMap.get( commandId)
+//                ) yield command
+
+                (pointId.getValue -> cs)
+              }
+              Ok( Json.toJson( pointIdCommandMap))
+            }
+
+          }
+
+
+
+
+      }.recoverTotal{
+        e => Future.successful( BadRequest("Detected error:"+ JsError.toFlatJson(e)))
+      }
+    }.getOrElse {
+      Future.successful( BadRequest("Expecting Json data"))
+    }
+
+
+  }
+
+  implicit val reader = Reads[CommandLock.AccessMode] {
+    case JsString(s) => s.toUpperCase match {
+      case "ALLOWED" => JsSuccess( CommandLock.AccessMode.ALLOWED)
+      case "BLOCKED" => JsSuccess( CommandLock.AccessMode.BLOCKED)
+      case _ => JsError("No value for '" + s + "'")
+    }
+    case _ => JsError("Value must be a string")
+  }
+
+  case class CommandLockRequest( accessMode: CommandLock.AccessMode, commandIds: Seq[String])
+  def commandLockRequestReads: Reads[CommandLockRequest] = (
+    (__ \ "accessMode").read[CommandLock.AccessMode] and
+      (__ \ "commandIds").read[Seq[String]]
+    )(CommandLockRequest.apply _)
+
+
+  def postCommandLock( modelId: String)  = ReefClientActionAsync { (request, session) =>
+
+    request.body.asJson.map { json =>
+      json.validate(commandLockRequestReads).map {
+        case commandLockRequest =>
+          val cService = serviceFactory.commandService(session)
+          val reefIds = commandLockRequest.commandIds.map(id => ReefUUID.newBuilder().setValue(id).build())
+
+          val future = commandLockRequest.accessMode match {
+            case CommandLock.AccessMode.ALLOWED =>
+              val lockForSelect = CommandRequests.CommandSelect.newBuilder.addAllCommandUuids(reefIds).build
+              cService.selectCommands(lockForSelect)
+            case CommandLock.AccessMode.BLOCKED =>
+              val lockForBlock = CommandRequests.CommandBlock.newBuilder.addAllCommandUuids(reefIds).build
+              cService.blockCommands(lockForBlock)
+          }
+
+          future map { commandLock =>
+            Ok(Json.toJson(commandLock))
+          } recover {
+            case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+            case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+            case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+            case ex => throw ex
+          }
+
+      }.recoverTotal{
+        e => Future.successful( BadRequest("Detected error:"+ JsError.toFlatJson(e)))
+      }
+    }.getOrElse {
+      Future.successful( BadRequest("Expecting Json data"))
+    }
+  }
+
+  def deleteCommandLock( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
+
+    val cService = serviceFactory.commandService( session)
+    val reefId = ReefID.newBuilder().setValue( id).build()
+    cService.deleteCommandLocks( Seq( reefId)).map { result =>
+      if( result.size == 1)
+        Ok( Json.toJson( result(0)))
+      else
+        NotFound( JSON_EMPTY_OBJECT)
+    }
+  }
+
+  def postCommand( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
+
+    val cService = serviceFactory.commandService( session)
+    val reefUuid = ReefUUID.newBuilder().setValue( id).build()
+
+    val request = Commands.CommandRequest.newBuilder()
+      .setCommandUuid( reefUuid)
+      .build()
+
+    cService.issueCommandRequest( request) map { result =>
+      Ok( Json.toJson( result))
+    } recover {
+      case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex => throw ex
     }
   }
 

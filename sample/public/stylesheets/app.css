@@ -5,6 +5,21 @@
     color: #999999;
 }
 
+.icon-spin {
+  -animation: icon-spin1 .7s infinite linear;
+  -webkit-animation: icon-spin2 .7s infinite linear;
+}
+
+@-webkit-keyframes icon-spin2 {
+  from { -webkit-transform: rotate(0deg);}
+  to { -webkit-transform: rotate(360deg);}
+}
+
+@keyframes icon-spin1 {
+  from { transform: scale(1) rotate(0deg);}
+  to { transform: scale(1) rotate(360deg);}
+}
+
 .validity-good {color: #9de09d; font-size:1.4em;}
 .validity-invalid {color: #b22222; font-size:1.4em;}
 .validity-questionable {color: #f57900; font-size:1.4em;}
@@ -339,6 +354,60 @@
 }
 .coral-cell-highlight-right {
     border-right: 2px solid #ddd;
+}
+
+table.coral-row-radius {
+  border-collapse: separate;
+}
+.table > tbody > tr.coral-row-selected > td {
+  background-color: #FAFAFA;
+  border-top: 2px solid #B0C4DE;
+  border-bottom: 2px solid #B0C4DE;
+}
+
+.table > tbody > tr.coral-row-selected > td:first-child {
+  border-left: 2px solid #B0C4DE;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+.table > tbody > tr.coral-row-selected > td:last-child {
+  border-right: 2px solid #B0C4DE;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.coral-value {
+  text-align: right;
+  white-space: nowrap;
+}
+.coral-value .coral-edit {
+  padding-left: .5em;
+  color: #999999;
+}
+.coral-value .coral-commands {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.coral-command{
+  position:relative;
+  padding-right: 34px;
+  background-color: #eee;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  min-width: 10em;
+}
+.coral-command > .coral-command-execute {
+  position:absolute;
+  left: 100%;
+  top: -1px;
+  border-left: none;
+  border-radius: 0 4px 4px 0 !important;
+}
+.coral-commands > button > i {
+  color: #428bca;
+  top: 28%;
+  position: absolute;
+  right: 1em;
 }
 
 /*

@@ -11,6 +11,7 @@ import org.totalgrid.reef.client.service
  * @author Flint O'Brien
  */
 trait ReefServiceFactory {
+  def commandService( session: Session): CommandService
   def entityService( session: Session): EntityService
   def eventService( session: Session): EventService
   def frontEndService( session: Session): FrontEndService
@@ -19,6 +20,7 @@ trait ReefServiceFactory {
 }
 
 trait ReefServiceFactoryImpl extends ReefServiceFactory {
+  def commandService( session: Session): CommandService = CommandService.client( session)
   def entityService( session: Session): EntityService = EntityService.client( session)
   def eventService( session: Session): EventService = EventService.client( session)
   def loginService( session: Session): LoginService = LoginService.client( session)

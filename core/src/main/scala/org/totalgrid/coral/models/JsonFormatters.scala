@@ -18,6 +18,7 @@
  */
 package org.totalgrid.coral.models
 
+import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
@@ -39,6 +40,7 @@ import org.totalgrid.coral.reefpolyfill.FrontEndServicePF._
 object JsonFormatters {
   import ReefExtensions._
   import ConnectionStatus._
+  import ExceptionMessages._
 
   /**
    * For pushing Reef objects to the client browser over a WebSocket.
@@ -110,6 +112,14 @@ object JsonFormatters {
       overall + " (" + list.reverse.mkString(", ") + ")"
   }
 
+
+  implicit val exceptionMessageWrites = new Writes[ExceptionMessage] {
+    def writes( o: ExceptionMessage): JsValue =
+      Json.obj(
+        "exception" -> o.exception,
+        "message" -> o.message
+      )
+  }
 
   implicit val connectionStatusWrites = new Writes[ConnectionStatus] {
     def writes( o: ConnectionStatus): JsValue =
@@ -200,6 +210,23 @@ object JsonFormatters {
         "commandType" -> o.getType.name,
         "displayName" -> o.getDisplayName,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
+      )
+  }
+
+  implicit val commandLockWrites = new Writes[CommandLock] {
+    def writes( o: CommandLock): JsValue =
+      Json.obj(
+        "id" -> o.getId.getValue,
+        "accessMode" -> o.getAccess.name,
+        "commandIds" -> o.getCommandUuidsList.map( _.getValue).toList
+      )
+  }
+
+  implicit val commandResultWrites = new Writes[CommandResult] {
+    def writes( o: CommandResult): JsValue =
+      Json.obj(
+        "status" -> o.getStatus.name,
+        "error" -> o.getErrorMessage
       )
   }
 

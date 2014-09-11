@@ -3,56 +3,63 @@
 # ~~~~
 
 # Home page
-GET           /                                                    controllers.Application.index
-GET           /apps/operator/                                      controllers.Application.appsOperator
-GET           /apps/admin/                                         controllers.Application.appsAdmin
-GET           /chart                                               controllers.Application.chart
+GET           /                                                       controllers.Application.index
+GET           /apps/operator/                                         controllers.Application.appsOperator
+GET           /apps/admin/                                            controllers.Application.appsAdmin
+GET           /chart                                                  controllers.Application.chart
 
-GET           /login                                               controllers.Application.getLoginOrAlreadyLoggedIn
-DELETE        /login                                               controllers.Application.deleteLogin
-POST          /login                                               controllers.Application.postLogin
+GET           /login                                                  controllers.Application.getLoginOrAlreadyLoggedIn
+DELETE        /login                                                  controllers.Application.deleteLogin
+POST          /login                                                  controllers.Application.postLogin
 
-GET           /websocket                                           controllers.Application.getWebSocket( authToken)
+GET           /websocket                                              controllers.Application.getWebSocket( authToken)
 
-GET           /menus/:name                                         controllers.Application.getMenus( name: String)
+GET           /menus/:name                                            controllers.Application.getMenus( name: String)
 #          /:applicationName/menus/:name
-GET           /coral/menus/:name                                   controllers.Application.getCoralMenus( name: String)
+GET           /coral/menus/:name                                      controllers.Application.getCoralMenus( name: String)
 
-GET           /entities                                            controllers.Application.getEntities( types: List[String])
-GET           /entities/:uuid                                      controllers.Application.getEntity( uuid: String)
+GET           /entities                                               controllers.Application.getEntities( types: List[String])
+GET           /entities/:uuid                                         controllers.Application.getEntity( uuid: String)
 
-GET           /models/:modelId/equipment                           controllers.Application.getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
-GET           /models/:modelId/equipment/:entityId                 controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
-GET           /models/:modelId/equipment/:entityId/descendants     controllers.Application.getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/equipment                              controllers.Application.getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/equipment/:entityId                    controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/equipment/:entityId/descendants        controllers.Application.getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 
-GET           /models/:modelId/points                              controllers.Application.getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
-GET           /models/:modelId/points/:uuid                        controllers.Application.getPoint( modelId: String, uuid: String)
+GET           /models/:modelId/points                                 controllers.Application.getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/points/:uuid                           controllers.Application.getPoint( modelId: String, uuid: String)
 
-GET           /measurements                                        controllers.Application.getMeasurements
+POST           /models/:modelId/points/commands                       controllers.Application.getPointsCommands( modelId: String)
+#GET           /models/:modelId/commands                               controllers.Application.getCommandsBy( modelId: String, ids: List[String])
+#GET           /models/:modelId/commands/:uuid                         controllers.Application.getCommand( modelId: String, uuid: String)
+POST           /models/:modelId/commandlock                           controllers.Application.postCommandLock( modelId: String)
+DELETE         /models/:modelId/commandlock/:id                       controllers.Application.deleteCommandLock( modelId: String, id: String)
+POST           /models/:modelId/commands/:id                          controllers.Application.postCommand( modelId: String, id: String)
 
-GET           /commands                                            controllers.Application.getCommands
-GET           /commands/:name                                      controllers.Application.getCommand(name: String)
+GET           /measurements                                           controllers.Application.getMeasurements
 
-GET           /equipmentwithpointsbytype                           controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
+GET           /commands                                               controllers.Application.getCommands
+GET           /commands/:name                                         controllers.Application.getCommand(name: String)
 
-GET           /endpoints                                           controllers.Application.getEndpoints
-GET           /endpoints/*name                                     controllers.Application.getEndpointConnection( name: String)
+GET           /equipmentwithpointsbytype                              controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
 
-GET           /applications                                        controllers.Application.getApplications
-GET           /applications/:name                                  controllers.Application.getApplication( name: String)
+GET           /endpoints                                              controllers.Application.getEndpoints
+GET           /endpoints/*name                                        controllers.Application.getEndpointConnection( name: String)
 
-GET           /events                                              controllers.Application.getEvents( limit: Int = 20)
-GET           /events/:limit                                       controllers.Application.getEvents( limit: Int)
+GET           /applications                                           controllers.Application.getApplications
+GET           /applications/:name                                     controllers.Application.getApplication( name: String)
 
-GET           /alarms                                              controllers.Application.getAlarms( limit: Int = 20)
-GET           /alarms/:limit                                       controllers.Application.getAlarms( limit: Int)
+GET           /events                                                 controllers.Application.getEvents( limit: Int = 20)
+GET           /events/:limit                                          controllers.Application.getEvents( limit: Int)
 
-GET           /agents                                              controllers.Application.getAgents
-GET           /agents/:name                                        controllers.Application.getAgent( name: String)
+GET           /alarms                                                 controllers.Application.getAlarms( limit: Int = 20)
+GET           /alarms/:limit                                          controllers.Application.getAlarms( limit: Int)
 
-GET           /permissionsets                                      controllers.Application.getPermissionSets
-GET           /permissionsets/:name                                controllers.Application.getPermissionSet( name: String)
+GET           /agents                                                 controllers.Application.getAgents
+GET           /agents/:name                                           controllers.Application.getAgent( name: String)
+
+GET           /permissionsets                                         controllers.Application.getPermissionSets
+GET           /permissionsets/:name                                   controllers.Application.getPermissionSet( name: String)
 
 # Map static resources from the /public folder to the /assets URL path
-GET           /assets/*file                                        controllers.Assets.at(path="/public", file)
-GET           /*file                                               controllers.Assets.at(path="/public", file)
+GET           /assets/*file                                           controllers.Assets.at(path="/public", file)
+GET           /*file                                                  controllers.Assets.at(path="/public", file)
