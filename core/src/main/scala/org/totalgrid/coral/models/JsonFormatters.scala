@@ -218,6 +218,7 @@ object JsonFormatters {
       Json.obj(
         "id" -> o.getId.getValue,
         "accessMode" -> o.getAccess.name,
+        "expireTime" -> o.getExpireTime,
         "commandIds" -> o.getCommandUuidsList.map( _.getValue).toList
       )
   }

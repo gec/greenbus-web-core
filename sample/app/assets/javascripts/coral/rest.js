@@ -197,6 +197,7 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
             error( function( json, statusCode, headers, config) {
               // 400: Bad Request - request is malformed or missing required fields.
               // 403: Forbidden - Logged in, but don't have permissions to complete request, resource already locked, etc.
+              // TODO: Control select will be left in invalid state waiting on select with 401. Need to unify Reef Connections Status and ExceptionMessage.
               if( statusCode === 400 || statusCode === 403)
                 failureListener( json, statusCode, headers, config)
               else

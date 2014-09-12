@@ -37,8 +37,8 @@ var CHECKMARK_NEXT_STATE = [1, 0, 0]
 // No array as second argument, so it returns the existing module.
 return angular.module( 'controllers')
 
-.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas', 'coralRequest',
-function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas, coralRequest) {
+.controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas', 'coralRequest', '$timeout',
+function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas, coralRequest, $timeout) {
   $scope.points = []
   $scope.checkAllState = CHECKMARK_UNCHECKED
   $scope.checkCount = 0
@@ -72,15 +72,20 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
 
   function findPoint( id ) {
+    var index = findPointIndex( id)
+    return index >= 0 ? $scope.points[index] : null
+  }
+
+  function findPointIndex( id ) {
     var i, point,
       length = $scope.points.length
 
     for( i = 0; i < length; i++ ) {
       point = $scope.points[i]
       if( point.id === id )
-        return point
+        return i
     }
-    return null
+    return -1
   }
 
   function findPointBy( testTrue ) {
@@ -360,8 +365,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
 
   CommandSet.prototype.setState = function( state, command) {
-    this.state = state
     console.log( 'setState from ' + this.state + ' to ' + state)
+    this.state = state
     if( command) {
       command.selectClasses = CommandIcons[this.state]
       command.executeClasses = ExecuteIcons[this.state]
@@ -386,8 +391,27 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     coralRest.post( '/models/1/commandlock', arg, null, $scope,
       function( data) {
         self.lock = data
-        self.selectedCommand = command
-        self.setState( CommandSelected, command)
+        if( self.lock.expireTime) {
+          self.selectedCommand = command
+          self.setState( CommandSelected, command)
+
+          var delay = self.lock.expireTime - Date.now()
+          console.log( 'commandLock delay: ' + delay)
+          // It the clock for client vs server is off, we'll use a minimum delay.
+          delay = Math.max( delay, 10)
+          self.selectTimeout = $timeout(function () {
+            delete self.lock;
+            delete self.selectTimeout;
+            if( self.state === CommandSelected || self.state === CommandExecuting) {
+              self.setState( CommandNotSelected, self.selectedCommand)
+              self.selectedCommand = undefined
+            }
+          }, delay)
+        } else {
+          self.setState( CommandNotSelected, self.selectedCommand)
+          self.selectedCommand = undefined
+          self.alertDanger( 'Select failed. ' + data)
+        }
       },
       function( ex, statusCode, headers, config) {
         console.log( 'CommandSet.select ' + ex)
@@ -483,6 +507,13 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     }
     this.alerts = [ alert ]
   }
+  CommandSet.prototype.alertDanger = function( message) {
+    var alert = {
+      type: 'danger',
+      message: message
+    }
+    this.alerts = [ alert ]
+  }
 
   CommandSet.prototype.getCommandTypes = function() {
     var control = '',
@@ -502,43 +533,47 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
 
   $scope.rowClasses = function( point) {
-    return point.expandRow ? 'coral-row-selected' : ''
-  }
-  $scope.commandIconClasses = function( point, command) {
-
-    return point.commandSelected === command ? 'glyphicon glyphicon-chevron-left text-muted'
-      : command.command ? ''
-      :'glyphicon glyphicon-chevron-right text-muted'
-  }
-  $scope.commandClasses = function( point, command) {
-    return point.commandSelected === command ? 'btn btn-default coral-command'
-      : command.command ? 'btn btn-default btn-primary coral-command-execute'
-      :'btn btn-default coral-command'
-  }
-  $scope.pointCommandExecute = function( point, command, commandIndex) {
-    point.ignoreCommandClick = true
+    return point.rowDetail ? 'coral-row-selected-detail animate-repeat'
+      : point.rowSelected ? 'coral-row-selected animate-repeat'
+      : point.commandSet ? 'coral-row-selectable animate-repeat'
+      : 'animate-repeat'
   }
   $scope.togglePointRowById = function( id) {
-    var point = findPoint( id)
+    if( !id)
+      return  // detail row doesn't have an id.
 
-    if( ! point)
+    var point, pointDetails,
+        index = findPointIndex( id)
+    if( index < 0)
       return
 
-    if( point.ignoreRowClick) {
-      point.ignoreRowClick = false
+    point = $scope.points[index]
+    if( ! point.commandSet)
       return
+
+    if( point.rowSelected ) {
+      $scope.points.splice( index + 1, 1)
+      point.rowSelected = false
+    } else {
+
+      pointDetails = {
+        point: point,
+        name: point.name,
+        rowDetail: true,
+        commandSet: point.commandSet
+      }
+      $scope.points.splice( index + 1, 0, pointDetails)
+      point.rowSelected = true
     }
 
-    point.expandRow = ! point.expandRow
-//    point.commands = [
-//      {
-//        label: 'Open'
-//      },
-//      {
-//        label: 'Close'
-//      }
-//    ]
-    point.commandSelected = undefined
+
+//    if( point.ignoreRowClick) {
+//      point.ignoreRowClick = false
+//      return
+//    }
+//
+//    point.expandRow = ! point.expandRow
+//    point.commandSelected = undefined
   }
 
 
@@ -547,11 +582,16 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     if( s === undefined || s === null || s.length === 0)
       return true
     s = s.toLowerCase()
-    var v = '' + point.currentMeasurement.value,
+
+    // If it's a rowDetail, we return true if the original row is show. Use the original row as the search filter.
+    if( point.rowDetail)
+      point = point.point
+
+    var measValue = '' + (point.currentMeasurement ? point.currentMeasurement.value : ''),
         foundCommandTypes = point.commandTypes && point.commandTypes.indexOf(s)!==-1,
         foundName = point.name.toLowerCase().indexOf( s)!==-1
 
-    return foundName || v.toLowerCase().indexOf(s)!==-1 || point.unit.toLowerCase().indexOf( s)!==-1 || point.pointType.toLowerCase().indexOf( s)!==-1 || foundCommandTypes
+    return foundName || measValue.toLowerCase().indexOf(s)!==-1 || point.unit.toLowerCase().indexOf( s)!==-1 || point.pointType.toLowerCase().indexOf( s)!==-1 || foundCommandTypes
   }
 
 

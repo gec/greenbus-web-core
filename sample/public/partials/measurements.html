@@ -46,8 +46,8 @@
                 </tr>
             </thead>
             <tbody>
-                <tr style="cursor: pointer;" ng-repeat="point in points | filter:search | orderBy:sortColumn" ng-class="rowClasses(point)" ng-click="togglePointRowById(point.id)">
-                    <td>
+                <tr ng-repeat="point in points | filter:search | orderBy:sortColumn" ng-class="rowClasses(point)">
+                    <td ng-if="!point.rowDetail">
                         <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                             <div ng-class="point.checked | checkboxClass"></div>
                         </div>
@@ -55,37 +55,44 @@
                             <!--<div class="T-Jo-auh"></div>-->
                         <!--</div>-->
                     </td>
-                    <td>
+                    <td ng-if="!point.rowDetail" ng-click="togglePointRowById(point.id)">
                         <div class="coral-icon-text draggable" draggable ident="point.id">
                             <img class="coral-icon" src="{{ point.pointType | pointTypeImage: point.unit }}" width="14px" height="14px" title="{{ point.pointType | pointTypeText: point.unit }}"/>
                             {{point.name}}
                         </div>
                     </td>
-                    <td style="text-align: right">
+                    <td ng-if="!point.rowDetail" style="text-align: right">
                         <a href="" ng-click="chartAddPointById(point.id)"><span class="glyphicon glyphicon-stats text-muted" title="Graph measurements"></span></a>
                         <!--<i class="fa fa-refresh fa-spin"></i>-->
                     </td>
-                    <td class="coral-value">
+                    <td  ng-if="!point.rowDetail" class="coral-value" ng-click="togglePointRowById(point.id)">
                         <span class="glyphicon glyphicon-edit pull-left text-muted" style="padding-right: 10px; opacity: {{ point.commandSet ? 1 : 0 }}" title="Control or Setpoint"></span>
                         {{point.currentMeasurement.value}}
-                        <div ng-show="point.expandRow">
-                            <div class="btn-group-vertical coral-commands">
-                                <button type="button" ng-class="commandClasses(point, command)" ng-repeat="command in point.commandSet.commands" ng-click="point.commandSet.selectToggle( command)">
-                                    <!--<i class="fa fa-sign-in text-muted" style="padding-right: .5em;"></i>-->
-                                    {{ command.displayName }} <i ng-class="command.selectClasses"></i>
-
-                                    <div type="button" class="btn btn-default btn-primary coral-command-execute" ng-show="point.commandSet.selectedCommand === command" ng-click="point.commandSet.execute( command, $index)">
-                                        <input type="text" class="form-control" placeholder="?" ng-show="command.isSetpoint">
-                                        Execute <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i></div>
-                                </button>
-                            </div>
-                            <alert ng-repeat="alert in point.commandSet.alerts" type="alert.type" close="point.commandSet.closeAlert($index)" style="text-align: left; white-space: normal;">{{alert.message}}</alert>
-                        </div>
                     </td>
-                    <td>{{point.unit}}</td>
-                    <td style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>
-                    <td>{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
-                    <td>{{ point.pointType }}</td>
+                    <td ng-if="!point.rowDetail" ng-click="togglePointRowById(point.id)">{{point.unit}}</td>
+                    <td ng-if="!point.rowDetail" ng-click="togglePointRowById(point.id)" style="padding-bottom: 0"><span ng-class="point.currentMeasurement.validity | validityIcon" title="{{point.currentMeasurement.longQuality}}"></span></td>
+                    <td ng-if="!point.rowDetail" ng-click="togglePointRowById(point.id)">{{point.currentMeasurement.time | date:'h:mm:ss a, MM-dd-yyyy'}}</td>
+                    <td ng-if="!point.rowDetail" ng-click="togglePointRowById(point.id)">{{ point.pointType }}</td>
+
+
+
+                    <td ng-if="point.rowDetail" colspan="3">
+                    </td>
+                    <td ng-if="point.rowDetail" class="coral-value" colspan="3">
+                        <div class="btn-group-vertical coral-commands">
+                            <button type="button" class="btn btn-default coral-command" ng-repeat="command in point.commandSet.commands" ng-click="point.commandSet.selectToggle( command)">
+                                <!--<i class="fa fa-sign-in text-muted" style="padding-right: .5em;"></i>-->
+                                {{ command.displayName }} <i ng-class="command.selectClasses"></i>
+
+                                <div type="button" class="btn btn-default btn-primary coral-command-execute" ng-show="point.commandSet.selectedCommand === command" ng-click="point.commandSet.execute( command, $index)">
+                                    <input type="text" class="form-control" placeholder="?" ng-show="command.isSetpoint">
+                                    Execute <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i></div>
+                            </button>
+                        </div>
+                        <alert ng-repeat="alert in point.commandSet.alerts" type="alert.type" close="point.commandSet.closeAlert($index)" style="text-align: left; white-space: normal;">{{alert.message}}</alert>
+                    </td>
+                    <td ng-if="point.rowDetail" colspan="2">
+                    </td>
                 </tr>
             </tbody>
         </table>

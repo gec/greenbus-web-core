@@ -19,6 +19,7 @@
 require.config({
     paths: {
         angular: '../lib/angular/angular',
+        'angular-animate': '../lib/angular/angular-animate',
         'angular-route': '../lib/angular/angular-route',
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
@@ -46,6 +47,7 @@ require.config({
 define([
     'angular',
     'angular-route',
+    'angular-animate',
     'd3',
     'abn-tree',
     'filters',

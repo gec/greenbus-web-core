@@ -20,6 +20,7 @@ require.config({
     paths: {
         angular: '../lib/angular/angular',
         'angular-route': '../lib/angular/angular-route',
+        'angular-animate': '../lib/angular/angular-animate',
         'angular-cookies': '../lib/angular/angular-cookies',
         'ui-bootstrap': '../lib/angular-ui/ui-bootstrap.min',
         'ui-utils': '../lib/angular-ui/ui-utils.min',
@@ -32,6 +33,7 @@ require.config({
     shim: {
         'angular' : {'exports' : 'angular'},
         "angular-route" : { deps: ["angular"] },
+        "angular-animate" : { deps: ["angular"] },
         "angular-cookies" : { deps: ["angular"] },
         "ui-bootstrap" : { deps: ["angular"] },
         "ui-utils" : { deps: ["angular"] },
@@ -46,6 +48,7 @@ require.config({
 define([
     'angular',
     'angular-route',
+    'angular-animate',
     'd3',
     'abn-tree',
     'filters',
@@ -70,6 +73,7 @@ define([
     // Declare app level module which depends on filters, and services
     var app = angular.module('ReefAdmin', [
             'ngRoute',
+            'ngAnimate',
             'angularBootstrapNavTree',
             'ReefAdmin.services',
             'ReefAdmin.filters',
