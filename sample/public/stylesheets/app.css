@@ -438,10 +438,22 @@ table.coral-row-radius {
 }
 .coral-command > .coral-command-execute {
   position:absolute;
+  width: 200px;
   left: 100%;
   top: -1px;
-  border-left: none;
-  border-radius: 0 4px 4px 0 !important;
+  white-space: nowrap
+}
+.coral-command > .coral-command-execute > input {
+  float: left;
+  margin-left: 1em;
+  width: 40%;
+  /*border-radius: 0 !important;*/
+}
+.coral-command > .coral-command-execute > div {
+  margin-left: 1em;
+  float: left;
+  /*border-left: none;*/
+  /*border-radius: 0 4px 4px 0 !important;*/
 }
 .coral-commands > button > i {
   color: #428bca;

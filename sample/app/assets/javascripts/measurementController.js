@@ -324,11 +324,11 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       CommandDeselecting = 'Deselecting',   // -> Executing, NotSelected (user or timeout)
       CommandExecuting = 'Executing'        // -> NotSelected (success or failure)
   var CommandIcons = {
-    NotSelected: 'fa fa-chevron-right',
-    Selecting: 'fa fa-chevron-right fa-spin',
-    Selected: 'fa fa-chevron-left',
-    Deselecting: 'fa fa-chevron-left fa-spin',
-    Executing: 'fa fa-chevron-left'
+    NotSelected: 'fa fa-chevron-right text-primary',
+    Selecting: 'fa fa-chevron-right fa-spin text-primary',
+    Selected: 'fa fa-chevron-left text-primary',
+    Deselecting: 'fa fa-chevron-left fa-spin text-primary',
+    Executing: 'fa fa-chevron-left text-primary'
   }
   var ExecuteIcons = {
     NotSelected: '',
@@ -341,6 +341,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   function CommandSet( _point, _commands) {
     // Control & Setpoint States
 
+
     this.point = _point
     this.commands = _commands
     this.state = CommandNotSelected
@@ -351,6 +352,29 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       c.selectClasses = CommandIcons[ CommandNotSelected]
       c.executeClasses = ExecuteIcons[ CommandNotSelected]
       c.isSetpoint = c.commandType.indexOf('SETPOINT') === 0
+      c.blockClasses = 'fa fa-unlock'
+      if( c.isSetpoint) {
+        c.setpointValue = undefined
+
+        switch( c.commandType) {
+          case 'SETPOINT_INT':
+            c.pattern = /^[+-]?\d+$/;
+            c.placeHolder = 'int'
+            break;
+          case 'SETPOINT_DOUBLE':
+            c.pattern = /^[-+]?\d+(\.\d+)?$/;
+            c.placeHolder = 'decimal'
+            break;
+          case 'SETPOINT_STRING':
+            c.pattern = undefined;
+            c.placeHolder = 'text'
+            break;
+          default:
+            break;
+        }
+
+      }
+
     })
   }
 
@@ -458,6 +482,10 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       })
   }
 
+  function getSetpointInt( value) {
+    var n = Number( value)
+
+  }
   CommandSet.prototype.execute = function( command, commandIndex) {
     var self = this
 
@@ -466,10 +494,36 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       return
     }
 
+    var args = {}
+    if( command.isSetpoint) {
+      if( command.pattern && !command.pattern.test( command.setpointValue)) {
+        switch( command.commandType) {
+          case 'SETPOINT_INT': self.alertDanger( 'Setpoint needs to be an integer value.'); return;
+          case 'SETPOINT_DOUBLE': self.alertDanger( 'Setpoint needs to be a floating point value.'); return;
+          default:
+            console.error( 'Setpoint has unknown error, "' + command.setpointValue + '" for command type ' + command.commandType);
+        }
+      }
+
+      switch( command.commandType) {
+        case 'SETPOINT_INT':
+          args.intValue = Number( command.setpointValue);
+          break;
+        case 'SETPOINT_DOUBLE':
+          args.doubleValue = Number( command.setpointValue);
+          break;
+        case 'SETPOINT_STRING':
+          args.stringValue = command.setpointValue;
+          break;
+        default:
+          break;
+      }
+    }
+
     self.setState( CommandExecuting, command)
 
-    var arg = {}
-    coralRest.post( '/models/1/commands/' + command.id, arg, null, $scope,
+
+    coralRest.post( '/models/1/commands/' + command.id, args, null, $scope,
       function( commandResult) {
         self.alertCommandResult( commandResult)
         self.setState( CommandSelected, command)

@@ -19,6 +19,10 @@
 package org.totalgrid.coral.models
 
 import org.totalgrid.coral.models._
+import org.totalgrid.reef.client.service.proto.Commands.{CommandLock,CommandRequest}
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
+
 
 /**
  *
@@ -52,4 +56,28 @@ object WebSocketMessages {
 
 object ExceptionMessages {
   case class ExceptionMessage( exception: String, message: String)
+}
+
+object ControlMessages {
+
+  implicit val commandLockAccessModeReader = Reads[CommandLock.AccessMode] {
+    case JsString(s) => s.toUpperCase match {
+      case "ALLOWED" => JsSuccess( CommandLock.AccessMode.ALLOWED)
+      case "BLOCKED" => JsSuccess( CommandLock.AccessMode.BLOCKED)
+      case _ => JsError("No value for '" + s + "'")
+    }
+    case _ => JsError("Value must be a string")
+  }
+
+  case class CommandLockRequest( accessMode: CommandLock.AccessMode, commandIds: Seq[String])
+  def commandLockRequestReads: Reads[CommandLockRequest] = (
+    (__ \ "accessMode").read[CommandLock.AccessMode] and
+      (__ \ "commandIds").read[Seq[String]]
+    )(CommandLockRequest.apply _)
+
+  case class SetpointRequest( intValue: Option[Int], doubleValue: Option[Double], stringValue: Option[String])
+  object SetpointRequest {
+    implicit val writer = Json.writes[SetpointRequest]
+    implicit val reader = Json.reads[SetpointRequest]
+  }
 }

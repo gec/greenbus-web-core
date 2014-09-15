@@ -76,22 +76,57 @@
 
 
 
-                    <td ng-if="point.rowDetail" colspan="3">
-                    </td>
-                    <td ng-if="point.rowDetail" class="coral-value" colspan="3">
-                        <div class="btn-group-vertical coral-commands">
-                            <button type="button" class="btn btn-default coral-command" ng-repeat="command in point.commandSet.commands" ng-click="point.commandSet.selectToggle( command)">
-                                <!--<i class="fa fa-sign-in text-muted" style="padding-right: .5em;"></i>-->
-                                {{ command.displayName }} <i ng-class="command.selectClasses"></i>
+                    <td ng-if="point.rowDetail" colspan="8">
 
-                                <div type="button" class="btn btn-default btn-primary coral-command-execute" ng-show="point.commandSet.selectedCommand === command" ng-click="point.commandSet.execute( command, $index)">
-                                    <input type="text" class="form-control" placeholder="?" ng-show="command.isSetpoint">
-                                    Execute <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i></div>
-                            </button>
+                        <div class="row">
+                            <div class="col-md-1">
+
+                            </div>
+                            <div class="col-md-10">
+
+                                <form class="form-horizontal" role="form" name="form">
+                                    <div class="form-group" ng-repeat="command in point.commandSet.commands">
+                                        <label class="col-sm-5 control-label">
+                                            {{ command.displayName }}
+                                        </label>
+                                        <div class="col-sm-7">
+                                            <div class="btn-toolbar" role="toolbar">
+                                                <div class="btn-group">
+                                                    <!--<button type="button" class="btn btn-default"><i ng-class="command.blockClasses"></i> Block</button>-->
+                                                    <button type="button" class="btn btn-default" ng-click="point.commandSet.selectToggle( command)">Select <i ng-class="command.selectClasses"></i></button>
+                                                </div>
+
+                                                <button ng-if="!command.isSetpoint" type="button" class="btn btn-primary" ng-click="point.commandSet.execute( command, $index)" style="opacity: {{point.commandSet.selectedCommand === command ? 1 : 0}};">
+                                                    Execute <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i>
+                                                </button>
+
+                                                <div ng-if="command.isSetpoint" class="input-group input-group-sm-  {{form.setpoint_value.$error.pattern ? 'has-error' : ''}}" style="opacity: {{point.commandSet.selectedCommand === command ? 1 : 0}};">
+                                                    <input type="text" class="form-control" ng-model="command.setpointValue" name="setpoint_value" ng-pattern="command.pattern" style="width:6em;" placeholder="{{ command.placeHolder}}">
+                                                    <button type="button" class="btn btn-primary" ng-click="point.commandSet.execute( command, $index)" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                                                        Set
+                                                        <span style="padding-right: 0.5em;"> </span><i ng-class="command.executeClasses"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+
+                            </div>
+                            <div class="col-md-1">
+                            </div>
                         </div>
-                        <alert ng-repeat="alert in point.commandSet.alerts" type="alert.type" close="point.commandSet.closeAlert($index)" style="text-align: left; white-space: normal;">{{alert.message}}</alert>
-                    </td>
-                    <td ng-if="point.rowDetail" colspan="2">
+
+                        <div class="row">
+                            <div class="col-md-1">
+                            </div>
+                            <div class="col-md-10">
+                                <alert ng-repeat="alert in point.commandSet.alerts" type="alert.type" close="point.commandSet.closeAlert($index)" style="text-align: left; white-space: normal;">{{alert.message}}</alert>
+                            </div>
+                            <div class="col-md-1">
+                            </div>
+                        </div>
+
                     </td>
                 </tr>
             </tbody>

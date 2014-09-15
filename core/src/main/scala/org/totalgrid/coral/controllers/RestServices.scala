@@ -20,13 +20,13 @@
  */
 package org.totalgrid.coral.controllers
 
+import org.totalgrid.coral.models.ControlMessages.SetpointRequest
 import org.totalgrid.coral.models.ExceptionMessages.ExceptionMessage
 import org.totalgrid.reef.client.exception.{ForbiddenException, ReefServiceException, UnauthorizedException, LockedException, BadRequestException}
-import org.totalgrid.reef.client.service.proto.Commands.CommandLock
+import org.totalgrid.reef.client.service.proto.Commands.{CommandRequest, CommandLock}
 import play.api.mvc._
 import play.api.Logger
 import play.api.libs.json._
-import play.api.libs.functional.syntax._
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Model.{ReefID, EntityEdge, ReefUUID, Entity}
 import org.totalgrid.reef.client.service.{EventService, MeasurementService,EntityService}
@@ -532,23 +532,10 @@ trait RestServices extends ReefAuthentication {
 
   }
 
-  implicit val reader = Reads[CommandLock.AccessMode] {
-    case JsString(s) => s.toUpperCase match {
-      case "ALLOWED" => JsSuccess( CommandLock.AccessMode.ALLOWED)
-      case "BLOCKED" => JsSuccess( CommandLock.AccessMode.BLOCKED)
-      case _ => JsError("No value for '" + s + "'")
-    }
-    case _ => JsError("Value must be a string")
-  }
-
-  case class CommandLockRequest( accessMode: CommandLock.AccessMode, commandIds: Seq[String])
-  def commandLockRequestReads: Reads[CommandLockRequest] = (
-    (__ \ "accessMode").read[CommandLock.AccessMode] and
-      (__ \ "commandIds").read[Seq[String]]
-    )(CommandLockRequest.apply _)
 
 
   def postCommandLock( modelId: String)  = ReefClientActionAsync { (request, session) =>
+    import org.totalgrid.coral.models.ControlMessages._
 
     request.body.asJson.map { json =>
       json.validate(commandLockRequestReads).map {
@@ -594,16 +581,45 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
+  def getSetpointRequest( request: Request[AnyContent]):SetpointRequest = {
+    import org.totalgrid.coral.models.ControlMessages._
+
+    request.body.asJson.map { json =>
+      json.validate(SetpointRequest.reader).map {
+        case setpointRequest =>
+          setpointRequest
+      }.recoverTotal{
+        e => SetpointRequest( None, None, None)
+      }
+    }.getOrElse {
+      SetpointRequest( None, None, None)
+    }
+  }
+
   def postCommand( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
+    import org.totalgrid.coral.models.ControlMessages._
+
 
     val cService = serviceFactory.commandService( session)
     val reefUuid = ReefUUID.newBuilder().setValue( id).build()
 
-    val request = Commands.CommandRequest.newBuilder()
+    val commandRequest = Commands.CommandRequest.newBuilder()
       .setCommandUuid( reefUuid)
-      .build()
 
-    cService.issueCommandRequest( request) map { result =>
+    // Could be setpoint or control.
+    val setpointRequest = getSetpointRequest( request)
+    if( setpointRequest.intValue.isDefined) {
+      commandRequest.setIntVal( setpointRequest.intValue.get)
+      commandRequest.setType( CommandRequest.ValType.INT)
+    } else if( setpointRequest.doubleValue.isDefined) {
+      commandRequest.setDoubleVal( setpointRequest.doubleValue.get)
+      commandRequest.setType( CommandRequest.ValType.DOUBLE)
+    } else if( setpointRequest.stringValue.isDefined) {
+      commandRequest.setStringVal( setpointRequest.stringValue.get)
+      commandRequest.setType( CommandRequest.ValType.STRING)
+    }
+
+    cService.issueCommandRequest( commandRequest.build) map { result =>
       Ok( Json.toJson( result))
     } recover {
       case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
