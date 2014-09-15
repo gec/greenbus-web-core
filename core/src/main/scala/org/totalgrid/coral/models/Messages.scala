@@ -20,6 +20,7 @@ package org.totalgrid.coral.models
 
 import org.totalgrid.coral.models._
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock,CommandRequest}
+import org.totalgrid.reef.client.service.proto.Model.ReefID
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 
@@ -79,5 +80,10 @@ object ControlMessages {
   object SetpointRequest {
     implicit val writer = Json.writes[SetpointRequest]
     implicit val reader = Json.reads[SetpointRequest]
+  }
+  case class CommandExecuteRequest( commandLockId: String, setpoint: Option[SetpointRequest])
+  object CommandExecuteRequest {
+    implicit val writer = Json.writes[CommandExecuteRequest]
+    implicit val reader = Json.reads[CommandExecuteRequest]
   }
 }

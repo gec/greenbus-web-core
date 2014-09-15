@@ -444,6 +444,12 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       })
   }
 
+  CommandSet.prototype.deselectModel = function() {
+    this.setState( CommandNotSelected, this.selectedCommand)
+    this.selectedCommand = undefined
+  }
+
+
   CommandSet.prototype.deselectOptionSelect = function( command) {
     var self = this
 
@@ -453,25 +459,19 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     }
 
     self.setState( CommandDeselecting, self.selectedCommand)
-//    if( self.selectedCommand !== command) {
-//      self.selectedCommandPending = command
-//    }
 
     coralRest.delete( '/models/1/commandlock/' + self.lock.id, null, $scope,
       function( data) {
         delete self.lock;
-        self.setState( CommandNotSelected, self.selectedCommand)
-
         var saveCommand = self.selectedCommand
-        self.selectedCommand = undefined
+        self.deselectModel()
         if( saveCommand !== command) {
           self.select( command)
         }
       },
       function( ex, statusCode, headers, config) {
         console.log( 'CommandSet.deselect ' + ex)
-        self.setState( CommandNotSelected, self.selectedCommand)
-        self.selectedCommand = undefined
+        self.deselectModel()
         self.alertException( ex)
 
         var saveCommand = self.selectedCommand
@@ -494,7 +494,10 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       return
     }
 
-    var args = {}
+    var args = {
+      commandLockId: self.lock.id
+    }
+
     if( command.isSetpoint) {
       if( command.pattern && !command.pattern.test( command.setpointValue)) {
         switch( command.commandType) {
@@ -507,13 +510,13 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
       switch( command.commandType) {
         case 'SETPOINT_INT':
-          args.intValue = Number( command.setpointValue);
+          args.setpoint = { intValue: Number( command.setpointValue)}
           break;
         case 'SETPOINT_DOUBLE':
-          args.doubleValue = Number( command.setpointValue);
+          args.setpoint = { doubleValue: Number( command.setpointValue)}
           break;
         case 'SETPOINT_STRING':
-          args.stringValue = command.setpointValue;
+          args.setpoint = { stringValue: command.setpointValue}
           break;
         default:
           break;
@@ -526,11 +529,11 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     coralRest.post( '/models/1/commands/' + command.id, args, null, $scope,
       function( commandResult) {
         self.alertCommandResult( commandResult)
-        self.setState( CommandSelected, command)
+        self.deselectModel()
       },
       function( ex, statusCode, headers, config) {
         console.log( 'CommandSet.execute ' + ex)
-        self.setState( CommandSelected, command)
+        self.deselectModel()
         self.alertException( ex)
       })
 

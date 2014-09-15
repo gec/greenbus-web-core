@@ -20,7 +20,7 @@
  */
 package org.totalgrid.coral.controllers
 
-import org.totalgrid.coral.models.ControlMessages.SetpointRequest
+import org.totalgrid.coral.models.ControlMessages.{CommandExecuteRequest, SetpointRequest}
 import org.totalgrid.coral.models.ExceptionMessages.ExceptionMessage
 import org.totalgrid.reef.client.exception.{ForbiddenException, ReefServiceException, UnauthorizedException, LockedException, BadRequestException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandRequest, CommandLock}
@@ -572,8 +572,8 @@ trait RestServices extends ReefAuthentication {
   def deleteCommandLock( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
 
     val cService = serviceFactory.commandService( session)
-    val reefId = ReefID.newBuilder().setValue( id).build()
-    cService.deleteCommandLocks( Seq( reefId)).map { result =>
+    val commandLockId = ReefID.newBuilder().setValue( id).build()
+    cService.deleteCommandLocks( Seq( commandLockId)).map { result =>
       if( result.size == 1)
         Ok( Json.toJson( result(0)))
       else
@@ -581,18 +581,18 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getSetpointRequest( request: Request[AnyContent]):SetpointRequest = {
+  def getCommandExecuteRequest( request: Request[AnyContent]):CommandExecuteRequest = {
     import org.totalgrid.coral.models.ControlMessages._
 
     request.body.asJson.map { json =>
-      json.validate(SetpointRequest.reader).map {
-        case setpointRequest =>
-          setpointRequest
-      }.recoverTotal{
-        e => SetpointRequest( None, None, None)
+      json.validate(CommandExecuteRequest.reader).map {
+        case commandExecuteRequest =>
+          commandExecuteRequest
+      }.recoverTotal {
+        e => CommandExecuteRequest( "", None)
       }
     }.getOrElse {
-      SetpointRequest( None, None, None)
+      CommandExecuteRequest( "", None)
     }
   }
 
@@ -601,25 +601,33 @@ trait RestServices extends ReefAuthentication {
 
 
     val cService = serviceFactory.commandService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( id).build()
+    val commandId = ReefUUID.newBuilder().setValue( id).build()
 
     val commandRequest = Commands.CommandRequest.newBuilder()
-      .setCommandUuid( reefUuid)
+      .setCommandUuid( commandId)
 
     // Could be setpoint or control.
-    val setpointRequest = getSetpointRequest( request)
-    if( setpointRequest.intValue.isDefined) {
-      commandRequest.setIntVal( setpointRequest.intValue.get)
-      commandRequest.setType( CommandRequest.ValType.INT)
-    } else if( setpointRequest.doubleValue.isDefined) {
-      commandRequest.setDoubleVal( setpointRequest.doubleValue.get)
-      commandRequest.setType( CommandRequest.ValType.DOUBLE)
-    } else if( setpointRequest.stringValue.isDefined) {
-      commandRequest.setStringVal( setpointRequest.stringValue.get)
-      commandRequest.setType( CommandRequest.ValType.STRING)
+    val commandExecuteRequest = getCommandExecuteRequest( request)
+    val commandLockId = ReefID.newBuilder().setValue( commandExecuteRequest.commandLockId).build()
+
+
+
+    commandExecuteRequest.setpoint map {
+      case setpoint =>
+        if( setpoint.intValue.isDefined) {
+          commandRequest.setIntVal( setpoint.intValue.get)
+          commandRequest.setType( CommandRequest.ValType.INT)
+        } else if( setpoint.doubleValue.isDefined) {
+          commandRequest.setDoubleVal( setpoint.doubleValue.get)
+          commandRequest.setType( CommandRequest.ValType.DOUBLE)
+        } else if( setpoint.stringValue.isDefined) {
+          commandRequest.setStringVal( setpoint.stringValue.get)
+          commandRequest.setType( CommandRequest.ValType.STRING)
+        }
     }
 
     cService.issueCommandRequest( commandRequest.build) map { result =>
+      cService.deleteCommandLocks( Seq( commandLockId)) // TODO: Move this auto-delete to Reef.
       Ok( Json.toJson( result))
     } recover {
       case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
