@@ -50,7 +50,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     console.log( "ChartController $scope.chart=" + chartSource)
 
-    $scope.chart = coralChart.newChart( chartSource.points)
+    $scope.chart = coralChart.newChart( chartSource.points, true)  // t: zoomSlider
     $scope.chart.points.forEach( function( point) {
       subscribeToMeasurementHistory( $scope.chart, point)
     })
@@ -70,12 +70,17 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         var offsetTop = chartContainer().offsetTop,
             offsetLeft = chartContainer().offsetLeft,
             width = windowSize.width - offsetLeft,
-            height = windowSize.height - offsetTop
+            heightBoth = windowSize.height - offsetTop,
+            heightTop = Math.floor( heightBoth * 0.86),
+            heightBot = heightBoth - heightTop
         console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
 
-        if( width !== chartSize.width || height !== chartSize.height) {
-            $scope.chart.traits.height( windowSize.height - offsetTop)
-            $scope.chart.traits.width( windowSize.width - offsetLeft)
+        if( width !== chartSize.width || heightTop !== chartSize.height) {
+          $scope.chart.traits.height( heightTop)
+          $scope.chart.traits.width( windowSize.width - offsetLeft)
+
+          $scope.chart.brushTraits.height( heightBot)
+          $scope.chart.brushTraits.width( windowSize.width - offsetLeft)
         }
     }
     $window.onresize = onResize
