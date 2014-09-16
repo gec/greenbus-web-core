@@ -177,7 +177,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
     chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3} )
 //            .trait( d3.trait.legend.series)
-      .trait( d3.trait.focus.tooltip )
+      .trait( d3.trait.focus.tooltip.unified )
 
     return chartTraits
   }

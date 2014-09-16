@@ -63,7 +63,7 @@ define([
           config = {
             x1: function ( d ) { return d.time; },
             seriesData: function ( s ) { return s.measurements },
-            seriesLabel: function ( s ) { return s.name }
+            seriesLabel: function ( s ) { return s.uniqueName }
           }
 
         unitMapKeys.forEach( function ( key, index ) {
@@ -113,13 +113,22 @@ define([
           }
 
           chartTraits = chartTraits.trait( d3.trait.scale.linear, scaleConfig )
-            .trait( d3.trait.chart.line, { interpolate: interpolate, seriesFilter: filter, yAxis: axis} )
+            .trait( d3.trait.chart.line, {
+              interpolate: interpolate,
+              seriesFilter: filter,
+              yAxis: axis,
+              focus: {distance: 1000, axis: 'x'}
+            } )
             .trait( d3.trait.axis.linear, { axis: axis, orient: orient, extentTicks: true, label: unit} )
         })
 
         chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3} )
 //            .trait( d3.trait.legend.series)
-          .trait( d3.trait.focus.tooltip, {formatY: d3.format('.2f')})
+          .trait(d3.trait.focus.crosshair, {})
+          .trait( d3.trait.focus.tooltip.unified, {
+              formatY: d3.format('.2f'),
+              formatHeader: function( d) { return 'Time: ' + moment(d).format( 'HH:mm:ss') }
+            })
 
         return chartTraits
       }
@@ -146,6 +155,7 @@ define([
 
         self.points.push( point );
         delete point.__color__;
+        self.uniqueNames()
 
         if( self.unitMap.hasOwnProperty( point.unit ) ) {
           self.unitMap[point.unit].push( point )
@@ -184,6 +194,7 @@ define([
           self.traits.call( self.selection )
         }
 
+        self.uniqueNames()
       }
 
       // typ is usually 'trend'
@@ -191,11 +202,54 @@ define([
         self.traits.update( typ )
       }
 
+      function isSamePrefix( index, points) {
+        var prefix = points[0].name.substr( 0, index),
+            i = points.length - 1
+        while( i >= 1){
+          if( points[i].name.substr( 0, index) !== prefix)
+            return false
+          i--
+        }
+        return true
+      }
+
+      function assignUniqueName( index, points) {
+        var p,
+            i = points.length - 1
+
+        while( i >= 0){
+          p = points[i]
+          p.uniqueName = p.name.substr( index)
+          i--
+        }
+      }
+
+      self.uniqueNames = function() {
+        if( self.points.length === 0)
+          return
+        var pre,
+            n = self.points[0].name,
+            l = n.length,
+            i = n.indexOf( '.') + 1
+
+        // if not '.' or dot is too near end, return.
+        if( i < 0 || i > l - 6) {
+          assignUniqueName( )
+          return
+        }
+
+        if( isSamePrefix( i, self.points))
+          assignUniqueName( i, self.points)
+
+      }
+
       // TODO: Still see a NaN error when displaying chart before we have data back from subscription
       self.points.forEach( function ( point ) {
         if( !point.measurements )
           point.measurements = [ /*{time: new Date(), value: 0}*/]
       })
+
+      self.uniqueNames()
 
     } // end Chart class
 

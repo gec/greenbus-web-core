@@ -206,7 +206,8 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
               // 408 Request Timeout
               // 500 Internal Server Error
               //
-              failureListener( json, statusCode, headers, config)
+              if( failureListener)
+                failureListener( json, statusCode, headers, config)
               if( statusCode === 401 || statusCode === 0)
                 httpRequestError( json, statusCode, headers, config)
             });
