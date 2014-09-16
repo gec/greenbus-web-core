@@ -25,7 +25,6 @@ define([
         '<table class="table table-condensed"> \
             <thead> \
             <tr> \
-                <th>ID</th> \
                 <th>State</th> \
                 <th>Type</th> \
                 <th>Sev</th> \
@@ -37,14 +36,13 @@ define([
             </thead> \
         <tbody> \
             <tr ng-repeat="alarm in alarms"> \
-                <td>{{alarm.id}}</a></td> \
                 <td>{{alarm.state}}</td> \
                 <td>{{alarm.event.eventType}}</td> \
                 <td>{{alarm.event.severity}}</td> \
                 <td>{{alarm.event.agent}}</td> \
                 <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td> \
                 <td>{{alarm.event.message}}</td> \
-                <td>{{alarm.event.time | date:"h:mm:ss a, MM-dd-yyyy"}}</td> \
+                <td>{{alarm.event.time | date:"hh:mm:ss a, MM-dd-yyyy"}}</td> \
             </tr> \
         </tbody> \
         </table>'
@@ -53,7 +51,6 @@ define([
         '<table class="table table-condensed"> \
             <thead> \
                 <tr> \
-                    <th>ID</th> \
                     <th>Type</th> \
                     <th>Alarm</th> \
                     <th>Sev</th> \
@@ -65,14 +62,13 @@ define([
             </thead> \
             <tbody> \
                 <tr ng-repeat="event in events"> \
-                    <td>{{event.id}}</a></td> \
                     <td>{{event.eventType}}</td> \
                     <td>{{event.alarm}}</td> \
                     <td>{{event.severity}}</td> \
                     <td>{{event.agent}}</td> \
                     <td><a href="#/entities/{{event.entity | encodeURI}}">{{event.entity}}</a></td> \
                     <td>{{event.message}}</td> \
-                    <td>{{event.time | date:\'h:mm:ss a, MM-dd-yyyy\'}}</td> \
+                    <td>{{event.time | date:\'hh:mm:ss a, MM-dd-yyyy\'}}</td> \
                 </tr> \
             </tbody> \
             </table>'

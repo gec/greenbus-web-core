@@ -22,7 +22,7 @@
                     <td>{{ep.protocol}}</td>
                     <td>{{ep.enabled}}</td>
                     <td><span ng-class="ep.commStatus.status | commStatusIcon: ep.enabled"></span> {{ep.commStatus.status}}</td>
-                    <td>{{ep.commStatus.lastHeartbeat}}</td>
+                    <td>{{ep.commStatus.lastHeartbeat | date:"hh:mm:ss a, MM-dd-yyyy"}}</td>
                 </tr>
             </tbody>
         </table>
