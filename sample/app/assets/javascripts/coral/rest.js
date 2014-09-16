@@ -84,6 +84,9 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
     }
 
     function httpRequestError( json, statusCode, headers, config) {
+      //   0 Server down
+      // 401 Unauthorized
+
 
       console.error( "coralRequest error " + config.method + " " + config.url + " " + statusCode + " json: " + JSON.stringify( json));
       if( statusCode == 0) {
@@ -195,12 +198,16 @@ var CoralRest = function( $rootScope, $timeout, $http, $location, authentication
                     successListener( json)
             }).
             error( function( json, statusCode, headers, config) {
-              // 400: Bad Request - request is malformed or missing required fields.
-              // 403: Forbidden - Logged in, but don't have permissions to complete request, resource already locked, etc.
-              // TODO: Control select will be left in invalid state waiting on select with 401. Need to unify Reef Connections Status and ExceptionMessage.
-              if( statusCode === 400 || statusCode === 403)
-                failureListener( json, statusCode, headers, config)
-              else
+              //   0 Server down
+              // 400 Bad Request - request is malformed or missing required fields.
+              // 401 Unauthorized
+              // 403 Forbidden - Logged in, but don't have permissions to complete request, resource already locked, etc.
+              // 404 Not Found - Server has not found anything matching the Request-URI
+              // 408 Request Timeout
+              // 500 Internal Server Error
+              //
+              failureListener( json, statusCode, headers, config)
+              if( statusCode === 401 || statusCode === 0)
                 httpRequestError( json, statusCode, headers, config)
             });
 

@@ -20,6 +20,8 @@
  */
 package org.totalgrid.coral.controllers
 
+import java.util.concurrent.TimeoutException
+
 import org.totalgrid.coral.models.ControlMessages.{CommandExecuteRequest, SetpointRequest}
 import org.totalgrid.coral.models.ExceptionMessages.ExceptionMessage
 import org.totalgrid.reef.client.exception.{ForbiddenException, ReefServiceException, UnauthorizedException, LockedException, BadRequestException}
@@ -599,7 +601,6 @@ trait RestServices extends ReefAuthentication {
   def postCommand( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
     import org.totalgrid.coral.models.ControlMessages._
 
-
     val cService = serviceFactory.commandService( session)
     val commandId = ReefUUID.newBuilder().setValue( id).build()
 
@@ -609,8 +610,6 @@ trait RestServices extends ReefAuthentication {
     // Could be setpoint or control.
     val commandExecuteRequest = getCommandExecuteRequest( request)
     val commandLockId = ReefID.newBuilder().setValue( commandExecuteRequest.commandLockId).build()
-
-
 
     commandExecuteRequest.setpoint map {
       case setpoint =>
@@ -632,8 +631,15 @@ trait RestServices extends ReefAuthentication {
     } recover {
       case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
       case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
-      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
-      case ex => throw ex
+      case ex: BadRequestException =>
+        Logger.error( s"RestServices.postCommand issueCommandRequest BadRequestException ${ex.getMessage}")
+        Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex: TimeoutException =>
+        Logger.error( s"RestServices.postCommand issueCommandRequest TimeoutException ${ex.getMessage}")
+        GatewayTimeout( Json.toJson( ExceptionMessage( "TimeoutException", "Command execute request timed out waiting for Reef server reply.")))
+      case ex: Exception =>
+        Logger.error( s"RestServices.postCommand issueCommandRequest Exception thrown $ex -- Cause: ${ex.getCause}")
+        InternalServerError( Json.toJson( ExceptionMessage( ex.getClass.getCanonicalName, s"Command execute request unknown failure. ${ex.getMessage}.")))
     }
   }
 
