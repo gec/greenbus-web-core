@@ -46,7 +46,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr ng-repeat="point in points | filter:search | orderBy:sortColumn" ng-class="rowClasses(point)">
+                <tr ng-repeat="point in pointsFiltered = (points | filter:search | orderBy:sortColumn)" ng-class="rowClasses(point)">
                     <td ng-if="!point.rowDetail">
                         <div class="coral-checkbox-container" ng-click="checkUncheck(point)" role="checkbox" aria-labelledby=":2f" dir="ltr" aria-checked="true" tabindex="-1">
                             <div ng-class="point.checked | checkboxClass"></div>

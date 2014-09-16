@@ -40,6 +40,7 @@ return angular.module( 'controllers')
 .controller( 'MeasurementControl', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'coralNav', 'subscription', 'meas', 'coralRequest', '$timeout',
 function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNav, subscription, meas, coralRequest, $timeout) {
   $scope.points = []
+  $scope.pointsFiltered = []
   $scope.checkAllState = CHECKMARK_UNCHECKED
   $scope.checkCount = 0
   $scope.charts = []
@@ -117,10 +118,12 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
   $scope.checkUncheckAll = function () {
     $scope.checkAllState = CHECKMARK_NEXT_STATE[ $scope.checkAllState]
-    var i = $scope.points.length - 1
+    // if check, check visible. If uncheck, uncheck all.
+    var ps = $scope.checkAllState === CHECKMARK_CHECKED ? $scope.pointsFiltered : $scope.points
+    var i = ps.length - 1
     $scope.checkCount = $scope.checkAllState === CHECKMARK_CHECKED ? i : 0
     for( ; i >= 0; i-- ) {
-      var point = $scope.points[ i]
+      var point = ps[ i]
       point.checked = $scope.checkAllState
     }
   }
@@ -230,8 +233,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
   }
 
   $scope.chartAddSelectedPoints = function() {
-    // Add all measurements that are checked
-    var points = $scope.points.filter( function ( m ) {
+    // Add all measurements that are checked and visible.
+    var points = $scope.pointsFiltered.filter( function ( m ) {
       return m.checked === CHECKMARK_CHECKED
     } )
 
