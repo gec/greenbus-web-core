@@ -80,3 +80,11 @@ ul.legend li {
   stroke:black;
   opacity:0.8;
 }
+
+.brush .extent {
+  stroke: #fff;
+  fill: #FF8C00;
+  stroke-width: 2;
+  fill-opacity: .26;
+  shape-rendering: crispEdges;
+}

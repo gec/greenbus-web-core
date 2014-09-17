@@ -65,23 +65,34 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         return _chartContainer
     }
     function onResize() {
-        windowSize.width = documentElement.clientWidth
-        windowSize.height = documentElement.clientHeight
-        var offsetTop = chartContainer().offsetTop,
-            offsetLeft = chartContainer().offsetLeft,
-            width = windowSize.width - offsetLeft,
-            heightBoth = windowSize.height - offsetTop,
-            heightTop = Math.floor( heightBoth * 0.86),
-            heightBot = heightBoth - heightTop
-        console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
+      windowSize.width = documentElement.clientWidth
+      windowSize.height = documentElement.clientHeight
+      var heightTop, heightBot,
+          offsetTop = chartContainer().offsetTop,
+          offsetLeft = chartContainer().offsetLeft,
+          width = windowSize.width - offsetLeft,
+          height = windowSize.height - offsetTop
 
-        if( width !== chartSize.width || heightTop !== chartSize.height) {
-          $scope.chart.traits.height( heightTop)
-          $scope.chart.traits.width( windowSize.width - offsetLeft)
+      if( height <= 150) {
+        heightTop = height
+        heightBot = 0
+      } else {
+        heightBot = Math.floor( height * 0.18)
+        if( heightBot < 50)
+          heightBot = 50
+        else if( heightBot > 100)
+          heightBot = 100
+        heightTop = height - heightBot
+      }
+      console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
 
-          $scope.chart.brushTraits.height( heightBot)
-          $scope.chart.brushTraits.width( windowSize.width - offsetLeft)
-        }
+      if( width !== chartSize.width || heightTop !== chartSize.height) {
+        $scope.chart.traits.height( heightTop)
+        $scope.chart.traits.width( windowSize.width - offsetLeft)
+
+        $scope.chart.brushTraits.height( heightBot)
+        $scope.chart.brushTraits.width( windowSize.width - offsetLeft)
+      }
     }
     $window.onresize = onResize
 
