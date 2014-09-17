@@ -93,10 +93,11 @@ define([
 
       function makeChartTraits( unitMap ) {
         var unit,
-          unitMapKeys = Object.keys( unitMap ),
-          config = makeChartConfig( unitMapKeys ),
-          chartTraits = d3.trait( d3.trait.chart.base, config )
-            .trait( d3.trait.scale.time, { axis: "x1"} )
+            gridLines = true,
+            unitMapKeys = Object.keys( unitMap ),
+            config = makeChartConfig( unitMapKeys ),
+            chartTraits = d3.trait( d3.trait.chart.base, config )
+              .trait( d3.trait.scale.time, { axis: "x1"} )
 
 
         unitMapKeys.forEach( function ( unit, index ) {
@@ -122,10 +123,11 @@ define([
               yAxis: axis,
               focus: {distance: 1000, axis: 'x'}
             } )
-            .trait( d3.trait.axis.linear, { axis: axis, orient: orient, extentTicks: true, label: unit} )
+            .trait( d3.trait.axis.linear, { axis: axis, orient: orient, ticks: undefined, label: unit, gridLines: gridLines} )
+          gridLines = false
         })
 
-        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3} )
+        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3, gridLines: true} )
           .trait(d3.trait.focus.crosshair, {})
           .trait( d3.trait.focus.tooltip.unified, {
               formatY: d3.format('.2f'),

@@ -1,16 +1,6 @@
-/*! d3-traits - v0.0.1 - 2014-08-15
+/*! d3-traits - v0.0.1 - 2014-09-17
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
-.axis path, .axis line {
-  fill: none;
-  stroke: black;
-  shape-rendering: crispEdges;
-}
-
-.axis path {
-  fill: none;
-  stroke: none;
-}
 
 .bar {
   fill: lightblue;
@@ -34,6 +24,11 @@ path.axis-line {
   fill: none;
   stroke: steelblue;
   stroke-width: 1.5px;
+}
+
+.grid .tick.major line {
+  opacity: 0.14;
+  shape-rendering: crispEdges;
 }
 
 ul.legend {

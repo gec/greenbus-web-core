@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-08-15
+/*! d3-traits - v0.0.1 - 2014-09-17
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -1503,7 +1503,12 @@
     return [min, max]
   }
 
-
+  /**
+   * Is new extend greater than current extent?
+   * @param currentExtent
+   * @param newExtent
+   * @returns {boolean}
+   */
   function isExtentExtended( currentExtent, newExtent) {
     if( ! currentExtent || currentExtent.length < 2) {
       return true
@@ -1574,7 +1579,8 @@
           tickFormat:  config.tickFormat,
           nice:        config.nice,
           label:       config.label,
-          lines:       config.lines
+          lines:       config.lines,
+          gridLines:   config.gridLines
         }
 
     c.labelLineHeight = c.label ? (config.labelLineHeight || 14) : 0
@@ -1667,19 +1673,39 @@
     }
   }
 
-  function applyTickConfig(axis, scale, c) {
+  function applyTickConfig( group, axis, scale, c, self) {
     if( c.extentTicks )
       axis.tickValues(scale.domain())
     else if( c.ticks )
       axis.ticks(c.ticks)
 
-    if( c.tickSize )
+    if( c.gridLines)
+      applyGridlines(group, axis, c, self)
+    else if( c.tickSize )
       axis.tickSize(c.tickSize)
+
     if( c.tickPadding )
       axis.tickPadding(c.tickPadding)
 
     if( c.tickFormat )
       axis.tickFormat(c.tickFormat)
+
+
+  }
+
+  function applyGridlines( group, axis, c, self) {
+
+    group.classed( 'grid', c.gridLines)
+
+    switch( c.axisChar ) {
+      case 'x':
+        axis.tickSize( - self.chartHeight())
+        break
+      case 'y':
+        axis.tickSize( - self.chartWidth())
+        break
+      default:
+    }
   }
 
   var AxisLineClass = 'axis-line'
@@ -1702,7 +1728,7 @@
    * @private
    */
   function _axisLinear(_super, _config) {
-    var group, groupAxis, label, axis,
+    var group, label, axis,
         c = axisConfig(_config),
         scale = _super[c.name]()  // ex: x1()
 
@@ -1726,8 +1752,9 @@
         var element = this
 
         if( !group ) {
-          group = this._container.append('g').classed('axis', true)
-          groupAxis = group.append('g').classed('axis-' + c.name, true)
+          group = this._container.append('g')
+            .classed('axis', true)
+            .classed('axis-' + c.name, true)
           if( c.label )
             label = group.append('text').classed('axis-label axis-label-' + c.name, true)
           axis = d3.svg.axis()
@@ -1735,25 +1762,25 @@
 
         axis.scale(scale)
           .orient(c.orient)
-        applyTickConfig(axis, scale, c)
+        applyTickConfig( group, axis, scale, c, self)
 
         // c.axisMargin is the width or height of the axis.
         self.layoutAxis(group, c.orient, c.axisMargin)
 
         //group.attr( {transform: containerTransform( self, c)})
         if( c.label ) {
-          //groupAxis.attr( {transform: axisTransform( self, c)})
+          //group.attr( {transform: axisTransform( self, c)})
           label.text(c.label)
           label.attr({ transform: labelTransform(self, c, label) })
         }
-        groupAxis.call(axis);
+        group.call(axis);
 
         // Do we have to provide a line to extend each end of the axis?
         if( _super.isMinRangeMargin(c.name) ) {
 
           var extData = d3.trait.utils.getScaleExtensions(_super, c.name, scale)
 
-          var extension = groupAxis.selectAll("path.axis-extension")
+          var extension = group.selectAll("path.axis-extension")
             .data(extData)
 
           extension.enter()
@@ -1771,7 +1798,7 @@
         }
 
         if(c.lines && Array.isArray(c.lines)) {
-          var line = groupAxis.selectAll('path.' + AxisLineClass)
+          var line = group.selectAll('path.' + AxisLineClass)
             .data(c.lines)
           line.enter()
             .append("path")
@@ -1791,12 +1818,12 @@
 
       // Need this for extentTicks, maybe others
       //
-      applyTickConfig(axis, scale, c)
+      applyTickConfig( group, axis, scale, c, this)
 
       if( duration === 0 ) {
-        groupAxis.call(axis);
+        group.call(axis);
       } else {
-        groupAxis.transition()
+        group.transition()
           .duration(duration || _super.duration())
           .ease("linear")
           .call(axis);
@@ -1823,7 +1850,7 @@
   }
 
   function _axisMonth(_super, _config) {
-    var group, groupAxis, label, lastDomainMax,
+    var group, label, lastDomainMax,
         axis = d3.svg.axis(),
         scaleForUpdate = d3.time.scale(),
         c = axisConfig(_config),
@@ -1839,8 +1866,9 @@
         var element = this
 
         if( !group ) {
-          group = this._container.append('g').classed('axis', true)
-          groupAxis = group.append('g').classed('axis-' + c.name, true)
+          group = this._container.append('g')
+            .classed('axis', true)
+            .classed('axis-' + c.name, true)
           if( c.label )
             label = group.append('text').classed('axis-label axis-label-' + c.name, true)
           axis = d3.svg.axis()
@@ -1855,7 +1883,7 @@
 
         axis.scale(scaleForUpdate)
           .orient(c.orient)
-        applyTickConfig(axis, scaleForUpdate, c)
+        applyTickConfig( group, axis, scaleForUpdate, c, self)
 
         //.tickFormat(d3.time.format('%e')) // %d is 01, 02. %e is \b1, \b2
         //.ticks( 15)
@@ -1978,7 +2006,7 @@
         access = trait.config.accessorsXY( _config, axes),
         x1 = _super[axes.x](),
         y = _super[axes.y](),
-        yMinDomainFromData = _super[axes.y + 'MinDomainFromData'],
+        yMinDomainExtentFromData = _super[axes.y + 'MinDomainExtentFromData'],
         focusConfig = d3.trait.focus.utils.makeConfig(_config),
         interpolate = _config.interpolate || "linear",
         stacked = _config.stacked ? true : false,
@@ -2011,7 +2039,7 @@
           access.series = access.seriesData
           access.data = access.y
           var extent = trait.utils.extentFromAreaData( filteredData, access)
-          yMinDomainFromData( extent)
+          yMinDomainExtentFromData( extent)
         } else {
           area.y0(self.chartHeight())
         }
@@ -2049,7 +2077,7 @@
         access.series = access.seriesData
         access.data = access.y
         var extent = trait.utils.extentFromAreaData( filteredData, access)
-        yMinDomainFromData( extent)
+        yMinDomainExtentFromData( extent)
       }
 
       lastDomainMax = trait.chart.utils.updatePathWithTrend(type, dur, x1, series, attrD, lastDomainMax)
@@ -2106,13 +2134,45 @@
   }
 
 
+  /**
+   *
+   *  Domain                 Range
+   *   5     +-----------    0
+   *   4                     1
+   *   3   y  ___            2
+   *   2     |***|           3
+   *   1     |***|           4
+   *   0  y0 +-----------+   5 chartHeight
+   *  -1           |***| y0  6
+   *  -2           |***|     7
+   *  -3            ---  y   8 chartHeight
+   *
+   *  y = y < 0 ? y0 : y same as Math.max( y, y0)
+   *  h = y(0) - y( abs(y-y0))
+   *
+   * @param access
+   * @param barDimensions
+   * @param chartHeight
+   * @param x1
+   * @param y
+   * @returns {{x: x, y: y, width: *, height: height}}
+   */
   function barAttr(access, barDimensions, chartHeight, x1, y) {
     // NOTE: for transition from enter, use  y(0) for y: and height:
+    // x is middle of bar.
+    // y is top of bar. Remember, the scale range is flipped for y.
+    // height - chartHeight - y OR y0 - y for stacked.
+
+    // For pos/neg bars:
+    // x - same
+    // y - pos: same. neg:
+    //
     return {
       x:      function(d) { return x1(access.x(d)) + barDimensions.offset; },
-      y:      function(d) { return y(access.y(d)); },
+      y:      function(d) { return y(  Math.max(access.y(d),0) ); },
       width:  barDimensions.width,
-      height: function(d) { return chartHeight - y(access.y(d)); }
+      height: function(d) { return y(0) - y( Math.abs( access.y(d))); }
+//      height: function(d) { return chartHeight - y( Math.abs( access.y(d))); }
     }
   }
 
@@ -2269,8 +2329,8 @@
    * |      _  |    |      _  |    |      _  |    |      _  |    |     _   _     |
    * |  _  |*| |    |  _  |*| |    |  _  |*| |    |  _  |*| |    |  _ |~| |*| _  |
    * | |*| |*| |    | |*| |*| |    | |*| |*| |    | |*| |*| |    | |*||~| |*||~| |
-   * +--+---+--+     --+---+--      --+---+--      +---+---+      +------+------+
-   * 0  1   2  3       1   2          A   B          A   B         A      B
+   * +--+---+--+     --+---+--      --+---+--      -+---+---      -+------+------+
+   * 0  1   2  3       1   2          A   B          A   B          A      B
    *
    *    ONE
    *    Linear axis with scala extents outside of data min/max.
@@ -5553,7 +5613,7 @@ trait.chart.line = _chartLine
     if( domainConfig.domain )
       return domainConfig.domain
 
-    // TODO: This overrides trend. The two shold work together.
+    // TODO: This overrides trend. The two should work together.
     if( domainConfig.minDomainFromData) {
       if( trait.utils.isExtentExtended( domain, domainConfig.minDomainFromData))
         domain = trait.utils.extendExtent( domain, domainConfig.minDomainFromData)
@@ -5782,7 +5842,7 @@ trait.chart.line = _chartLine
       scale.domain(newDomain)
       // TODO: domain updated event?
     }
-    scaleLinear[scaleName + 'MinDomain'] = function(minDomain) {
+    scaleLinear[scaleName + 'MinDomainExtent'] = function(minDomain) {
       if( !arguments.length ) return domainConfig.minDomain
 
       if( trait.utils.isExtentExtended( domainConfig.minDomain, minDomain)) {
@@ -5796,9 +5856,18 @@ trait.chart.line = _chartLine
         }
       }
     }
-    scaleLinear[scaleName + 'MinDomainFromData'] = function(minDomain) {
+
+    /**
+     * Each chart can specify the minimum required for domain extent (ex: min height or width).
+     * If a chart is stacked it needs more height from the scale's domain.
+     *
+     * @param minDomain
+     * @returns {*|minDomainFromData}
+     */
+    scaleLinear[scaleName + 'MinDomainExtentFromData'] = function(minDomain) {
       if( !arguments.length ) return domainConfig.minDomainFromData
 
+      // Is new extend greater than current extent?
       if( trait.utils.isExtentExtended( domainConfig.minDomainFromData, minDomain)) {
         domainConfig.minDomainFromData = trait.utils.extendExtent( domainConfig.minDomainFromData, minDomain)
 
