@@ -629,15 +629,22 @@ trait RestServices extends ReefAuthentication {
       cService.deleteCommandLocks( Seq( commandLockId)) // TODO: Move this auto-delete to Reef.
       Ok( Json.toJson( result))
     } recover {
-      case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
-      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: LockedException =>
+        cService.deleteCommandLocks( Seq( commandLockId))
+        Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+      case ex: ForbiddenException =>
+        cService.deleteCommandLocks( Seq( commandLockId))
+        Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
       case ex: BadRequestException =>
+        cService.deleteCommandLocks( Seq( commandLockId))
         Logger.error( s"RestServices.postCommand issueCommandRequest BadRequestException ${ex.getMessage}")
         Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
       case ex: TimeoutException =>
+        cService.deleteCommandLocks( Seq( commandLockId))
         Logger.error( s"RestServices.postCommand issueCommandRequest TimeoutException ${ex.getMessage}")
         GatewayTimeout( Json.toJson( ExceptionMessage( "TimeoutException", "Command execute request timed out waiting for Reef server reply.")))
       case ex: Exception =>
+        cService.deleteCommandLocks( Seq( commandLockId))
         Logger.error( s"RestServices.postCommand issueCommandRequest Exception thrown $ex -- Cause: ${ex.getCause}")
         InternalServerError( Json.toJson( ExceptionMessage( ex.getClass.getCanonicalName, s"Command execute request unknown failure. ${ex.getMessage}.")))
     }
