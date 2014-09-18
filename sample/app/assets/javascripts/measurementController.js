@@ -753,6 +753,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
       }
       var pointIds = processPointsAndReturnPointIds()
       subscribeToMeasurements( pointIds)
+      getPointsCommands( pointIds)
     });
   }
 
