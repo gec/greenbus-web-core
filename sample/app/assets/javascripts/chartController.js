@@ -110,8 +110,8 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
-            timeFrom = now - 1000 * 60 * 60,  // 1 Hour
-            limit = 500,
+            timeFrom = now - 1000 * 60 * 60 * 2,  // 2 Hour
+            limit = 4000,
             notify = function() { chart.update( "trend")}
 
         point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)

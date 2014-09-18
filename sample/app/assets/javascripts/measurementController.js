@@ -210,8 +210,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
   function subscribeToMeasurementHistory( chart, point ) {
     var now = new Date().getTime(),
-      timeFrom = now - 1000 * 60 * 60,  // 1 Hour
-      limit = 500,
+      timeFrom = now - 1000 * 60 * 60 * 1,  // 1 Hour
+      limit = 1000,
       notify = function () {
         chart.traits.update( "trend" )
       }
