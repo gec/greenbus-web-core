@@ -618,7 +618,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
       pointDetails = {
         point: point,
-        name: point.name,
+        name: point.name + ' ',
         rowDetail: true,
         commandSet: point.commandSet
       }
