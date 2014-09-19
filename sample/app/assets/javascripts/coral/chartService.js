@@ -160,28 +160,6 @@ define([
         return brushTraits
       }
 
-      function makeBrushTraits() {
-        var brushTraits
-
-//        var brushConfig = {
-//          x1: function(d) { return d.date; },
-//          y1: function(d) { return d.value; },
-//          seriesData: function(s) { return s.values},
-//          seriesLabel: function(s) { return s.uniqueName},
-//          chartClass: "brush-chart"
-//        }
-
-        brushTraits = d3.trait( d3.trait.chart.base, self.config )
-          .trait( d3.trait.scale.time, { axis: "x1"})
-          .trait( d3.trait.scale.linear, { axis: "y1" })
-          .trait( d3.trait.chart.area, { interpolate: "monotone" })  // "linear"
-          .trait( d3.trait.control.brush, { axis: 'x1', target: self.traits, targetAxis: 'x1'})
-          .trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
-          .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
-
-        return brushTraits
-      }
-
       self.getPointByid = function( pointId) {
         var i, point,
           length = self.points.length
@@ -249,6 +227,8 @@ define([
       // typ is usually 'trend'
       self.update = function( typ) {
         self.traits.update( typ )
+        if( self.brushChart)
+          self.brushTraits.update( typ )
       }
 
       function isSamePrefix( index, points) {

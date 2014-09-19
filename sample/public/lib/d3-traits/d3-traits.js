@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-09-17
+/*! d3-traits - v0.0.1 - 2014-09-19
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -1550,6 +1550,7 @@
 }(d3, d3.trait));
 
 (function(d3, trait) {
+  var debug = false
 
   function orientFromConfig(axisChar, orient) {
     if( orient )
@@ -1757,15 +1758,17 @@
             .classed('axis-' + c.name, true)
           if( c.label )
             label = group.append('text').classed('axis-label axis-label-' + c.name, true)
-          axis = d3.svg.axis()
+          axis = d3.svg.axis().scale( scale)
         }
 
-        axis.scale(scale)
-          .orient(c.orient)
+        if( debug)
+          console.log( 'axisLinear.each ' + c.name)
+
+        axis.orient(c.orient)
         applyTickConfig( group, axis, scale, c, self)
 
         // c.axisMargin is the width or height of the axis.
-        self.layoutAxis(group, c.orient, c.axisMargin)
+        self.layoutAxis( c.name, group, c.orient, c.axisMargin)
 
         //group.attr( {transform: containerTransform( self, c)})
         if( c.label ) {
@@ -1815,6 +1818,8 @@
 
     axisLinear.update = function(type, duration) {
       this._super(type, duration)
+      if( debug)
+        console.log( 'axisLinear.update ' + c.name)
 
       // Need this for extentTicks, maybe others
       //
@@ -1890,7 +1895,7 @@
         //.tickValues( tickValuesForMonthDays( scaleForUpdate))
         //.tickSubdivide(4)
 
-        self.layoutAxis(group, c.orient, c.axisMargin)
+        self.layoutAxis( c.name, group, c.orient, c.axisMargin)
         if( c.label ) {
           label.text(c.label)
           label.attr({ transform: labelTransform(self, c, label) })
@@ -2510,7 +2515,11 @@
 
 (function(d3, trait) {
 
-  var chartGroupClipPathNextId = 1
+  var chartGroupClipPathNextId = 1,
+      debug = {
+        layoutAxes: false,
+        resize: false
+      }
 
 
   function _chartBase(_super, _config) {
@@ -2545,7 +2554,7 @@
      orientation (Left, Right, Bottom, Top}. As axes are added (via traits), the
      chart margins are adjusted to accommodate each axis.
      Each array element contains the following:
-     axisGroup: The SVG g element for the axis and axis label
+     group: The SVG g element for the axis and axis label
      orient: left, right, top, bottom
      rect: d3.trait.Rect
      */
@@ -2970,9 +2979,10 @@
         chartWidth:  chartWidth,
         chartHeight: chartHeight
       }
-      chartWidth = width - margin.left - margin.right
-      chartHeight = height - margin.top - margin.bottom
-      //console.log( "baseChart.updateChartSize chartWidth=" + chartWidth + ", chartHeight=" + chartHeight)
+      chartWidth = Math.max( 0, width - margin.left - margin.right)
+      chartHeight = Math.max( 0, height - margin.top - margin.bottom)
+      if( debug.resize)
+        console.log( 'chartBase.updateChartSize() chartWidth ' + prev.chartWidth + '->' + chartWidth + ', chartHeight ' + prev.chartHeight + '->' + chartHeight + ' selection:' + (!!selection))
       if( prev.chartWidth !== chartWidth || prev.chartHeight !== chartHeight ) {
         if( selection )
           chartBase.callTraits(selection)
@@ -3013,13 +3023,13 @@
 
     };
 
-    function findAxisWithLayoutInfo(axisGroup) {
+    function findAxisWithLayoutInfo(group) {
       var i, axisWithLayoutInfo,
           length = allAxesWithLayoutInfo.length
 
       for( i = 0; i < length; i++ ) {
         axisWithLayoutInfo = allAxesWithLayoutInfo[i]
-        if( axisWithLayoutInfo.axisGroup === axisGroup )
+        if( axisWithLayoutInfo.group === group )
           return axisWithLayoutInfo
       }
       return null
@@ -3197,12 +3207,18 @@
         updateChartSize()
     }
 
-    chartBase.layoutAxis = function(axisGroup, orient, widthOrHeight) {
-      var axisWithLayoutInfo = findAxisWithLayoutInfo(axisGroup),
+    chartBase.layoutAxis = function( name, group, orient, widthOrHeight) {
+      var axisWithLayoutInfo = findAxisWithLayoutInfo(group),
           rect = makeAxisRectWithProperAnchor(orient, widthOrHeight)
 
+      if( debug.layoutAxes) {
+        console.log( 'layoutAxis( '+name+', ' + orient + ', ' + widthOrHeight + ') BEGIN width:' + width + ' height:' + height + ' margin l:' + margin.left + ' r:' + margin.right + ' t:' + margin.top + ' b:' + margin.bottom)
+        allAxesWithLayoutInfo.forEach( function(a){
+          console.log( '   ' + a.name + ', ' + a.orient + ' origin:'+ a.rect.origin.x + ',' + a.rect.origin.y +' size:' + a.rect.size.width + ',' + a.rect.size.height + ' anchor:' + a.rect.anchor.x + ',' + a.rect.anchor.y)
+        })
+      }
       if( !axisWithLayoutInfo ) {
-        axisWithLayoutInfo = {axisGroup: axisGroup, orient: orient, rect: rect}
+        axisWithLayoutInfo = { name: name, group: group, orient: orient, rect: rect}
         allAxesWithLayoutInfo.push(axisWithLayoutInfo)
         relayoutAxes()
       } else if( axisWithLayoutInfo.orient !== orient || axisWithLayoutInfo.rect.size !== rect.size ) {
@@ -3210,7 +3226,13 @@
         axisWithLayoutInfo.rect = rect
         relayoutAxes()
       }
-      axisWithLayoutInfo.axisGroup.attr('transform', 'translate(' + axisWithLayoutInfo.rect.origin.x + ',' + axisWithLayoutInfo.rect.origin.y + ')');
+      if( debug.layoutAxes) {
+        console.log( 'layoutAxis( '+name+', ' + orient + ', ' + widthOrHeight + ') END   width:' + width + ' height:' + height + ' margin l:' + margin.left + ' r:' + margin.right + ' t:' + margin.top + ' b:' + margin.bottom)
+        allAxesWithLayoutInfo.forEach( function(a){
+          console.log( '   ' + a.name + ', ' + a.orient + ' origin:'+ a.rect.origin.x + ',' + a.rect.origin.y +' size:' + a.rect.size.width + ',' + a.rect.size.height + ' anchor:' + a.rect.anchor.x + ',' + a.rect.anchor.y)
+        })
+      }
+      axisWithLayoutInfo.group.attr('transform', 'translate(' + axisWithLayoutInfo.rect.origin.x + ',' + axisWithLayoutInfo.rect.origin.y + ')');
     }
 
     // Return a list of points in focus.
@@ -3263,10 +3285,22 @@
       }
     };
 
+    chartBase.size = function(_s) {
+      if( !arguments.length ) return width;
+      sizeFromElement = false
+      width = parseInt(_s.width, 10);
+      height = parseInt(_s.height, 10);
+      if( debug.resize)
+        console.log( 'chartBase.size( weight=' + width + ', height=' + height + ')')
+      updateChartSize()
+      return this;
+    };
     chartBase.width = function(_x) {
       if( !arguments.length ) return width;
       sizeFromElement = false
       width = parseInt(_x, 10);
+      if( debug.resize)
+        console.log( 'chartBase.width( ' + width + ')')
       updateChartSize()
       return this;
     };
@@ -3274,6 +3308,8 @@
       if( !arguments.length ) return height;
       sizeFromElement = false
       height = parseInt(_x, 10);
+      if( debug.resize)
+        console.log( 'chartBase.height( ' + height + ')')
       updateChartSize()
       duration = 0;
       return this;
@@ -3784,8 +3820,9 @@ trait.chart.line = _chartLine
           var classes = _config.chartClass ? brushClasses + _config.chartClass : brushClasses
           //brushChart = this._chartGroup.lastChild
           group = this._chartGroup.append('g').classed(classes, true)
-            .call(brush)
         }
+
+        group.call( brush)
 
         group.selectAll("rect")
           .attr("y", -6)
@@ -3797,8 +3834,7 @@ trait.chart.line = _chartLine
 
     controlBrush.update = function(type, duration) {
       this._super(type, duration)
-
-
+      group.call( brush)
       lastDomainMax = d3.trait.utils.extentMax(scale.domain())
       return this;
     };
@@ -5469,6 +5505,8 @@ trait.chart.line = _chartLine
 
 (function(d3, trait) {
 
+  var debug = false
+
   var TRACKING_NONE = "none"
 
 // Force domain to follow current wall-time (i.e. domain max = current time).
@@ -5829,8 +5867,10 @@ trait.chart.line = _chartLine
         filteredData = _config.seriesFilter ? _data.filter(_config.seriesFilter) : _data
         var domain = getDomain( scale.domain(), domainConfig, filteredData, access)
         scale.domain( domain)
-        scale.range(d3.trait.utils.getScaleRange(self, scaleName))
-
+        var range = d3.trait.utils.getScaleRange(self, scaleName)
+        scale.range(range)
+        if( debug)
+          console.log( 'scaleLinear.each ' + scaleName + ' range:' + range + ' domain:' + domain)
       })
     }
 
@@ -5881,11 +5921,15 @@ trait.chart.line = _chartLine
     }
     scaleLinear.update = function(type, duration) {
       this._super(type, duration)
-      var range = d3.trait.utils.getScaleRange(_super, scaleName);
+      var range = d3.trait.utils.getScaleRange(_super, scaleName)
+      if( debug)
+        console.log( 'scaleLinear.update1 ' + scaleName + ' range:' + range + ' domain:' + scale.domain());
 
       // reset the minimum domain from visible data, so later traits can grow the min domain as needed.
       delete domainConfig.minDomainFromData;
       updateScale(scale, range, domainConfig, filteredData, access)
+      if( debug)
+        console.log( 'scaleLinear.update2 ' + scaleName + ' range:' + range + ' domain:' + scale.domain())
 
       return this;
     };

@@ -112,6 +112,9 @@
     background-color: #404040;
     padding: 6px 8px 4px 8px;
 }
+.coral-win-titlebar a {
+    color: white;
+}
 .coral-win-title {
     float: left;
     margin-bottom: 0;

@@ -46,7 +46,8 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         documentElement = $window.document.documentElement,
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
         _chartContainer = null,
-        chartSize = new d3.trait.Size()
+        chartSize = new d3.trait.Size(),
+        firstPointLoaded = false
 
     console.log( "ChartController $scope.chart=" + chartSource)
 
@@ -58,44 +59,6 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     documentElement.style.overflow = 'hidden';  // firefox, chrome
     $window.document.body.scroll = "no"; // ie only
-    function chartContainer() {
-        if( ! _chartContainer) {
-            _chartContainer = $window.document.getElementById('chart-container')
-        }
-        return _chartContainer
-    }
-    function onResize() {
-      windowSize.width = documentElement.clientWidth
-      windowSize.height = documentElement.clientHeight
-      var heightTop, heightBot,
-          offsetTop = chartContainer().offsetTop,
-          offsetLeft = chartContainer().offsetLeft,
-          width = windowSize.width - offsetLeft,
-          height = windowSize.height - offsetTop
-
-      if( height <= 150) {
-        heightTop = height
-        heightBot = 0
-      } else {
-        heightBot = Math.floor( height * 0.18)
-        if( heightBot < 50)
-          heightBot = 50
-        else if( heightBot > 100)
-          heightBot = 100
-        heightTop = height - heightBot
-      }
-      console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
-
-      if( width !== chartSize.width || heightTop !== chartSize.height) {
-        $scope.chart.traits.height( heightTop)
-        $scope.chart.traits.width( windowSize.width - offsetLeft)
-
-        $scope.chart.brushTraits.height( heightBot)
-        $scope.chart.brushTraits.width( windowSize.width - offsetLeft)
-      }
-    }
-    $window.onresize = onResize
-
 
     var number = $filter('number')
     function formatMeasurementValue( value) {
@@ -107,14 +70,22 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
     }
 
 //    function pointAlreadyHasSubscription( point) { return point.hasOwnProperty( 'subscriptionId') }
+    function notifyMeasurements() {
+      if( !firstPointLoaded) {
+        firstPointLoaded = true
+        $scope.loading = false
+        onResize()
+      }
+      console.log( 'ChartController.notifyMeasurements height:' + chartSize.height + ' chart.update()')
+      $scope.chart.update( "trend")
+    }
 
     function subscribeToMeasurementHistory( chart, point) {
         var now = new Date().getTime(),
             timeFrom = now - 1000 * 60 * 60 * 2,  // 2 Hour
-            limit = 7300, // 7200 is 1 measurement per second for 2 hours.
-            notify = function() { chart.update( "trend")}
+            limit = 7300 // 7200 is 1 measurement per second for 2 hours.
 
-        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify)
+        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notifyMeasurements)
     }
 
     function unsubscribeToMeasurementHistory( chart, point) {
@@ -171,10 +142,62 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
     }
 
 
-    $timeout( function() {
-        onResize()
-        $scope.loading = false
-    }, 500)
+    function chartContainer() {
+      if( ! _chartContainer) {
+        _chartContainer = $window.document.getElementById('chart-container')
+      }
+      return _chartContainer
+    }
+
+    $scope.chartHeight = {
+      main: '100px',
+      brush: '0px'
+      }
+
+    function onResize( event) {
+
+      $timeout( function() {
+
+        windowSize.width = documentElement.clientWidth
+        windowSize.height = documentElement.clientHeight
+        var heightTop, heightBot,
+            offsetTop = chartContainer().offsetTop,
+            offsetLeft = chartContainer().offsetLeft,
+            size = new d3.trait.Size( windowSize.width - offsetLeft, windowSize.height - offsetTop)
+
+        if( size.width !== chartSize.width || size.height !== chartSize.height) {
+          chartSize.width = size.width
+          chartSize.height = size.height
+
+          if( size.height <= 150) {
+            heightTop = size.height
+            heightBot = 1
+          } else {
+            heightBot = Math.floor( size.height * 0.18)
+            if( heightBot < 50)
+              heightBot = 50
+            else if( heightBot > 100)
+              heightBot = 100
+            heightTop = size.height - heightBot
+          }
+
+          $scope.chartHeight.main = heightTop + 'px'
+          $scope.chartHeight.brush = heightBot + 'px'
+          console.log( "window resize w=" + windowSize.width + ", h=" + windowSize.height + " offset.top=" + offsetTop)
+
+          size.height = heightTop
+          $scope.chart.traits.size( size)
+          size.height = heightBot
+          $scope.chart.brushTraits.size( size)
+        }
+      })
+    }
+    $window.onresize = onResize
+    onResize()
+//    $timeout( function() {
+//        onResize()
+//        $scope.loading = false
+//    }, 500)
 
 }]);  // end .controller 'ChartControl'
 

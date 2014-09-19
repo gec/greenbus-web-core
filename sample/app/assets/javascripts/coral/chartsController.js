@@ -119,7 +119,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
     $window.open(
       '/chart',
       '_blank',
-      'resizeable,top=100,left=100,height=200,width=300,location=no,toolbar=no'
+      'resizeable,top=100,left=100,height=400,width=600,location=no,toolbar=no'
     )
 
     // TODO: cancel subscriptions and remove measurement history

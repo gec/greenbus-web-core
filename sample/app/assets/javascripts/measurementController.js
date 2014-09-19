@@ -312,7 +312,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
     $window.open(
       '/chart',
       '_blank',
-      'resizeable,top=100,left=100,height=200,width=300,location=no,toolbar=no'
+      'resizeable,top=100,left=100,height=300,width=500,location=no,toolbar=no'
     )
     //child window:   $scope.chart = $window.opener.coralChart;
 
