@@ -114,6 +114,8 @@ define([
             interpolate = 'step-after'
             scaleConfig.domainMin = 0
             scaleConfig.domainMax = 5
+          } else {
+            scaleConfig.domainPadding = 0.05
           }
 
           chartTraits = chartTraits.trait( d3.trait.scale.linear, scaleConfig )

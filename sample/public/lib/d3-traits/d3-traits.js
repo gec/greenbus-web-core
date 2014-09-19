@@ -1457,15 +1457,15 @@
    * @param defaultValue A default in case there is no data otherwise [0,1] is returned
    * @returns  The extent of all data in an array of the form [min,max]
    */
-  function extentFromData(data, access, defaultValue) {
+  function extentFromData(data, access, padding, defaultValue) {
     var extents, min, max
 
     // Get array of extents for each series.
     extents = data.map(function(s) { return d3.extent( access.series(s), access.data) })
-    return extentFromData2( extents, defaultValue)
+    return extentFromData2( extents, padding, defaultValue)
   }
 
-  function extentFromAreaData(data, access, defaultValue) {
+  function extentFromAreaData(data, access, padding, defaultValue) {
     var extents, min, max
 
     // Get array of extents for each series.
@@ -1478,7 +1478,7 @@
       return extent
     })
 
-    return extentFromData2( extents, defaultValue)
+    return extentFromData2( extents, padding, defaultValue)
   }
 
   /**
@@ -1487,7 +1487,7 @@
    * @param defaultValue if no extents, use default if available.
    * @returns Extent array.
    */
-  function extentFromData2( extents, defaultValue) {
+  function extentFromData2( extents, padding, defaultValue) {
     var min, max
 
     min = d3.min(extents, function(e) { return e[0] }) // the minimums of each extent
@@ -1496,9 +1496,15 @@
     if( !min && !max )
       return defaultValue ? defaultValue : [0, 1]
 
-    if( min === max ) {
-      min -= 1
-      max += 1
+    if( !(min instanceof Date) && !(max instanceof Date) && ! isNaN( min) && ! isNaN( max)) {
+      if( min === max ) {
+        min -= 1
+        max += 1
+      } else {
+        var p = (max - min) * padding
+        min -= p
+        max += p
+      }
     }
     return [min, max]
   }
@@ -2011,6 +2017,7 @@
         access = trait.config.accessorsXY( _config, axes),
         x1 = _super[axes.x](),
         y = _super[axes.y](),
+        domainPadding = d3.trait.utils.configFloat(_config.domainPadding, 0),
         yMinDomainExtentFromData = _super[axes.y + 'MinDomainExtentFromData'],
         focusConfig = d3.trait.focus.utils.makeConfig(_config),
         interpolate = _config.interpolate || "linear",
@@ -2043,7 +2050,7 @@
             stackLayout( filteredData)
           access.series = access.seriesData
           access.data = access.y
-          var extent = trait.utils.extentFromAreaData( filteredData, access)
+          var extent = trait.utils.extentFromAreaData( filteredData, access, domainPadding)
           yMinDomainExtentFromData( extent)
         } else {
           area.y0(self.chartHeight())
@@ -2081,7 +2088,7 @@
         stackLayout( filteredData);
         access.series = access.seriesData
         access.data = access.y
-        var extent = trait.utils.extentFromAreaData( filteredData, access)
+        var extent = trait.utils.extentFromAreaData( filteredData, access, domainPadding)
         yMinDomainExtentFromData( extent)
       }
 
@@ -5541,14 +5548,17 @@ trait.chart.line = _chartLine
   /**
    * domainMin or domainMax overrides domain.
    *
+   * padding 0.1 is 10%
+   *
    * @param config
-   * @returns domain config { trend, domain, domainMin, domainMax }
+   * @returns domain config { trend, domain, domainMin, domainMax, padding }
    */
   function makeDomainConfig(config) {
     var dMin = d3.trait.utils.configFloat(config.domainMin, null),
         dMax = d3.trait.utils.configFloat(config.domainMax, null),
         dc = {
-          trend: config.trend
+          trend: config.trend,
+          padding: d3.trait.utils.configFloat(config.domainPadding, 0)
         }
 
     if( dMin !== null && dMax !== null ) {
@@ -5605,7 +5615,7 @@ trait.chart.line = _chartLine
    * @param access
    * @returns {*}
    */
-  function getDomainTrend(trend, data, access) {
+  function getDomainTrend(trend, data, access, domainPadding) {
     var min, max, domain
 
     if( trend.track === TRACKING_CURRENT_TIME ) {
@@ -5629,7 +5639,7 @@ trait.chart.line = _chartLine
 
       } else {
 
-        domain = trait.utils.extentFromData(data, access)
+        domain = trait.utils.extentFromData(data, access, domainPadding)
       }
     }
     return domain
@@ -5660,13 +5670,13 @@ trait.chart.line = _chartLine
 
 
     if( domainConfig.trend )
-      domain = getDomainTrend(domainConfig, data, access)
+      domain = getDomainTrend(domainConfig, data, access, domainConfig.padding)
     else if( domainConfig.domainMin != null )
       domain = [domainConfig.domainMin, trait.utils.maxFromData(data, access)]
     else if( domainConfig.domainMax != null )
       domain = [trait.utils.minFromData(data, access), domainConfig.domainMax]
     else
-      domain = trait.utils.extentFromData(data, access)
+      domain = trait.utils.extentFromData(data, access, domainConfig.padding)
 
     return domain
   }
@@ -5736,13 +5746,13 @@ trait.chart.line = _chartLine
           scale.range([range[0], newRangeMax])
 
         } else {
-          dataDomain = trait.utils.extentFromData(data, access)
+          dataDomain = trait.utils.extentFromData(data, access, domainConfig.padding)
           scale.domain(dataDomain)
         }
       }
 
     } else {
-      dataDomain = trait.utils.extentFromData(data, access)
+      dataDomain = trait.utils.extentFromData(data, access, domainConfig.padding)
       scale.domain(dataDomain)
     }
 
