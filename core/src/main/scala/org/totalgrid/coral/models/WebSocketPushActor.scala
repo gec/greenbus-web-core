@@ -45,6 +45,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
 
+import scala.util.Random
+
 // for postfix 'seconds'
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 
@@ -136,6 +138,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   val pushChannel = aPushChannel
 
   var subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
+  var scheduleIdsMap = Map.empty[String, Cancellable]
 
   override def preStart() {
     if( session.isDefined) {
@@ -292,17 +295,17 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val timer = new Timer( "subscribeToMeasurementsHistory")
     val service = serviceFactory.measurementService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.id)
-    val uuid = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+    val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
     timer.delta( "initialized service and uuid")
 
-    val result = service.getCurrentValuesAndSubscribe( Seq( uuid))
+    val result = service.getCurrentValuesAndSubscribe( Seq( pointReefId))
     result onSuccess {
       case (measurements, subscription) =>
         timer.delta( "onSuccess 1")
         Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.id + ", measurements.length" + measurements.length)
         subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
         if( measurements.nonEmpty)
-          subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, uuid, measurements.head, timer)
+          subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, pointReefId, measurements.head, timer)
         else {
           // Point has never had a measurement. Start subscription for new measurements.
           subscription.start { m =>
@@ -324,7 +327,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
                                            service: MeasurementService,
                                            subscription: Subscription[MeasurementNotification],
-                                           uuid: ReefUUID,
+                                           pointReefId: ReefUUID,
                                            currentMeasurement: PointMeasurementValue,
                                            timer: Timer) = {
 
@@ -333,7 +336,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
 
       val query = MeasurementHistoryQuery.newBuilder()
-        .setPointUuid( uuid)
+        .setPointUuid( pointReefId)
         .setTimeFrom( subscribe.timeFrom)   // exclusive
         .setTimeTo( currentMeasurementTime) // inclusive
         .setLimit( subscribe.limit)
@@ -352,6 +355,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
           // History will include the current measurement we already received.
           // How will we know if the limit is reach. Currently, just seeing the returned number == limit
           pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pointMeasurements))
+
+//          generateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
           subscription.start { m =>
             pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
           }
@@ -377,6 +382,46 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       }
       timer.end( "Part2 there could NOT be historical measurements in query time window")
     }
+
+  }
+  
+  def generateMeasurementsForFastSubscription(subscribeId: String,
+                                              pointReefId: ReefUUID,
+                                              currentMeasurement: PointMeasurementValue) = {
+    import play.api.libs.concurrent.Akka
+//    import play.api.libs.concurrent.Execution.Implicits._
+    import play.api.Play.current
+
+    var time = currentMeasurement.getValue.getTime
+    var value = currentMeasurement.getValue.getDoubleVal
+    val r = new Random();
+    val q = Measurements.Quality.newBuilder()
+      .setValidity( Measurements.Quality.Validity.GOOD)
+      .setSource(Measurements.Quality.Source.PROCESS)
+
+
+    val cancellable = Akka.system.scheduler.schedule( 1000 milliseconds, 500 milliseconds) {
+      value = value + 10.0 * r.nextDouble() - 5.0
+      time += 500
+
+      val meas = Measurement.newBuilder()
+        .setType( Measurements.Measurement.Type.DOUBLE)
+        .setDoubleVal( value)
+        .setQuality( q)
+      .setTime( time)
+
+      val measNotify = MeasurementNotification.newBuilder()
+        .setPointUuid( pointReefId)
+        .setValue( meas)
+        .setPointName( "--")
+        .build()
+
+      pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribeId, measNotify))
+    }
+
+    scheduleIdsMap = scheduleIdsMap + (subscribeId -> cancellable)
+
+
 
   }
 
@@ -438,8 +483,13 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
   private def cancelSubscription( id: String) = {
     Logger.info( "WebSocketPushActor receive Unsubscribe " + id)
-    subscriptionIdsMap.get(id) foreach{ subscription =>
+    subscriptionIdsMap.get(id) foreach { subscription =>
       Logger.info( "WebSocketPushActor canceling subscription " + id)
+      subscription.cancel()
+      subscriptionIdsMap = subscriptionIdsMap - id
+    }
+    scheduleIdsMap.get(id) foreach { subscription =>
+      Logger.info( "WebSocketPushActor canceling schedule " + id)
       subscription.cancel()
       subscriptionIdsMap = subscriptionIdsMap - id
     }

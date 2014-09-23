@@ -309,7 +309,7 @@ object JsonFormatters {
   implicit val measurementWrites = new Writes[Measurement] {
     def writes( o: Measurement): JsValue = {
       val measValue = o.getType match {
-        case Measurement.Type.DOUBLE => o.getDoubleVal
+        case Measurement.Type.DOUBLE => "%.6f".format(o.getDoubleVal)
         case Measurement.Type.INT => o.getIntVal
         case Measurement.Type.STRING => o.getStringVal
         case Measurement.Type.BOOL => o.getBoolVal
