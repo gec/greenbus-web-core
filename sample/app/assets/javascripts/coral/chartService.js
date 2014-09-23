@@ -38,9 +38,17 @@ define([
     var self = this
     var chartRequests = []
 
+    function copyPoints( points) {
+      var newPoints = []
+      points.forEach( function( p) {
+        newPoints.push( angular.extend( {}, p))
+      })
+      return newPoints
+    }
+
     var Chart = function( _points, _brushChart) {
       var self = this
-      self.points = _points
+      self.points = copyPoints( _points)
       self.unitMap = getChartUnits( self.points )
       self.name = makeNameFromPoints( self.points )
       self.traits = makeChartTraits( self.unitMap )
@@ -91,13 +99,21 @@ define([
         return units
       }
 
+      function makeChartConfigScaleX1() {
+        return self.brushChart ? {
+          axis: "x1",
+          trend: { track: "domain-max", domain: { interval: d3.time.hour, count: 2 } }
+        }
+        : {axis: "x1"}
+      }
       function makeChartTraits( unitMap ) {
         var unit,
             gridLines = true,
             unitMapKeys = Object.keys( unitMap ),
             config = makeChartConfig( unitMapKeys ),
+            x1config = {},
             chartTraits = d3.trait( d3.trait.chart.base, config )
-              .trait( d3.trait.scale.time, { axis: "x1"} )
+              .trait( d3.trait.scale.time, makeChartConfigScaleX1())
 
 
         unitMapKeys.forEach( function ( unit, index ) {
@@ -129,7 +145,8 @@ define([
           gridLines = false
         })
 
-        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3, gridLines: true} )
+        var xAxisTicks = self.brushChart ? 10 : 4
+        chartTraits = chartTraits.trait( d3.trait.axis.time.month, { axis: "x1", ticks: xAxisTicks, gridLines: true} )
           .trait(d3.trait.focus.crosshair, {})
           .trait( d3.trait.focus.tooltip.unified, {
               formatY: d3.format('.2f'),
@@ -154,7 +171,7 @@ define([
         brushTraits = d3.trait( d3.trait.chart.base, self.config )
           .trait( d3.trait.scale.time, { axis: "x1"})
           .trait( d3.trait.scale.linear, { axis: "y1" })
-          .trait( d3.trait.chart.area, { interpolate: "monotone" })  // "linear"
+          .trait( d3.trait.chart.line, { interpolate: "monotone" })  // "linear"
           .trait( d3.trait.control.brush, { axis: 'x1', target: self.traits, targetAxis: 'x1'})
           .trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
           .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
@@ -228,9 +245,10 @@ define([
 
       // typ is usually 'trend'
       self.update = function( typ) {
-        self.traits.update( typ )
         if( self.brushChart)
           self.brushTraits.update( typ )
+        else
+          self.traits.update( typ )
       }
 
       function isSamePrefix( index, points) {

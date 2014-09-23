@@ -104,7 +104,7 @@ define( 'coral/MeasurementHistory',
 
     MeasurementHistory.prototype.onMeasurements = function( pointMeasurements) {
         var self = this
-        console.log( "onMeasurements point.name " + this.point.name + " measurements.length=" + pointMeasurements.length)
+        console.log( "onMeasurements point.name " + this.point.name + " measurements.length=" + pointMeasurements.length + ' meas[0]: ' + pointMeasurements[0].measurement.value)
         pointMeasurements.forEach( function( m) {
             self.onMeasurement( m.measurement)
         })

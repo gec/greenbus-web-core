@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-09-19
+/*! d3-traits - v0.0.1 - 2014-09-22
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -3805,11 +3805,11 @@ trait.chart.line = _chartLine
 
     function brushed() {
       var extent = brush.empty() ? scale.domain() : brush.extent()
+      targetUpdate( extent, 'domain', 0)
+    }
+    function targetUpdate( extent, type, duration) {
       target[ targetAxis + "Domain"](extent)
-      //targetScale.domain( extent);
-      target.update("domain", 0)
-//        focus.select("path").attr("d", area);
-//        focus.select(".x.axis").call(xAxis);
+      target.update(type, duration)
     }
 
     brush.on("brush", brushed)
@@ -3839,8 +3839,52 @@ trait.chart.line = _chartLine
       })
     }
 
+    function extentProperties( extent, lastDomainMax) {
+      var props = {
+        min: d3.trait.utils.extentMin(extent),
+        max: d3.trait.utils.extentMax(extent)
+      }
+      if( props.max instanceof Date) {
+        var minMs = props.min.getTime(),
+            maxMs = props.max.getTime()
+        props.isDate = true
+        props.span = Math.abs( maxMs - minMs),
+        props.spanEpsilon = props.span * 0.025
+        props.isExtentMax = Math.abs( maxMs - lastDomainMax.getTime()) < props.spanEpsilon
+      } else {
+        props.isDate = false
+        props.span = Math.abs( props.max - props.min),
+        props.spanEpsilon = props.span * 0.025
+        props.isExtentMax = Math.abs( props.max - lastDomainMax) < props.spanEpsilon
+      }
+      return props
+    }
+
+    function getNewMin( props, newMax) {
+      if( newMax instanceof Date)
+        return new Date( newMax.getTime() - props.span)
+      else
+        return newMax - props.span
+    }
+
     controlBrush.update = function(type, duration) {
       this._super(type, duration)
+      if( ! brush.empty()) {
+        var extent = brush.extent(),
+            props = extentProperties(extent, lastDomainMax)
+        if( props.isExtentMax) {
+          var newMax = d3.trait.utils.extentMax(scale.domain()),
+              newMin = getNewMin( props, newMax)
+           brush.extent( [newMin, newMax])
+        } else {
+          brush.extent( extent)
+          extent = brush.extent()
+        }
+
+        targetUpdate( extent, 'trend', 250)
+      } else {
+        brushed()
+      }
       group.call( brush)
       lastDomainMax = d3.trait.utils.extentMax(scale.domain())
       return this;
