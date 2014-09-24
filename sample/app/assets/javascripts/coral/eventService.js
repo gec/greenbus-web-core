@@ -21,6 +21,9 @@ define([
 ], function( ) {
     'use strict';
 
+    // TODO Need source entity name and link to entity.
+    // was <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td> \
+
     var alarmsTemplate =
         '<table class="table table-condensed"> \
             <thead> \
@@ -29,7 +32,6 @@ define([
                 <th>Type</th> \
                 <th>Sev</th> \
                 <th>User</th> \
-                <th>Entity</th> \
                 <th>Message</th> \
                 <th>Time</th> \
             </tr> \
@@ -40,7 +42,6 @@ define([
                 <td>{{alarm.event.eventType}}</td> \
                 <td>{{alarm.event.severity}}</td> \
                 <td>{{alarm.event.agent}}</td> \
-                <td><a href="#/entities/{{alarm.event.entity | encodeURI}}">{{alarm.event.entity}}</a></td> \
                 <td>{{alarm.event.message}}</td> \
                 <td>{{alarm.event.time | date:"hh:mm:ss a, MM-dd-yyyy"}}</td> \
             </tr> \
@@ -55,7 +56,6 @@ define([
                     <th>Alarm</th> \
                     <th>Sev</th> \
                     <th>User</th> \
-                    <th>Entity</th> \
                     <th>Message</th> \
                     <th>Time</th> \
                 </tr> \
@@ -66,7 +66,6 @@ define([
                     <td>{{event.alarm}}</td> \
                     <td>{{event.severity}}</td> \
                     <td>{{event.agent}}</td> \
-                    <td><a href="#/entities/{{event.entity | encodeURI}}">{{event.entity}}</a></td> \
                     <td>{{event.message}}</td> \
                     <td>{{event.time | date:\'hh:mm:ss a, MM-dd-yyyy\'}}</td> \
                 </tr> \
