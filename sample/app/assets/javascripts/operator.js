@@ -103,7 +103,6 @@ define([
           when('/commands', {templateUrl: '/partials/commands.html', controller: 'CommandControl'}).
           when('/commands/:name', {templateUrl: '/partials/commanddetail.html', controller: 'CommandDetailControl'}).
           when('/endpoints', {templateUrl: '/partials/endpoints.html', controller: 'EndpointControl'}).
-          when('/endpoints/:name', {templateUrl: '/partials/endpointdetail.html', controller: 'EndpointDetailControl'}).
           when('/applications', {templateUrl: '/partials/applications.html', controller: 'ApplicationControl'}).
           when('/applications/:name', {templateUrl: '/partials/applicationdetail.html', controller: 'ApplicationDetailControl'}).
           when('/events', {templateUrl: '/partials/events.html', controller: 'EventControl'}).

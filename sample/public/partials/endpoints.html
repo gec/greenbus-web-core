@@ -18,7 +18,7 @@
             </thead>
             <tbody>
                 <tr ng-repeat="ep in endpoints">
-                    <td><a href="#/endpoints/{{ep.endpoint.name | encodeURI}}">{{ep.name}}</a></td>
+                    <td>{{ep.name}}</td>
                     <td>{{ep.protocol}}</td>
                     <td>{{ep.enabled}}</td>
                     <td><span ng-class="ep.commStatus.status | commStatusIcon: ep.enabled"></span> {{ep.commStatus.status}}</td>

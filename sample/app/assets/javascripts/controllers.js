@@ -633,19 +633,6 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
     });
 }])
         
-.controller( 'EndpointDetailControl', ['$rootScope', '$scope', '$routeParams', 'reef', function( $rootScope, $scope, $routeParams, reef) {
-    var routeName = $routeParams.name;
-
-    $rootScope.currentMenuItem = "endpoints";
-    $rootScope.breadcrumbs = [
-        { name: "Reef", url: "#/"},
-        { name: "Endpoints", url: "#/endpoints"},
-        { name: routeName }
-    ];
-
-    reef.get( '/endpoints/' + routeName, "endpoint", $scope);
-}])
-
 .controller( 'ApplicationControl', ['$rootScope', '$scope', 'reef', function( $rootScope, $scope, reef) {
     $rootScope.currentMenuItem = "applications";
     $rootScope.breadcrumbs = [
