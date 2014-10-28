@@ -26,7 +26,7 @@ import play.api.libs.concurrent.Execution.Implicits._
 import akka.actor._
 import akka.util.Timeout
 import org.totalgrid.reef.client._
-import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValue, MeasurementNotification, Measurement}
+import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValues, PointMeasurementValue, MeasurementNotification, Measurement}
 import org.totalgrid.reef.client.service.proto.Events.Event
 import com.google.protobuf.GeneratedMessage
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
@@ -323,6 +323,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   def thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime: Long, subscribeTimeFrom: Long) = subscribeTimeFrom < currentMeasurementTime
+  val DebugSimulateLotsOfMeasurements = false
 
   def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
                                            service: MeasurementService,
@@ -354,11 +355,19 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
           Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.id)
           // History will include the current measurement we already received.
           // How will we know if the limit is reach. Currently, just seeing the returned number == limit
-          pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pointMeasurements))
-
-//          generateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
-          subscription.start { m =>
-            pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
+          if( DebugSimulateLotsOfMeasurements) {
+            val measurements = debugGenerateMeasurementsBefore( currentMeasurement, 4000)
+            Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
+            val pmv = PointMeasurementValues.newBuilder()
+            .setPointUuid( pointReefId)
+            .addAllValue( measurements)
+            pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pmv.build()))
+            debugGenerateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
+          } else {
+            pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pointMeasurements))
+            subscription.start { m =>
+              pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
+            }
           }
           timer.end( "service.getHistory onSuccess end")
       }
@@ -372,43 +381,69 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       
     } else {
 
-      timer.delta( "Part2 there could NOT be historical measurements in query time window")
-      // Current measurement is older than the time window of measurement history query so
-      // no need to get history.
-      // Just send current point with measurement.
-      pushChannel.push( pointMeasurementPushWrites.writes( subscribe.id, currentMeasurement))
-      subscription.start { m =>
-        pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
+      timer.delta( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
+
+      if( DebugSimulateLotsOfMeasurements) {
+        val measurements = debugGenerateMeasurementsBefore( currentMeasurement, 4000)
+        Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
+        val pmv = PointMeasurementValues.newBuilder()
+          .setPointUuid( pointReefId)
+          .addAllValue( measurements)
+        pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pmv.build()))
+        debugGenerateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
+      } else {
+        // Current measurement is older than the time window of measurement history query so
+        // no need to get history.
+        // Just send current point with measurement.
+        pushChannel.push(pointMeasurementPushWrites.writes(subscribe.id, currentMeasurement))
+        subscription.start { m =>
+          pushChannel.push(pointMeasurementNotificationPushWrites.writes(subscribe.id, m))
+        }
       }
-      timer.end( "Part2 there could NOT be historical measurements in query time window")
+      timer.end( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
     }
 
   }
-  
-  def generateMeasurementsForFastSubscription(subscribeId: String,
+
+  val QualityGood = Measurements.Quality.newBuilder()
+    .setValidity( Measurements.Quality.Validity.GOOD)
+    .setSource(Measurements.Quality.Source.PROCESS)
+
+  def debugGenerateMeasurement( value: Double, time: Long): Measurement = {
+    Measurement.newBuilder()
+      .setType( Measurements.Measurement.Type.DOUBLE)
+      .setDoubleVal( value)
+      .setQuality( QualityGood)
+      .setTime( time)
+      .build()
+  }
+
+  def debugGenerateMeasurementsBefore( currentMeasurement: PointMeasurementValue, count: Int): IndexedSeq[Measurement] = {
+    var time = currentMeasurement.getValue.getTime - (500 * count) - 1000
+    var value = currentMeasurement.getValue.getDoubleVal
+    for( i <- 1 to count) yield {
+      time += 500;
+      value += Math.random() * 2.0 - 1.0
+      debugGenerateMeasurement( value, time)
+    }
+  }
+
+  def debugGenerateMeasurementsForFastSubscription(subscribeId: String,
                                               pointReefId: ReefUUID,
                                               currentMeasurement: PointMeasurementValue) = {
     import play.api.libs.concurrent.Akka
-//    import play.api.libs.concurrent.Execution.Implicits._
     import play.api.Play.current
 
     var time = currentMeasurement.getValue.getTime
     var value = currentMeasurement.getValue.getDoubleVal
     val r = new Random();
-    val q = Measurements.Quality.newBuilder()
-      .setValidity( Measurements.Quality.Validity.GOOD)
-      .setSource(Measurements.Quality.Source.PROCESS)
 
 
     val cancellable = Akka.system.scheduler.schedule( 1000 milliseconds, 500 milliseconds) {
       value = value + 10.0 * r.nextDouble() - 5.0
       time += 500
 
-      val meas = Measurement.newBuilder()
-        .setType( Measurements.Measurement.Type.DOUBLE)
-        .setDoubleVal( value)
-        .setQuality( q)
-      .setTime( time)
+      val meas = debugGenerateMeasurement( value, time)
 
       val measNotify = MeasurementNotification.newBuilder()
         .setPointUuid( pointReefId)
