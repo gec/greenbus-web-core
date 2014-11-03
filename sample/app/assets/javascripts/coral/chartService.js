@@ -244,11 +244,19 @@ define([
       }
 
       // typ is usually 'trend'
-      self.update = function( typ) {
+      self.invalidate = function( typ, duration) {
         if( self.brushChart)
-          self.brushTraits.update( typ )
+          self.brushTraits.invalidate( typ, duration)
         else
-          self.traits.update( typ )
+          self.traits.invalidate( typ, duration)
+      }
+
+      // typ is usually 'trend'
+      self.update = function( typ, duration) {
+        if( self.brushChart)
+          self.brushTraits.update( typ, duration)
+        else
+          self.traits.update( typ, duration)
       }
 
       function isSamePrefix( index, points) {
@@ -283,7 +291,7 @@ define([
 
         // if not '.' or dot is too near end, return.
         if( i < 0 || i > l - 6) {
-          assignUniqueName( )
+          assignUniqueName( 0, self.points)  // give up. Just use the whole name.
           return
         }
 

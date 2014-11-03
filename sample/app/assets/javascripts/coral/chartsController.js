@@ -122,8 +122,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
       'resizeable,top=100,left=100,height=400,width=600,location=no,toolbar=no'
     )
 
-    // TODO: cancel subscriptions and remove measurement history
-    $scope.charts.splice( index, 1 )
+    $scope.chartRemove( index)
   }
 
 

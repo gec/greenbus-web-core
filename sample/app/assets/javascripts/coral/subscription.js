@@ -61,38 +61,33 @@ define([
             onmessage: function (event) {
                 var message = JSON.parse(event.data)
 
-                $rootScope.$apply(function () {
+                if( message.type === "ConnectionStatus") {
+                    console.debug( 'onMessage.ConnectionStatus ' + message.data)
+                    handleReefConnectionStatus(message.data)
+                    return
+                }
 
-                    if( message.type === "ConnectionStatus") {
-                        console.debug( 'onMessage.ConnectionStatus ' + message.data)
-                        handleReefConnectionStatus( message.data)
-                        return
-                    }
-
-                    // Handle errors
-                    if(message.error) {
-                        handleError( message)
-                        return
-                    }
+                // Handle errors
+                if(message.error) {
+                    handleError( message)
+                    return
+                }
 
 //                    console.debug( 'onMessage message.subscriptionId=' + message.subscriptionId + ", message.type=" + message.type)
 
-                    var listener = getListenerForMessage( message)
-                    if( listener && listener.message)
-                        listener.message( message.subscriptionId, message.type, message.data)
-                })
+                var listener = getListenerForMessage( message)
+                if( listener && listener.message)
+                    listener.message( message.subscriptionId, message.type, message.data)
             },
             onopen: function(event) {
                 console.log( "webSocket.onopen event: " + event)
-                $rootScope.$apply(function () {
-                    setStatus( STATE.CONNECTED)
+                setStatus( STATE.CONNECTED)
 
-                    while( webSocketPendingTasks.length > 0) {
-                        var data = webSocketPendingTasks.shift()
-                        console.log( "onopen: send( " + data + ")")
-                        webSocket.send( data)
-                    }
-                })
+                while( webSocketPendingTasks.length > 0) {
+                    var data = webSocketPendingTasks.shift()
+                    console.log( "onopen: send( " + data + ")")
+                    webSocket.send( data)
+                }
             },
             onclose: function(event) {
                 var code = event.code;
@@ -101,10 +96,8 @@ define([
                 console.log( "webSocket.onclose code: " + code + ", wasClean: " + wasClean + ", reason: " + reason)
                 webSocket = null
 
-                $rootScope.$apply(function () {
-                    setStatus( STATE.CONNECTION_FAILED)
-                    removeAllSubscriptions( "WebSocket onclose()")
-                })
+                setStatus( STATE.CONNECTION_FAILED)
+                removeAllSubscriptions( "WebSocket onclose()")
 
                 // Cannot redirect here because this webSocket thread fights with the get reply 401 thread.
                 // Let the get handle the redirect. Might need to coordinate something with get in the future.
@@ -114,10 +107,8 @@ define([
                 var name = event.name;
                 var message = event.message;
                 console.log( "webSocket.onerror name: " + name + ", message: " + message + ", data: " + data)
-                $rootScope.$apply(function () {
-                    setStatus( STATE.CONNECTION_FAILED);
-                    removeAllSubscriptions( "WebSocket onerror()")
-                })
+                setStatus( STATE.CONNECTION_FAILED);
+                removeAllSubscriptions( "WebSocket onerror()")
             }
         }
 

@@ -75,9 +75,10 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         firstPointLoaded = true
         $scope.loading = false
         onResize()
+        $scope.$digest()
       }
-      console.log( 'ChartController.notifyMeasurements height:' + chartSize.height + ' chart.update()')
-      $scope.chart.update( "trend")
+      //console.log( 'ChartController.notifyMeasurements height:' + chartSize.height + ' chart.invalidate(\'trend\')')
+      $scope.chart.invalidate( 'trend')
     }
 
     function subscribeToMeasurementHistory( chart, point) {
@@ -127,18 +128,21 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
             index = chart.points.indexOf( point);
         chart.removePoint(point);
         if( ! keepSubscription)
-            unsubscribeToMeasurementHistory( point);
+            unsubscribeToMeasurementHistory( chart, point);
 
         if( chart.points.length <= 0) {
-          // TODO: remove chart
+          $scope.chartRemove()
         }
 
     }
 
-    $scope.chartRemove = function( index) {
-        // TODO: remove chart.
-        // TODO: Cancel subscriptions and remove measurement history
-        $scope.charts.splice( index, 1)
+    $scope.chartRemove = function() {
+      window.alert( "chartController.chartRemove()")
+
+      $scope.chart.points.forEach( function( point) {
+        unsubscribeToMeasurementHistory( $scope.chart, point)
+      });
+      delete $scope.chart;
     }
 
 
@@ -156,7 +160,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     function onResize( event) {
 
-      $timeout( function() {
+//      $timeout( function() {
 
         windowSize.width = documentElement.clientWidth
         windowSize.height = documentElement.clientHeight
@@ -190,7 +194,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
           size.height = heightBot
           $scope.chart.brushTraits.size( size)
         }
-      })
+//      })
     }
     $window.onresize = onResize
     onResize()
@@ -198,6 +202,11 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 //        onResize()
 //        $scope.loading = false
 //    }, 500)
+
+
+    $window.addEventListener( 'unload', function( event) {
+      $scope.chartRemove()
+    })
 
 }]);  // end .controller 'ChartControl'
 

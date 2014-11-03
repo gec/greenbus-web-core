@@ -24,6 +24,10 @@ define( 'coral/MeasurementHistory',
     'use strict';
 
     var regexTrue = new RegExp('^true$', 'i');  // case insensitive
+    var murtsAccess = {
+      x: function ( d ) { return d.timeMs; },
+      y: function ( d ) { return d.value; }
+    }
 
     /**
      * Manage one subscription for a single point which may have multiple subscribers.
@@ -33,12 +37,15 @@ define( 'coral/MeasurementHistory',
      * @constructor
      */
     function MeasurementHistory( subscription, point)  {
-        this.subscription = subscription
-        this.point = point
-        this.subscriptionId = null
-        this.subscribers = [] // {subscriber:, notify:} -- subscribers that display this point
-        this.measurements = []
+      this.subscription = subscription
+      this.point = point
+      this.subscriptionId = null
+      this.subscribers = [] // {subscriber:, notify:} -- subscribers that display this point
+      this.measurements = d3.trait.murts.dataStore()
+        .x( murtsAccess.x)
+        .y( murtsAccess.y)
 
+      this.measurements.pushPoints( [])
     }
 
     MeasurementHistory.prototype.subscribe = function( scope, timeFrom, limit, subscriber, notify) {
@@ -76,39 +83,42 @@ define( 'coral/MeasurementHistory',
     }
 
     MeasurementHistory.prototype.unsubscribe = function( subscriber) {
-        this.removeSubscriber( subscriber)
+      this.removeSubscriber( subscriber)
 
-        if( this.subscribers.length === 0 && this.subscriptionId) {
-            try {
-                this.subscription.unsubscribe( this.subscriptionId);
-            } catch( ex) {
-                console.error( "Unsubscribe measurement history for " + this.point.name + " exception " + ex)
-            }
-            this.subscriptionId = null;
-            this.measurements = []
+      if( this.subscribers.length === 0 && this.subscriptionId) {
+        try {
+          this.subscription.unsubscribe( this.subscriptionId);
+        } catch( ex) {
+          console.error( "Unsubscribe measurement history for " + this.point.name + " exception " + ex)
         }
+        this.subscriptionId = null;
+        this.measurements = d3.trait.murts.dataStore()
+          .x( murtsAccess.x)
+          .y( murtsAccess.y)
+        this.measurements.pushPoints( [])
+      }
 
     }
 
 
     MeasurementHistory.prototype.onPointWithMeasurements = function( pointWithMeasurements) {
-        var self = this,
-            measurements = pointWithMeasurements.measurements
+      var measurements,
+          self = this
 
-        console.log( "onPointWithMeasurements point.name " + this.point.name + " measurements.length=" + measurements.length)
-        measurements.forEach( function( m) {
-            self.onMeasurement( m)
-        })
-        this.notifySubscribers()
+//      console.log( "onPointWithMeasurements point.name " + this.point.name + " measurements.length=" + pointWithMeasurements.measurements.length)
+      measurements = pointWithMeasurements.measurements.map( function( m) { return self.convertMeasurement( m) })
+      this.measurements.pushPoints( measurements)
+      this.notifySubscribers()
     }
 
     MeasurementHistory.prototype.onMeasurements = function( pointMeasurements) {
-        var self = this
-        console.log( "onMeasurements point.name " + this.point.name + " measurements.length=" + pointMeasurements.length + ' meas[0]: ' + pointMeasurements[0].measurement.value)
-        pointMeasurements.forEach( function( m) {
-            self.onMeasurement( m.measurement)
-        })
-        this.notifySubscribers()
+        var measurements,
+            self = this
+
+//      console.log( "onMeasurements point.name " + this.point.name + " measurements.length=" + pointMeasurements.length + ' meas[0]: ' + pointMeasurements[0].measurement.value)
+      measurements = pointMeasurements.map( function( pm) { return self.convertMeasurement( pm.measurement) })
+      this.measurements.pushPoints( measurements)
+      this.notifySubscribers()
     }
 
     var ValueMap = {
@@ -120,7 +130,9 @@ define( 'coral/MeasurementHistory',
       Inactive: 0,  Active: 1,
       Charging: 0,  Discharging: 1, Standby: 2, Smoothing: 3, VAr: 4, Peak: 5  // 'VAr Control', 'Peak Shaving'
     }
-    MeasurementHistory.prototype.onMeasurement = function( measurement) {
+
+    MeasurementHistory.prototype.convertMeasurement = function( measurement) {
+        measurement.timeMs = measurement.time
         measurement.time = new Date( measurement.time)
         if( measurement.type === "BOOL") {
 
@@ -135,13 +147,13 @@ define( 'coral/MeasurementHistory',
           var value = parseFloat( measurement.value)
           if( ! isNaN( value)) {
             measurement.value = value
-            //console.log( "onMeasurement measurements " + this.point.name + " " + measurement.time + " " + measurement.value)
+            //console.log( "convertMeasurement measurements " + this.point.name + " " + measurement.time + " " + measurement.value)
           } else {
-            console.error( "onMeasurement " + this.point.name + " time=" + measurement.time + " value='" + measurement.value + "' -- value is not a number.")
+            console.error( "convertMeasurement " + this.point.name + " time=" + measurement.time + " value='" + measurement.value + "' -- value is not a number.")
             return
           }
         }
-        this.measurements.push( measurement)
+        return measurement
     }
 
     MeasurementHistory.prototype.notifySubscribers = function() {
@@ -155,6 +167,12 @@ define( 'coral/MeasurementHistory',
 //        })
     }
 
+    /**'
+     * Remove the subscriber. It's possible the subscribe is listed twice with different
+     * notifiers. Remove all references to subscriber.
+     *
+     * @param subscriber
+     */
     MeasurementHistory.prototype.removeSubscriber = function( subscriber) {
 
         var s,
@@ -165,7 +183,6 @@ define( 'coral/MeasurementHistory',
             s = this.subscribers[i]
             if( s.subscriber === subscriber) {
                 this.subscribers.splice(i, 1);
-                return
             }
         }
     }

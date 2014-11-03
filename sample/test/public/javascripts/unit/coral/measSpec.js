@@ -9,7 +9,7 @@ define([
 
     var point, json,
         mock = {
-            pointMeasurements: {},
+            pointIdToMeasurementHistoryMap: {},
             subscription: {
                 id: 'subscriptionId1',
                 notifySuccess: null,
@@ -47,8 +47,8 @@ define([
                 factory('subscription', function() {
                     return mock.subscription
                 }).
-                factory('pointMeasurements', function() {
-                    return mock.pointMeasurements
+                factory('pointIdToMeasurementHistoryMap', function() {
+                    return mock.pointIdToMeasurementHistoryMap
                 })
 
             spyOn(mock.subscription, 'subscribe').andCallThrough()
@@ -81,12 +81,12 @@ define([
                 mock.subscription.notifySuccess,
                 mock.subscription.notifyError
             )
-            expect( mock.pointMeasurements[point.id] ).toBeDefined()
-            var measurementHistoryForPoint = mock.pointMeasurements[point.id]
+            expect( mock.pointIdToMeasurementHistoryMap[point.id] ).toBeDefined()
+            var measurementHistoryForPoint = mock.pointIdToMeasurementHistoryMap[point.id]
 
             meas.subscribeToMeasurementHistory( scope1, point, timeFrom, limit, subscriber1)
             expect( mock.subscription.subscribe.calls.length).toBe(1)
-            expect( mock.pointMeasurements[point.id] ).toBe( measurementHistoryForPoint)
+            expect( mock.pointIdToMeasurementHistoryMap[point.id] ).toBe( measurementHistoryForPoint)
 
             var scope2 = {name:'scope2'},
                 subscriber2 = 'subscriber2',
@@ -108,7 +108,7 @@ define([
                 }
 
             meas.subscribeToMeasurementHistory( scope1, point2, timeFrom, limit, subscriber1)
-            expect( mock.pointMeasurements[point2.id] ).toBeDefined()
+            expect( mock.pointIdToMeasurementHistoryMap[point2.id] ).toBeDefined()
             expect( mock.subscription.subscribe).toHaveBeenCalledWith(
                 json2,
                 scope1,

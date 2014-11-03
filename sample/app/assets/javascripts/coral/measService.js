@@ -31,10 +31,10 @@ define([
      * Each point may have multiple subscriptions
      *
      * @param subscription
-     * @param pointMeasurements - Map of point.id to MeasurementHistory
+     * @param pointIdToMeasurementHistoryMap - Map of point.id to MeasurementHistory
      * @constructor
      */
-    var MeasService = function( subscription, pointMeasurements) {
+    var MeasService = function( subscription, pointIdToMeasurementHistoryMap) {
         var self = this
 
         /**
@@ -52,10 +52,10 @@ define([
         self.subscribeToMeasurementHistory = function ( scope, point, timeFrom, limit, subscriber, notify) {
             console.log( "meas.subscribeToMeasurementHistory " );
 
-            var measurementHistory = pointMeasurements[ point.id]
+            var measurementHistory = pointIdToMeasurementHistoryMap[ point.id]
             if( ! measurementHistory) {
                 measurementHistory = new MeasurementHistory( subscription, point)
-                pointMeasurements[ point.id] = measurementHistory
+                pointIdToMeasurementHistoryMap[ point.id] = measurementHistory
             }
 
             return measurementHistory.subscribe( scope, timeFrom, limit, subscriber, notify)
@@ -69,7 +69,7 @@ define([
         self.unsubscribeToMeasurementHistory = function ( point, subscriber) {
             console.log( "meas.unsubscribeToMeasurementHistory " );
 
-            var measurementHistory = pointMeasurements[ point.id]
+            var measurementHistory = pointIdToMeasurementHistoryMap[ point.id]
             if( measurementHistory)
                 measurementHistory.unsubscribe( subscriber)
             else
@@ -79,11 +79,11 @@ define([
     }
 
     return angular.module('coral.meas', ["coral.subscription"]).
-        factory('pointMeasurements', function(){
+        factory('pointIdToMeasurementHistoryMap', function(){
             return {};
         } ).
-        factory('meas', ['subscription', 'pointMeasurements', function( subscription, pointMeasurements){
-            return new MeasService( subscription, pointMeasurements);
+        factory('meas', ['subscription', 'pointIdToMeasurementHistoryMap', function( subscription, pointIdToMeasurementHistoryMap){
+            return new MeasService( subscription, pointIdToMeasurementHistoryMap);
         }])
 
 });// end RequireJS define

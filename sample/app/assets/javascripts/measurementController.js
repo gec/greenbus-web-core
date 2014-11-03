@@ -656,7 +656,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
 
 
   function onArrayOfPointMeasurement( arrayOfPointMeasurement ) {
-    console.debug( "onArrayOfPointMeasurement arrayOfPointMeasurement.length=" + arrayOfPointMeasurement.length)
+//    console.debug( "onArrayOfPointMeasurement arrayOfPointMeasurement.length=" + arrayOfPointMeasurement.length)
     arrayOfPointMeasurement.forEach( function ( pm ) {
       var point = findPoint( pm.point.id )
       if( point ) {
@@ -705,6 +705,7 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, coralNa
           default:
             console.error( "MeasurementController.onMeasurement unknown type: '" + type + "'" )
         }
+        $scope.$digest()
       },
       function ( error, message ) {
       }
