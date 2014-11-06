@@ -355,9 +355,13 @@ trait RestServices extends ReefAuthentication {
       .addAllStartUuids(equipmentReefUuids)
       .setRelationship("owns")
       .setDescendantOf(true)
-      .addAllEndTypes( pointTypes)
       .setPageSize(limit)
       .setDepthLimit( depth)  // default is infinite
+
+    if( pointTypes.isEmpty)
+      query.addEndTypes( "Point")
+    else
+      query.addAllEndTypes( pointTypes)
 
     entityService.relationshipFlatQuery( query.build)
   }
