@@ -431,17 +431,17 @@ trait RestServices extends ReefAuthentication {
 
       edges.foldLeft(Map[String, List[Point]]()) { (map, edge) =>
         val parentId = edge.getParent.getValue
-        map.get( parentId) match {
-          case Some( childList) =>
-            pointIdPointMap.get( edge.getChild.getValue) match {
-              case Some( point) =>
-                map + (parentId -> (point :: childList) )
-              case None =>
-                Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
-                map
+        val childId = edge.getChild.getValue
+
+        pointIdPointMap.get( childId) match {
+          case Some( point) =>
+            map.get(parentId) match {
+              case Some( childList) => map + (parentId -> (point :: childList) )
+              case None => map + (parentId -> List[Point](point))
             }
           case None =>
-            map + (parentId -> List[Point]())
+            Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
+            map
         }
       }
 
