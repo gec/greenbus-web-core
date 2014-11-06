@@ -18,6 +18,7 @@
  */
 package org.totalgrid.coral.controllers
 
+import org.totalgrid.coral.models.ExceptionMessages.ExceptionMessage
 import play.api.Logger
 import play.api.mvc._
 import play.api.libs.json._
@@ -168,11 +169,24 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
    * Action for Ajax request.
    */
   def ReefClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[Result]): Action[AnyContent] = {
+    import org.totalgrid.coral.models.JsonFormatters._
     Action.async { request =>
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
           Logger.debug( "ReefClientActionAsync " + request + " PROVISIONAL authentication")
-          action( request, serviceClient)
+          action( request, serviceClient) map { result =>
+            result
+          } recover {
+            case ex: ForbiddenException =>
+              Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+            case ex: BadRequestException =>
+              Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+            case ex: UnauthorizedException =>
+              authenticationFailure( request, AuthenticationFailure( AUTHENTICATION_FAILURE))
+            case ex =>
+              Logger.error( s"${ex.getClass.getCanonicalName}: ${ex.getMessage}")
+              InternalServerError( Json.toJson( ExceptionMessage( ex.getClass.getCanonicalName, ex.getMessage)))
+          }
         case None =>
           // No authToken found or invalid authToken
           Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")

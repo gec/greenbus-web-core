@@ -409,7 +409,7 @@ trait RestServices extends ReefAuthentication {
 
   /**
    * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
-   * (i.e. entity types). If one or more equpmentIds, return a map of equipmentIds to points array.
+   * (i.e. entity types). If one or more equipmentIds, return a map of equipmentIds to points array.
    *
    * @param modelId Which model to query. A model is a reef connection.
    * @param equipmentIds Optional list of equipment IDs
@@ -497,27 +497,32 @@ trait RestServices extends ReefAuthentication {
           val entityService = serviceFactory.entityService( session)
           entityService.edgeQuery( query.build).flatMap { edges =>
 
-            val pointIdToCommandIdMap = entityEdgesToParentChildrenMap( edges).filter( m => m._2.length > 0)
-            val feService = serviceFactory.frontEndService( session)
-            val commandIds = edges.map( _.getChild)
-            val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
+            if( edges.isEmpty) {
+              Future.successful( Ok(JSON_EMPTY_OBJECT)) // No commands
+            } else {
+              val pointIdToCommandIdMap = entityEdgesToParentChildrenMap( edges).filter( m => m._2.length > 0)
+              val feService = serviceFactory.frontEndService( session)
+              val commandIds = edges.map( _.getChild)
+              val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
 
-            feService.getCommands( keySet).map{  commands =>
-              val commandIdCommandMap = commands.foldLeft( Map[ReefUUID, FrontEnd.Command]()) { (map, c) => map + (c.getUuid -> c) }
-              //        val commandIdCommandMap = commands.map{ c => (c.getUuid -> c) }.toMap
+              feService.getCommands( keySet) map {  commands =>
+                val commandIdCommandMap = commands.foldLeft( Map[ReefUUID, FrontEnd.Command]()) { (map, c) => map + (c.getUuid -> c) }
+                //        val commandIdCommandMap = commands.map{ c => (c.getUuid -> c) }.toMap
 
 
-              val pointIdCommandMap = pointIdToCommandIdMap.map{ case ( pointId, commandIds) =>
+                val pointIdCommandMap = pointIdToCommandIdMap.map{ case ( pointId, commandIds) =>
 
-                val cs = commandIds.flatMap( commandIdCommandMap.get)
-//                val cs = for( commandId <- commandIds;
-//                              command <- commandIdCommandMap.get( commandId)
-//                ) yield command
+                  val cs = commandIds.flatMap( commandIdCommandMap.get)
+  //                val cs = for( commandId <- commandIds;
+  //                              command <- commandIdCommandMap.get( commandId)
+  //                ) yield command
 
-                (pointId.getValue -> cs)
+                  (pointId.getValue -> cs)
+                }
+                Ok( Json.toJson( pointIdCommandMap))
               }
-              Ok( Json.toJson( pointIdCommandMap))
             }
+
 
           }
 
