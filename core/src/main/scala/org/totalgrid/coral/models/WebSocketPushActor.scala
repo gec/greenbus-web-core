@@ -302,7 +302,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     result onSuccess {
       case (measurements, subscription) =>
         timer.delta( "onSuccess 1")
-        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.id + ", measurements.length" + measurements.length)
+        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.id + ", measurements.length " + measurements.length)
         subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
         if( measurements.nonEmpty)
           subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, pointReefId, measurements.head, timer)
@@ -356,8 +356,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
           // History will include the current measurement we already received.
           // How will we know if the limit is reach. Currently, just seeing the returned number == limit
           if( DebugSimulateLotsOfMeasurements) {
-            val measurements = debugGenerateMeasurementsBefore( currentMeasurement, 4000)
-            Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
+            val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
+            Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
             val pmv = PointMeasurementValues.newBuilder()
             .setPointUuid( pointReefId)
             .addAllValue( measurements)
