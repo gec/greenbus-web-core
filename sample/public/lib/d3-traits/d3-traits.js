@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-11-03
+/*! d3-traits - v0.0.1 - 2014-11-09
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -716,6 +716,309 @@
     this.origin.y += point.y
   }
 
+  function ExtentWithIndices_reset() {
+    this.values = [undefined, undefined]
+    this.indices = [undefined, undefined]
+  }
+
+  function ExtentWithIndices_set( array, offset) {
+    var i = offset === undefined ? -1 : offset - 1,
+        n = array.length,
+        a, ai,
+        b,
+        c, ci,
+        f = this.access;
+
+    if( f === undefined) {
+      while (++i < n && !((a = c = array[i]) != null && a <= a)) a = c = undefined;
+      if( a !== undefined)
+        ai = ci = i
+      while (++i < n) if ((b = array[i]) != null) {
+        if (a > b) {a = b; ai = i}
+        if (c < b) {c = b; ci = i}
+      }
+    } else {
+      while (++i < n && !((a = c = f.call(array, array[i], i)) != null && a <= a)) a = undefined;
+      if( a !== undefined)
+        ai = ci = i
+      while (++i < n) if ((b = f.call(array, array[i], i)) != null) {
+        if (a > b) {a = b; ai = i}
+        if (c < b) {c = b; ci = i}
+      }
+    }
+    this.values = [a, c]
+    this.indices = [ai, ci]
+  }
+
+  /**
+   * ExtentWithIndices()
+   * ExtentWithIndices( array, access)
+   * ExtentWithIndices( array, access, offset)
+   * ExtentWithIndices( min, minIndex, max, maxIndex)
+   *
+   * @param min
+   * @param minIndex
+   * @param max
+   * @param maxIndex
+   * @constructor
+   */
+  function ExtentWithIndices_init( min, minIndex, max, maxIndex) {
+
+    switch( arguments.length) {
+      case 0:
+        ExtentWithIndices_reset.call(this)
+        this.access = undefined
+        break;
+      case 4:
+        this.values = [min, max]
+        this.indices = [minIndex, maxIndex]
+        break;
+      default:
+        this.access = minIndex
+        ExtentWithIndices_set.call( this, min, max)
+    }
+  }
+
+
+  /**
+   * ExtentWithIndices()
+   * ExtentWithIndices( array, f)
+   * ExtentWithIndices( min, minIndex, max, maxIndex)
+   *
+   * @param array
+   * @param f
+   * @constructor
+   */
+  function ExtentWithIndices() {
+    ExtentWithIndices_init.apply( this, arguments)
+  }
+
+//  ExtentWithIndices.prototype.constructor = ExtentWithIndices
+  ExtentWithIndices.prototype.set = ExtentWithIndices_set
+
+  ExtentWithIndices.prototype.reset = ExtentWithIndices_reset
+
+  ExtentWithIndices.prototype.access = function( access) {
+    this.access = access
+  }
+
+  /**
+   *
+   * union( extentWithIndices)
+   * union( array, offset)
+   * union( minOrMaxValue, valueIndex)
+   *
+   * @param extentWithIndices
+   * @param offset
+   * @returns {boolean}
+   */
+  ExtentWithIndices.prototype.union = function( extentWithIndices, offset) {
+    var didExtend = false
+
+    if( arguments.length === 0)
+      return didExtend
+
+    if( Array.isArray( extentWithIndices)) {
+      // Need to call the constructor of 'this' class.
+      var thisProto = Object.getPrototypeOf( this),
+          newby = new thisProto.constructor(extentWithIndices, this.access, offset)
+      didExtend = this.union( newby)
+    } else if( extentWithIndices instanceof ExtentWithIndices) {
+      // Note: undefined on either side evaluates to false.
+      if( this.values[0] === undefined || extentWithIndices.values[0] < this.values[0]) {
+        this.values[0] = extentWithIndices.values[0]
+        this.indices[0] = extentWithIndices.indices[0]
+        didExtend = true
+      }
+      if( this.values[1] === undefined || extentWithIndices.values[1] > this.values[1]) {
+        this.values[1] = extentWithIndices.values[1]
+        this.indices[1] = extentWithIndices.indices[1]
+        didExtend = true
+      }
+    } else {
+      var v = extentWithIndices,
+          i = offset
+
+      if( v < this.values[0]) {
+        this.values[0] = v
+        this.indices[0] = i
+        didExtend = true
+      }
+      if( v > this.values[1]) {
+        this.values[1] = v
+        this.indices[1] = i
+        didExtend = true
+      }
+    }
+
+
+    return didExtend
+  }
+
+  ExtentWithIndices.prototype.shifted = function( data, count) {
+    this.indices[0] -= count
+    this.indices[1] -= count
+
+    if( isNaN( this.indices[0]) || this.indices[0] < 0 ||
+        isNaN( this.indices[1]) || this.indices[1] < 0) {
+      this.set( data)
+    }
+  }
+
+//  /**
+//   * extendMax( array)
+//   * extendMax( array, offset)
+//   * extendMax( max, maxIndex)
+//   *
+//   * @param max
+//   * @param maxIndex
+//   * @returns {boolean}
+//   */
+//  ExtentWithIndices.prototype.max = function( max, maxIndex) {
+//    var v, i
+//
+//    if( Array.isArray( max)) {
+//      //TODO: do the max with offset
+//      i = max.length - 1
+//      if( i >= 0)
+//        v = this.access !== undefined ? this.access.call( this, max[i], i) : max[i]
+//    } else {
+//      v = max
+//      i = maxIndex
+//    }
+//
+//    // Note: undefined on either side evaluates to false.
+//    if( i >= 0 && v > this.values[i]) {
+//      this.values[1] = v
+//      this.indices[1] = i
+//      return true
+//    } else
+//      return false
+//  }
+//
+//  /**
+//   * setMax( array)
+//   * setMax( max, maxIndex)
+//   *
+//   * @param max New max extent
+//   * @param maxIndex New index of max extent
+//   */
+//  ExtentWithIndices.prototype.setMax = function( max, maxIndex) {
+//    var v, i
+//
+//    if( Array.isArray( max)) {
+//      i = max.length - 1
+//      if( i >= 0)
+//        v = this.access !== undefined ? this.access.call( this, max[i], i) : max[i]
+//    } else {
+//      v = max
+//      i = maxIndex
+//    }
+//
+//    this.values[1] = v
+//    this.indices[1] = i
+//  }
+//
+//  /**
+//   * setMin( array)
+//   * setMin( min, minIndex)
+//   *
+//   * @param min New min extent
+//   * @param minIndex New index of min extent
+//   */
+//  ExtentWithIndices.prototype.setMin = function( min, minIndex) {
+//    var v, i
+//
+//    if( Array.isArray( min)) {
+//      i = 0
+//      if( min.length > 0)
+//        v = this.access !== undefined ? this.access.call( this, min[i], i) : min[i]
+//    } else {
+//      v = min
+//      i = minIndex
+//    }
+//
+//    this.values[1] = v
+//    this.indices[1] = i
+//  }
+
+
+  function ExtentWithIndicesSorted_set( array) {
+    if( ! array)
+      return
+
+    var a, c,
+        f = this.access,
+        last = array.length - 1
+
+    if( f !== undefined)
+      this.access = f
+
+    if( last < 0) {
+      ExtentWithIndices_reset.call(this)
+    } else {
+      a = f === undefined ? array[0] : this.access.call( array, array[0], 0)
+      c = f === undefined ? array[last] : this.access.call( array, array[last], last)
+      this.values = [a, c]
+      this.indices = [0, last]
+    }
+  }
+
+  function ExtentWithIndicesSorted( min, minIndex, max, maxIndex) {
+    switch( arguments.length) {
+      case 0:
+        ExtentWithIndices_reset.call(this)
+        this.access = undefined
+        break;
+      case 4:
+        this.values = [min, max]
+        this.indices = [minIndex, maxIndex]
+        break;
+      default:
+        this.access = minIndex
+        ExtentWithIndicesSorted_set.call( this, min)
+    }
+  }
+  ExtentWithIndicesSorted.prototype = new ExtentWithIndices()
+  ExtentWithIndicesSorted.prototype.constructor = ExtentWithIndicesSorted
+  ExtentWithIndicesSorted.prototype.set = ExtentWithIndicesSorted_set
+
+  /**
+   * extendMax( array)
+   * extendMax( extentWithIndices)
+   * extendMax( max, maxIndex)
+   *
+   * @param max If max is greater than old max, use it for max extent
+   * @param maxIndex Index of new max (if max > current max)
+   * @returns {boolean} True: The extent was extended.
+   */
+  ExtentWithIndicesSorted.prototype.max = function( max, maxIndex) {
+    var v, i
+
+    if( Array.isArray( max)) {
+      i = max.length - 1
+      if( i >= 0)
+        v = this.access !== undefined ? this.access.call( this, max[i], i) : max[i]
+    } else if( max instanceof ExtentWithIndices) {
+      v = max.values[1]
+      i = max.indices[1]
+    } else {
+      v = max
+      i = maxIndex
+    }
+
+    // Note: undefined on either side evaluates to false.
+    if( i >= 0 && (this.values[1] === undefined || v > this.values[1])) {
+      this.values[1] = v
+      this.indices[1] = i
+      return true
+    } else
+      return false
+  }
+
+
+
+
 //  Rect.prototype.fitInColumn = function(x, colWidth) {
 //
 //    if( this.anchor.x === 0) {
@@ -737,6 +1040,8 @@
   trait.Size = Size
   trait.Margin = Margin
   trait.Rect = Rect
+  trait.ExtentWithIndices = ExtentWithIndices
+  trait.ExtentWithIndicesSorted = ExtentWithIndicesSorted
 
 }(d3, d3.trait));
 
@@ -881,7 +1186,13 @@
          '1y':  1 * years + 0.25 * days
       }
 
-
+  /**
+   * Map a continuum of steps to discrete list of resolutions. Don't want to have samples for
+   * 5.1s, 5.125s, etc. Just want anything close the 5s to be mapped to 5s.
+   *
+   * @param step Number of milliseconds in the resolution.
+   * @returns {*}
+   */
   function mapResolutionFromStep( step) {
 
     if( step === undefined || step === null)
@@ -953,7 +1264,12 @@
   }
 
 
-
+  /**
+   * Add resolution() function to d3.time.scale and keep track of when resolution has to
+   * be recalculated.
+   *
+   * @returns enhanced d3.time.scale
+   */
   d3.time.scale = function() {
     var resolution,
         scale = d3Scale.time(),
@@ -996,6 +1312,12 @@
     return scale
   }
 
+  /**
+   * Add resolution() function to d3.scale.linear and keep track of when resolution has to
+   * be recalculated.
+   *
+   * @returns enhanced d3.scale.linear
+   */
   d3.scale.linear = function() {
     var resolution,
         scale = d3Scale.linear(),
@@ -1038,6 +1360,12 @@
     return scale
   }
 
+  /**
+   * Add resolution() function to d3.scale.identity and keep track of when resolution has to
+   * be recalculated.
+   *
+   * @returns enhanced d3.scale.identity
+   */
   d3.scale.identity = function() {
     var resolution,
         scale = d3Scale.identity(),
@@ -1085,13 +1413,14 @@
    * @param sampled   True if data is sampled data
    * @constructor
    */
-  function Sampling( resolution, access, data, sampled) {
+  function Sampling( resolution, access, constraints, data, sampled) {
     this.resolution = resolution
     this.stepSize = resolutionMillis[ this.resolution]
     this.access = access
     this.data = data  // Murts.get() will key off undefined to initiate sampling.
     this.sampled = sampled
-    this.extents = undefined  // {x: [], y, []}
+    this.extents = undefined  // {x: [], xIndices: [], y: [], yIndices: []}
+    this.constraints = constraints
     this.nextResolution = { higher: null, lower: null}
     this.lastRead = Date.now()
     this.resampling = {
@@ -1106,6 +1435,13 @@
 
   var nullFunction = function() {}
 
+  /**
+   * Register for event. The only event right now is 'update', but we may add more.
+   *
+   * @param event 'update' for now.
+   * @param handler Function to be called when event occurs. Example call: handler( 'update', Sampling.data, Sampling)
+   * @returns deregister function. Call deregister with no arguments to deregister.
+   */
   Sampling.prototype.on = function( event, handler) {
     var handlers, deregister
 
@@ -1133,7 +1469,7 @@
     if( ! this.extents)  // No data, so no extents.
       return
 
-    var maxX = this.extents.x[1]
+    var maxX = this.extents.x.values[1]
 
     // If the last point is beyond nextStep, advance nextStep to one step beyond.
     if( maxX >= this.resampling.nextStep) {
@@ -1157,49 +1493,111 @@
 
   }
 
-  /**
-   * Update the x and y extents based on the new data.
-   * Assume points have been added to the end of the data so x min
-   * is not updated (except in the case where there is no previous
-   * extents).
-   *
-   * @param newPoints
-   */
-  Sampling.prototype.updateExtentsFromPoints = function( newPoints) {
 
-    var newPointsExtentY = d3.extent( newPoints, this.access.y)
-
-    if( ! this.extents) {
-      this.extents = {
-        x: [this.access.x(this.data[0])],
-        y: newPointsExtentY
-      }
-    } else {
-      trait.utils.extendExtent( this.extents.y, newPointsExtentY)
+  Sampling.prototype.constrainSize = function( size) {
+    if( size >= 0) {
+      this.constraints.size = size
+      this.applyConstraintsBeforePushPoints()
     }
+  }
 
-    // Update x max. X min is already set.
-    this.extents.x[1] = this.access.x(this.data[this.data.length - 1])
+  Sampling.prototype.constrainTime = function( time) {
+    if( time >= 0) {
+      this.constraints.time = time
+      this.applyConstraintsBeforePushPoints()
+    }
   }
 
   /**
-   * Update the x and y extents based on the new data.
-   * Assume points have been added to the end of the data so x min
-   * is not updated (except in the case where there is no previous
-   * extents).
-   *
-   * @param newPoints
+   * Shift the left most count of points off the data array.
+   * @param count
    */
-  Sampling.prototype.updateExtentsFromExtents = function( newExtents) {
-    if( ! newExtents)
-      return
-
-    if( this.extents) {
-      trait.utils.extendExtent( this.extents.x, newExtents.x)
-      trait.utils.extendExtent( this.extents.y, newExtents.y)
+  Sampling.prototype.shift = function( count) {
+    if( count >= this.data.length) {
+      this.data = []
+      this.extents.x.reset()
+      this.extents.y.reset()
     } else {
-      this.extents = newExtents
+      this.data.splice( 0, count)
+      this.extents.x.shifted( this.data, count)
+      this.extents.y.shifted( this.data, count)
     }
+  }
+
+  Sampling.prototype.applyConstraintsBeforePushPoints = function( points) {
+    var didConstrain = false
+
+    var pendingLength = points ? points.length : 0,
+        currentLength = this.data ? this.data.length : 0
+
+    if( currentLength + pendingLength === 0)
+      return didConstrain
+
+    var shiftCurrent = 0, // amount of current data to shift off
+        shiftPending = 0  // If all current data is shifted, we might be shifting some pending as well.
+
+    // Constrain by size
+    //
+    if( this.constraints.size > 0) {
+      var totalLength = currentLength + pendingLength
+      if( this.constraints.size < totalLength) {
+        var shiftTotal = totalLength - this.constraints.size
+        shiftCurrent = Math.min( currentLength, shiftTotal),
+        shiftPending = shiftTotal - shiftCurrent
+      }
+    }
+
+    // If we're shifting all the data, do it now
+    if( currentLength > 0 && shiftCurrent === currentLength) {
+      this.shift( shiftCurrent)
+      currentLength = this.data.length
+      shiftCurrent = 0
+      didConstrain = true
+    }
+
+    // Constrain by time
+    //
+    if( this.constraints.time > 0) {
+      var pendingTimeMax = pendingLength > 0 ? this.access.x( points[pendingLength-1]) : undefined,
+          pendingTimeMin = pendingLength > 0 ? this.access.x( points[0]) : undefined,
+          currentTimeMax = currentLength > 0 ? this.access.x( this.data[currentLength-1]) : undefined,
+          currentTimeMin = currentLength > 0 ? this.access.x( this.data[0]) : undefined,
+          timeCutoff = (pendingLength > 0 ? pendingTimeMax : currentTimeMax) - this.constraints.time
+
+      if( currentTimeMin < timeCutoff || pendingTimeMin < timeCutoff) {
+        var index,
+            bisectLeft = d3.bisector(this.access.x).left
+
+        if( currentTimeMax < timeCutoff) {
+          // Remove all this.data and possibly some of points too.
+          shiftCurrent = currentLength
+
+        } else if( currentTimeMin < timeCutoff)  {
+          // Remove some of this.data. Ignore anthing before shiftCurrent
+          index = Math.max( bisectLeft(this.data, timeCutoff, shiftCurrent), currentLength - 1)
+          shiftCurrent = Math.max( shiftCurrent, index)
+        }
+
+        if( pendingTimeMin < timeCutoff){
+          // Remove some or all of points. Never remove the last point, even if it's time is ancient.
+          // Find the correct index and splice points.
+          index = Math.max( bisectLeft(points, timeCutoff), currentLength - 2)
+          shiftPending = Math.max( shiftPending, index)
+        }
+      }
+
+    }
+
+    if( shiftCurrent > 0) {
+      this.shift( shiftCurrent)
+      didConstrain = true
+    }
+    if( shiftPending > 0) {
+      points.splice( 0, shiftPending)
+      didConstrain = true
+    }
+
+    return didConstrain
   }
 
   /**
@@ -1218,8 +1616,20 @@
 
     if( pushedCount > 0) {
 
+      if( this.applyConstraintsBeforePushPoints( points))
+        pushedCount = points.length
+
+      var newDataIndex = this.data.length
       this.data = this.data.concat( points)
-      this.updateExtentsFromPoints( points)
+      if( this.extents) {
+        this.extents.x.union( this.data)
+        this.extents.y.union( this.data, newDataIndex)
+      } else {
+        this.extents = {
+          x: new trait.ExtentWithIndicesSorted( this.data, this.access.x),
+          y: new trait.ExtentWithIndices( this.data, this.access.y)
+        }
+      }
 
       var self = this
       this.onHandlers.update.forEach( function( handler) {
@@ -1249,11 +1659,12 @@
 
   Sampling.prototype.sampleUpdatesFromSource = function() {
     var source = this.resampling.source,
-        length = this.data.length
+        length = this.data.length,
+        pushedCount = 0
 
     if( length <= 2) {
       this.initialSample( source)
-      return
+      return this.data.length
     }
 
     var stepStart = this.resampling.nextStep - this.stepSize
@@ -1265,13 +1676,28 @@
 
     var a = this.data[this.data.length-1],
         s = sampleUpdates( source.data, sourceIndex, a, this.stepSize, this.resampling.nextStep, this.access)
+
+    this.applyConstraintsBeforePushPoints(s.data)
+    pushedCount = s.data.length
+
     this.data = this.data.concat( s.data)
-    this.updateExtentsFromExtents(s.extents)
+    if( this.extents && s.extents) {
+      this.extents.x.union(s.extents.x)
+      this.extents.y.union(s.extents.y)
+    } else {
+      this.extents = {
+        x: new trait.ExtentWithIndicesSorted( this.data, this.access.x),
+        y: new trait.ExtentWithIndices( this.data, this.access.y)
+      }
+    }
+
 
     this.resampling.nextStep = s.nextStep
     this.resampling.unsampledCount = 0
 
     this.extendNextStepPastExtent()
+
+    return pushedCount
   }
 
   /**
@@ -1294,23 +1720,28 @@
     if( pushedCount <= 0)
       return
 
-    var source = this.resampling.source
+    var source = this.resampling.source,
+        pushed = 0
+
     if( this.nextResolution.higher === source) {
       this.resampling.unsampledCount += pushedCount
 
       // if source's latest point is beyond our nextStep
-      if( source && source.extents && source.extents.x[1] >= this.resampling.nextStep) {
-        this.sampleUpdatesFromSource()
+      if( source && source.extents && source.extents.x.values[1] >= this.resampling.nextStep) {
+        pushed = this.sampleUpdatesFromSource()
       }
 
     } else {
       this.initialSample( this.nextResolution.higher)
+      pushed = true
     }
 
-    var self = this
-    this.onHandlers.update.forEach( function( handler) {
-      handler( 'update', self.data, self)
-    })
+    if( pushed > 0) {
+      var self = this
+      this.onHandlers.update.forEach( function( handler) {
+        handler( 'update', self.data, self)
+      })
+    }
 
   }
 
@@ -1319,6 +1750,10 @@
     var access = {
           x: function( d) { return d[0] },
           y: function( d) { return d[1] }
+        },
+        constraints = {
+          size: 0, // max size for Sampling data array. Zero for no constraint
+          time: 0  // max time before last time in data array. Zero for no constraint
         },
         samples = {}
 
@@ -1398,8 +1833,6 @@
      */
 
     function murtsDataStore() {
-      var self = murtsDataStore
-
     }
 
     /**
@@ -1417,6 +1850,40 @@
       return this
     }
 
+    /**
+     * Constrain the size of all Sampling data arrays.
+     *
+     * @param _size
+     * @returns this if no arguments; otherwise, it returns the current size constraint.
+     */
+    murtsDataStore.constrainSize = function ( size) {
+      if( !arguments.length ) return constraints.size
+      if( size >= 0) {
+        constraints.size = size
+        for( var res in samples) {
+          samples[res].constrainSize( constraints.size)
+        }
+      }
+      return this
+    }
+
+    /**
+     * Constrain the time of all Sampling data arrays to be no older that the last point's time.
+     *
+     * @param _size
+     * @returns this if no arguments; otherwise, it returns the current size constraint.
+     */
+    murtsDataStore.constrainTime = function ( time) {
+      if( !arguments.length ) return constraints.time
+      if( time >= 0) {
+        constraints.time = time
+        for( var res in samples) {
+          samples[res].constrainTime( constraints.time)
+        }
+      }
+      return this
+    }
+
 
     // TODO: remove sample from list of samples
 
@@ -1424,7 +1891,7 @@
       var r = resolution || SOURCE
       var c = samples[r]
       if( c === undefined){
-        c = new Sampling( r, access)
+        c = new Sampling( r, access, constraints)
         samples[r] = c
         linkSample( c)
       }
@@ -1617,8 +2084,8 @@
         data: sampled,
         nextStep: nextStep,
         extents: {
-          x: d3.extent( sampled, access.x),
-          y: d3.extent( sampled, access.y)
+          x: new trait.ExtentWithIndicesSorted( sampled, access.x),
+          y: new trait.ExtentWithIndices( sampled, access.y)
         }
       }
     }
@@ -1635,18 +2102,14 @@
     var b, c,   // the three "buckets" (including 'a' which is passed in)
         maxAreaPoint,
         sourceIndexLast = source.length - 1,
-        aX = access.x( a),
-        aY = access.y( a),
         extents = {
-          x: [ aX, aX],
-          y: [ aY, aY]
+          x: new trait.ExtentWithIndicesSorted( [a], access.x),
+          y: new trait.ExtentWithIndices( [a], access.y)
         }
-
 
     // Find the first b. At the end of the following for loop, c becomes the next b.
     b = collectStep( source, sourceIndex, stepSize, nextStep, sourceIndexLast, access)
     sourceIndex = b.sourceIndex
-    trait.utils.extendExtent( extents.y, b.extents.y)
 
 
     for( ; sourceIndex < sourceIndexLast; sourceIndex++) {
@@ -1654,10 +2117,10 @@
       nextStep = b.nextStep + stepSize
       c = collectStep( source, sourceIndex, stepSize, nextStep, sourceIndexLast, access)
       sourceIndex = c.sourceIndex
-      trait.utils.extendExtent( extents.y, c.extents.y)
 
       // Now we have a, b, c
       maxAreaPoint = findMaxAreaPointB( a, b, c, access)
+      extents.y.union( access.y( maxAreaPoint), sampled.length)
       sampled[ sampled.length] = maxAreaPoint
 
       a = maxAreaPoint
@@ -1679,13 +2142,13 @@
       }
     }
     maxAreaPoint = findMaxAreaPointB( a, b, c, access)
+    extents.y.union( access.y( maxAreaPoint), sampled.length)
     sampled[ sampled.length] = maxAreaPoint
 
     // Always use last point
+    extents.y.union( lastY, sampled.length)
+    extents.x.max( lastX, sampled.length)
     sampled[sampled.length] = lastPoint
-    extents.x[1] = access.x( lastPoint)
-    extents.y[0] = Math.min( extents.y[0], lastY)
-    extents.y[1] = Math.max( extents.y[1], lastY)
 
     return {
       data: sampled,
@@ -1715,8 +2178,8 @@
       if( updateCount === 1) {
         sampled[0] = source[sourceIndex++]
         extents = {
-          x: d3.extent( sampled, access.x),
-          y: d3.extent( sampled, access.y)
+          x: new trait.ExtentWithIndicesSorted( sampled, access.x),
+          y: new trait.ExtentWithIndices( sampled, access.y)
         }
       }
 
@@ -2363,8 +2826,8 @@
     if( trait.murts.utils.isDataStore( series)) {
       var sampling = series.get()
       return sampling.extents === undefined ? undefined
-        : access.axisChar === 'x' ? sampling.extents.x[0]
-        : sampling.extents.y[0]
+        : access.axisChar === 'x' ? sampling.extents.x.values[0]
+        : sampling.extents.y.values[0]
     } else {
       return d3.min( series, accessValue)
     }
@@ -2373,8 +2836,8 @@
     if( trait.murts.utils.isDataStore( series)) {
       var sampling = series.get()
       return sampling.extents === undefined ? undefined
-        : access.axisChar === 'x' ? sampling.extents.x[1]
-        : sampling.extents.y[1]
+        : access.axisChar === 'x' ? sampling.extents.x.values[1]
+        : sampling.extents.y.values[1]
     } else {
       return d3.max( series, accessValue)
     }
@@ -2402,8 +2865,8 @@
     if( trait.murts.utils.isDataStore( series)) {
       var sampling = series.get()
       return sampling.extents === undefined ? [undefined, undefined]
-        : access.axisChar === 'x' ? sampling.extents.x
-        : sampling.extents.y
+        : access.axisChar === 'x' ? sampling.extents.x.values
+        : sampling.extents.y.values
     } else {
       return d3.extent( series, access.value)
     }

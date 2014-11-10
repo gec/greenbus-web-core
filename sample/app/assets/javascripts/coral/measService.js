@@ -41,15 +41,16 @@ define([
          *
          * @param scope The scope of the controller requesting the subscription.
          * @param point The Point with id and name
-         * @param timeFrom Long milliseconds from Epoch.
-         * @param limit The maximum number of measurements to query from the server
+         * @param constraints time: Most recent milliseconds
+         *                    size: Maximum number of measurements to query from the server
+         *                          Maximum measurements to keep in Murts.dataStore
          * @param subscriber The subscriber object is used to unsubscribe. It is also the 'this' used
          *                   for calls to notify.
          * @param notify Optional function to be called each time measurements are added to array.
          *               The function is called with subscriber as 'this'.
          * @returns An array with measurements. New measurements will be updated as they come in.
          */
-        self.subscribeToMeasurementHistory = function ( scope, point, timeFrom, limit, subscriber, notify) {
+        self.subscribeToMeasurementHistory = function ( scope, point, constraints, subscriber, notify) {
             console.log( "meas.subscribeToMeasurementHistory " );
 
             var measurementHistory = pointIdToMeasurementHistoryMap[ point.id]
@@ -58,7 +59,7 @@ define([
                 pointIdToMeasurementHistoryMap[ point.id] = measurementHistory
             }
 
-            return measurementHistory.subscribe( scope, timeFrom, limit, subscriber, notify)
+            return measurementHistory.subscribe( scope, constraints, subscriber, notify)
         }
 
         /**

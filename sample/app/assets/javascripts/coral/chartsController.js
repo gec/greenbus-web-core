@@ -39,7 +39,12 @@ return angular.module( 'coral.chart')
 .controller( 'ChartsController', ['$rootScope', '$scope', '$window', '$routeParams', '$filter', 'coralRest', 'meas', 'coralRequest', 'coralChart',
 function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, coralRequest, coralChart) {
 
-  var REQUEST_ADD_CHART = 'coral.request.addChart'
+  var REQUEST_ADD_CHART = 'coral.request.addChart',
+      historyConstraints ={
+        time: 1000 * 60 * 60 * 1, // 1 hours
+        size: 60 * 60 * 1 // 1 hours of 1 second data
+      }
+
   $scope.charts = []
 
   // TODO: The chart labels need this formatting.
@@ -54,14 +59,9 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
 
 
   function subscribeToMeasurementHistory( chart, point ) {
-    var now = new Date().getTime(),
-      timeFrom = now - 1000 * 60 * 60,  // 1 Hour
-      limit = 500,
-      notify = function () {
-        chart.update( "trend" )
-      }
+    var notify = function () { chart.update( "trend" ) }
 
-    point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notify )
+    point.measurements = meas.subscribeToMeasurementHistory( $scope, point, historyConstraints, chart, notify )
   }
 
   function unsubscribeToMeasurementHistory( chart, point ) {

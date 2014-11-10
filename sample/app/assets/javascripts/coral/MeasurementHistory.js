@@ -48,18 +48,22 @@ define( 'coral/MeasurementHistory',
       this.measurements.pushPoints( [])
     }
 
-    MeasurementHistory.prototype.subscribe = function( scope, timeFrom, limit, subscriber, notify) {
+    MeasurementHistory.prototype.subscribe = function( scope, constraints, subscriber, notify) {
 
-        this.subscribers.push( {subscriber: subscriber, notify: notify})
-        if( this.subscriptionId)
-            return this.measurements
+      this.measurements.constrainTime( constraints.time)
+      this.measurements.constrainSize( constraints.size)
+      this.subscribers.push( {subscriber: subscriber, notify: notify})
+
+      if( this.subscriptionId)
+        return this.measurements
 
         var self = this,
+            now = Date.now(),
             json = {
                 subscribeToMeasurementHistory: {
                     "pointId": this.point.id,
-                    "timeFrom": timeFrom,
-                    "limit": limit
+                    "timeFrom": now - constraints.time,
+                    "limit": constraints.size
                 }
             }
 

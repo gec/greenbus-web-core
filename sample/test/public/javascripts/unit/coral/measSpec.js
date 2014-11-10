@@ -73,8 +73,11 @@ define([
         }))
 
         it('should create one MeasurementHistory per point ID', mocks.inject(function(meas) {
-
-            meas.subscribeToMeasurementHistory( scope1, point, timeFrom, limit, subscriber1)
+            var constraints = {
+              time: timeFrom,
+              limit: limit
+            }
+            meas.subscribeToMeasurementHistory( scope1, point, constraints, subscriber1)
             expect( mock.subscription.subscribe).toHaveBeenCalledWith(
                 json,
                 scope1,
@@ -84,7 +87,7 @@ define([
             expect( mock.pointIdToMeasurementHistoryMap[point.id] ).toBeDefined()
             var measurementHistoryForPoint = mock.pointIdToMeasurementHistoryMap[point.id]
 
-            meas.subscribeToMeasurementHistory( scope1, point, timeFrom, limit, subscriber1)
+            meas.subscribeToMeasurementHistory( scope1, point, constraints, subscriber1)
             expect( mock.subscription.subscribe.calls.length).toBe(1)
             expect( mock.pointIdToMeasurementHistoryMap[point.id] ).toBe( measurementHistoryForPoint)
 
@@ -92,7 +95,7 @@ define([
                 subscriber2 = 'subscriber2',
                 notify2 = jasmine.createSpy( "notify2" )
 
-            meas.subscribeToMeasurementHistory( scope2, point, timeFrom, limit, subscriber2)
+            meas.subscribeToMeasurementHistory( scope2, point, constraints, subscriber2)
             expect( mock.subscription.subscribe.calls.length).toBe(1) // not called again.
 
             var point2 = {
@@ -107,7 +110,7 @@ define([
                     }
                 }
 
-            meas.subscribeToMeasurementHistory( scope1, point2, timeFrom, limit, subscriber1)
+            meas.subscribeToMeasurementHistory( scope1, point2, constraints, subscriber1)
             expect( mock.pointIdToMeasurementHistoryMap[point2.id] ).toBeDefined()
             expect( mock.subscription.subscribe).toHaveBeenCalledWith(
                 json2,

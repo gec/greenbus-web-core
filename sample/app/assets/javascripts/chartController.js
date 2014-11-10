@@ -47,7 +47,11 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         windowSize = new d3.trait.Size( documentElement.clientWidth, documentElement.clientHeight),
         _chartContainer = null,
         chartSize = new d3.trait.Size(),
-        firstPointLoaded = false
+        firstPointLoaded = false,
+        historyConstraints ={
+          time: 1000 * 60 * 60 * 4, // 4 hours
+          size: 60 * 60 * 4 // 4 hours of 1 second data
+        }
 
     console.log( "ChartController $scope.chart=" + chartSource)
 
@@ -82,11 +86,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
     }
 
     function subscribeToMeasurementHistory( chart, point) {
-        var now = new Date().getTime(),
-            timeFrom = now - 1000 * 60 * 60 * 1,  // 1 Hour
-            limit = 3600 // 3600 is 1 measurement per second for 1 hour.
-
-        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, timeFrom, limit, chart, notifyMeasurements)
+        point.measurements = meas.subscribeToMeasurementHistory( $scope, point, historyConstraints, chart, notifyMeasurements)
     }
 
     function unsubscribeToMeasurementHistory( chart, point) {
