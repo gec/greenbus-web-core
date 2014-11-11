@@ -42,7 +42,8 @@ function( $rootScope, $scope, $window, $routeParams, $filter, coralRest, meas, c
   var REQUEST_ADD_CHART = 'coral.request.addChart',
       historyConstraints ={
         time: 1000 * 60 * 60 * 1, // 1 hours
-        size: 60 * 60 * 1 // 1 hours of 1 second data
+        size: 60 * 60 * 1, // 1 hours of 1 second data
+        throttling: 5000
       }
 
   $scope.charts = []

@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-11-09
+/*! d3-traits - v0.0.1 - 2014-11-11
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -1416,11 +1416,20 @@
   function Sampling( resolution, access, constraints, data, sampled) {
     this.resolution = resolution
     this.stepSize = resolutionMillis[ this.resolution]
-    this.access = access
-    this.data = data  // Murts.get() will key off undefined to initiate sampling.
-    this.sampled = sampled
+    this.access = access      // Not a copy. Access always the same across Samples.
+    this.data = data          // Murts.get() will key off undefined to initiate sampling.
+    this.sampled = sampled    // true if sampled.
+    // TODO: If we get data in this constructor, shouldn't we calculate the extents?
     this.extents = undefined  // {x: [], xIndices: [], y: [], yIndices: []}
-    this.constraints = constraints
+    this.constraints = {
+      time: constraints.time,
+      size: constraints.size
+    }
+    this.throttling = {
+      time: constraints.throttling,
+      last: 0,
+      timer: undefined
+    }
     this.nextResolution = { higher: null, lower: null}
     this.lastRead = Date.now()
     this.resampling = {
@@ -1465,6 +1474,14 @@
     return deregister
   }
 
+  Sampling.prototype.notify = function( type) {
+    var self = this
+    this.onHandlers.update.forEach( function( handler) {
+      handler( type, self.data, self)
+    })
+
+  }
+
   Sampling.prototype.extendNextStepPastExtent = function() {
     if( ! this.extents)  // No data, so no extents.
       return
@@ -1491,25 +1508,61 @@
     if( this.data.length > 0)
       this.extendNextStepPastExtent()
 
+    this.applyConstraintsBeforePushPoints()
   }
 
 
   Sampling.prototype.constrainSize = function( size) {
     if( size >= 0) {
       this.constraints.size = size
-      this.applyConstraintsBeforePushPoints()
+      if( this.applyConstraintsBeforePushPoints())
+        this.notify( 'constrained')
     }
   }
 
   Sampling.prototype.constrainTime = function( time) {
     if( time >= 0) {
       this.constraints.time = time
-      this.applyConstraintsBeforePushPoints()
+      if( this.applyConstraintsBeforePushPoints())
+        this.notify( 'constrained')
     }
   }
 
+  Sampling.prototype.constrainThrottling = function( time) {
+    if( this.throttling.time >= 0) {
+      this.throttling.time = time
+    }
+  }
+
+  Sampling.prototype.delayConstraints = function( now) {
+    if( this.throttling.timer) {
+      //console.log( 'Sampling.delayConstraints ' + this.resolution + ' this.throttling.timer exists; return')
+      return true
+
+    }
+
+    if( this.throttling.time > 0 && this.throttling.last + this.throttling.time > now) {
+      var self = this,
+          todo = function() {
+            self.throttling.timer = undefined
+            //console.log( 'Sampling.delayConstraints ' + self.resolution + ' TIMER WAKEUP')
+            if( self.applyConstraintsBeforePushPoints())
+              self.notify( 'constrained')
+          },
+          delay = this.throttling.last + this.throttling.time - now + 1
+      //console.log( 'Sampling.delayConstraints ' + this.resolution + ' TIMER CREATE throttling.last:'+this.throttling.last+' + throttling.time:'+this.throttling.time+' = '+(this.throttling.last + this.throttling.time)+'>  now:' + now + ', delay=' + delay)
+      this.throttling.timer = setTimeout( todo, delay)
+      return true
+    } //else
+      //console.log( 'Sampling.delayConstraints ' + this.resolution + ' throttling.last:'+this.throttling.last+' + throttling.time:'+this.throttling.time+' = '+(this.throttling.last + this.throttling.time)+'<= now:' + now)
+
+
+    return false
+  }
+
   /**
-   * Shift the left most count of points off the data array.
+   * Shift the left most count of points off the data array and
+   * update extents.
    * @param count
    */
   Sampling.prototype.shift = function( count) {
@@ -1524,23 +1577,56 @@
     }
   }
 
+  /**
+   * Apply constraints before pushing new points. Constraints can be for
+   * time, size, or both. Both current data and new points may be shifted
+   * off. The extents are also updated.
+   *
+   * @param points
+   * @returns {boolean} True if constraints were applied to current or new points.
+   */
   Sampling.prototype.applyConstraintsBeforePushPoints = function( points) {
+
+    // ALGORITHM:
+    //   If there are new points
+    //     Use the last new point for the time constraint calculation.
+    //     Include the number of new points in the size constraint.
+    //
+    //   1. Find the amount to shift off using the size constraint.
+    //   2. Find the amount to shift off using the time constraint.
+    //   3. Find the max of time and size, then do the actual shift with that amount.
+    //   - The constraints may remove all current points and shift some of new points.
+    //   - Never remove the last point.
+    //
+    // Note: Could apply constraints after pushing points, but it's useful
+    // to have two sets of points to work with. If the current
+    // set of points can be shifted completely, that's a lot faster than
+    // concat, then shift off (for CPU and garbage collection).
+
+
     var didConstrain = false
 
     var pendingLength = points ? points.length : 0,
         currentLength = this.data ? this.data.length : 0
 
+    //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' BEGIN  pendingLength=' + pendingLength + ', currentLength=' + currentLength)
+
     if( currentLength + pendingLength === 0)
       return didConstrain
 
     var shiftCurrent = 0, // amount of current data to shift off
-        shiftPending = 0  // If all current data is shifted, we might be shifting some pending as well.
+        shiftPending = 0, // If all current data is shifted, we might be shifting some pending as well.
+        now = Date.now()
 
     // Constrain by size
     //
     if( this.constraints.size > 0) {
       var totalLength = currentLength + pendingLength
       if( this.constraints.size < totalLength) {
+
+        if( this.delayConstraints( now) )
+          return false
+
         var shiftTotal = totalLength - this.constraints.size
         shiftCurrent = Math.min( currentLength, shiftTotal),
         shiftPending = shiftTotal - shiftCurrent
@@ -1565,37 +1651,50 @@
           timeCutoff = (pendingLength > 0 ? pendingTimeMax : currentTimeMax) - this.constraints.time
 
       if( currentTimeMin < timeCutoff || pendingTimeMin < timeCutoff) {
+
+        //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' currentTimeMin='+currentTimeMin+' < tc || pendingTimeMin='+pendingTimeMin+' < tc timeCutoff=' + timeCutoff)
+        if( this.delayConstraints( now))
+          return false
+
         var index,
             bisectLeft = d3.bisector(this.access.x).left
 
         if( currentTimeMax < timeCutoff) {
           // Remove all this.data and possibly some of points too.
           shiftCurrent = currentLength
+          //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' currentTimeMax < tc  shiftCurrent=' + shiftCurrent)
 
         } else if( currentTimeMin < timeCutoff)  {
           // Remove some of this.data. Ignore anthing before shiftCurrent
-          index = Math.max( bisectLeft(this.data, timeCutoff, shiftCurrent), currentLength - 1)
+          index = Math.min( bisectLeft(this.data, timeCutoff, shiftCurrent), currentLength - 1)
           shiftCurrent = Math.max( shiftCurrent, index)
+          //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' currentTimeMin < tc  shiftCurrent=' + shiftCurrent)
         }
 
         if( pendingTimeMin < timeCutoff){
           // Remove some or all of points. Never remove the last point, even if it's time is ancient.
           // Find the correct index and splice points.
-          index = Math.max( bisectLeft(points, timeCutoff), currentLength - 2)
+          index = Math.min( bisectLeft(points, timeCutoff), pendingLength - 1)
           shiftPending = Math.max( shiftPending, index)
+          //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' pendingTimeMin < tc  shiftPending=' + shiftPending)
         }
       }
 
     }
 
     if( shiftCurrent > 0) {
+      //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' shiftCurrent > 0  shifting ' + shiftCurrent)
       this.shift( shiftCurrent)
       didConstrain = true
     }
     if( shiftPending > 0) {
+      //console.log( 'Sampling.applyConstraintsBeforePushPoints ' + this.resolution + ' shiftPending > 0  shifting ' + shiftPending)
       points.splice( 0, shiftPending)
       didConstrain = true
     }
+
+    if( didConstrain)
+      this.throttling.last = now
 
     return didConstrain
   }
@@ -1631,10 +1730,7 @@
         }
       }
 
-      var self = this
-      this.onHandlers.update.forEach( function( handler) {
-        handler( 'update', self.data, self)
-      })
+      this.notify( 'update')
 
       if( pushedCount > 0 && this.nextResolution.lower)
         this.nextResolution.lower.sourceUpdated( pushedCount)
@@ -1662,6 +1758,7 @@
         length = this.data.length,
         pushedCount = 0
 
+    //console.log( 'Sampling.sampleUpdatesFromSource ' + this.resolution + ' BEGIN  length ' + length)
     if( length <= 2) {
       this.initialSample( source)
       return this.data.length
@@ -1733,15 +1830,11 @@
 
     } else {
       this.initialSample( this.nextResolution.higher)
-      pushed = true
+      pushed = pushedCount
     }
 
-    if( pushed > 0) {
-      var self = this
-      this.onHandlers.update.forEach( function( handler) {
-        handler( 'update', self.data, self)
-      })
-    }
+    if( pushed > 0)
+      this.notify( 'update')
 
   }
 
@@ -1753,7 +1846,8 @@
         },
         constraints = {
           size: 0, // max size for Sampling data array. Zero for no constraint
-          time: 0  // max time before last time in data array. Zero for no constraint
+          time: 0, // max time before last time in data array. Zero for no constraint
+          throttling: 0 // Minimum milliseconds between applying constraints.
         },
         samples = {}
 
@@ -1884,6 +1978,23 @@
       return this
     }
 
+    /**
+     * Constrain the time of all Sampling data arrays to be no older that the last point's time.
+     *
+     * @param _size
+     * @returns this if no arguments; otherwise, it returns the current size constraint.
+     */
+    murtsDataStore.constrainThrottling = function ( throttling) {
+      if( !arguments.length ) return constraints.throttling
+      if( throttling >= 0) {
+        constraints.throttling = throttling
+        for( var res in samples) {
+          samples[res].constrainThrottling( constraints.throttling)
+        }
+      }
+      return this
+    }
+
 
     // TODO: remove sample from list of samples
 
@@ -1928,11 +2039,13 @@
         if( source && source.data) {
           sampling.initialSample( source)
         } else {
-          if( ! source)
-            console.error( 'murts.get findHigherResolution( ' + sampling.resolution + ') -- no source data found to sample from')
-          else
-            console.error( 'murts.get findHigherResolution( ' + sampling.resolution + ') -- no data found in source')
           sampling.data = []
+          if( sampling.resolution !== SOURCE) {
+            if( ! source)
+              console.error( 'murts.get findHigherResolution( ' + sampling.resolution + ') -- no source data found to sample from')
+            else
+              console.error( 'murts.get findHigherResolution( ' + sampling.resolution + ') -- no data found in source')
+          }
         }
       }
 
@@ -2058,10 +2171,10 @@
         sampled = []
 
     var startTimer = Date.now()
-    console.log( 'murts.sample source.length: ' + source.length + ' start')
+    //console.log( 'murts.sample source.length: ' + source.length + ' start')
 
     if( source.length === 0) {
-      console.log('murts.sample source.length: ' + source.length + ' end  ' + (Date.now() - startTimer) + ' ms')
+      //console.log('murts.sample source.length: ' + source.length + ' end  ' + (Date.now() - startTimer) + ' ms')
       return {
         data:    sampled,
         nextStep: 0
@@ -2079,7 +2192,7 @@
     if( source.length < 3) {
       if( source.length === 2)
         sampled[1] = source[sourceIndex++]
-      console.log( 'murts.sample source.length: ' + source.length + ' end  ' + (Date.now()-startTimer) + ' ms')
+      //console.log( 'murts.sample source.length: ' + source.length + ' end  ' + (Date.now()-startTimer) + ' ms')
       return {
         data: sampled,
         nextStep: nextStep,
@@ -2092,7 +2205,7 @@
 
     var s = sampleFromIndex( sampled, source, sourceIndex, a, stepSize, nextStep, access)
 
-    console.log( 'murts.sample source.length: ' + source.length + ', sample.length: ' + s.data.length + ' end  ' + (Date.now()-startTimer) + ' ms')
+    //console.log( 'murts.sample source.length: ' + source.length + ', sample.length: ' + s.data.length + ' end  ' + (Date.now()-startTimer) + ' ms')
 
     return s
   }
@@ -2183,7 +2296,7 @@
         }
       }
 
-      console.log( 'murts.sampleUdates source.length-start: ' + updateCount + ' end  ' + (Date.now()-startTimer) + ' ms')
+      //console.log( 'murts.sampleUdates source.length-start: ' + updateCount + ' end  ' + (Date.now()-startTimer) + ' ms')
 
       return {
         data: sampled,

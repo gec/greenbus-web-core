@@ -52,6 +52,9 @@ define( 'coral/MeasurementHistory',
 
       this.measurements.constrainTime( constraints.time)
       this.measurements.constrainSize( constraints.size)
+      if( constraints.throttling)
+        this.measurements.constrainThrottling( constraints.throttling)
+
       this.subscribers.push( {subscriber: subscriber, notify: notify})
 
       if( this.subscriptionId)

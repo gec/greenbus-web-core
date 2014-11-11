@@ -50,7 +50,8 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
         firstPointLoaded = false,
         historyConstraints ={
           time: 1000 * 60 * 60 * 4, // 4 hours
-          size: 60 * 60 * 4 // 4 hours of 1 second data
+          size: 60 * 60 * 4, // 4 hours of 1 second data
+          throttling: 5000
         }
 
     console.log( "ChartController $scope.chart=" + chartSource)
@@ -137,8 +138,6 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
     }
 
     $scope.chartRemove = function() {
-      window.alert( "chartController.chartRemove()")
-
       $scope.chart.points.forEach( function( point) {
         unsubscribeToMeasurementHistory( $scope.chart, point)
       });
