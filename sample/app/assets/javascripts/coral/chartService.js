@@ -123,7 +123,7 @@ define([
             },
             orient = index === 0 ? 'left' : 'right'
 
-          var interpolate = 'linear',
+          var interpolate = 'step-after',
               scaleConfig = { axis: axis, seriesFilter: filter, unit: unit }
 
           if( unit === 'raw' || unit === 'status' || unit === '') {
@@ -171,7 +171,7 @@ define([
         brushTraits = d3.trait( d3.trait.chart.base, self.config )
           .trait( d3.trait.scale.time, { axis: "x1"})
           .trait( d3.trait.scale.linear, { axis: "y1" })
-          .trait( d3.trait.chart.line, { interpolate: "linear" })
+          .trait( d3.trait.chart.line, { interpolate: "step-after" })
           .trait( d3.trait.control.brush, { axis: 'x1', target: self.traits, targetAxis: 'x1'})
           .trait( d3.trait.axis.time.month, { axis: "x1", ticks: 3})
           .trait( d3.trait.axis.linear, { axis: "y1", extentTicks: true})
