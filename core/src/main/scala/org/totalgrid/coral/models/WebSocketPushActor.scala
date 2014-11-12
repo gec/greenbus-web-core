@@ -419,10 +419,10 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   def debugGenerateMeasurementsBefore( currentMeasurement: PointMeasurementValue, count: Int): IndexedSeq[Measurement] = {
-    var time = currentMeasurement.getValue.getTime - (500 * count) - 1000
+    var time = currentMeasurement.getValue.getTime - (1000 * count) - 1000
     var value = currentMeasurement.getValue.getDoubleVal
     for( i <- 1 to count) yield {
-      time += 500;
+      time += 1000;
       value += Math.random() * 2.0 - 1.0
       debugGenerateMeasurement( value, time)
     }
