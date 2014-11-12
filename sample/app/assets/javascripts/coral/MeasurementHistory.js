@@ -46,6 +46,7 @@ define( 'coral/MeasurementHistory',
         .y( murtsAccess.y)
 
       this.measurements.pushPoints( [])
+      //Debug: this.measurements.pname = this.point.name
     }
 
     MeasurementHistory.prototype.subscribe = function( scope, constraints, subscriber, notify) {
@@ -112,7 +113,7 @@ define( 'coral/MeasurementHistory',
       var measurements,
           self = this
 
-//      console.log( "onPointWithMeasurements point.name " + this.point.name + " measurements.length=" + pointWithMeasurements.measurements.length)
+      //console.log( "onPointWithMeasurements point.name " + this.point.name + " measurements.length=" + pointWithMeasurements.measurements.length)
       measurements = pointWithMeasurements.measurements.map( function( m) { return self.convertMeasurement( m) })
       this.measurements.pushPoints( measurements)
       this.notifySubscribers()

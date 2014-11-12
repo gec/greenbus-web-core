@@ -1,4 +1,4 @@
-/*! d3-traits - v0.0.1 - 2014-11-11
+/*! d3-traits - v0.0.1 - 2014-11-12
 * https://github.com/gec/d3-traits
 * Copyright (c) 2014 d3-traits; Licensed ,  */
 (function(d3) {
@@ -1754,22 +1754,30 @@
   }
 
   Sampling.prototype.sampleUpdatesFromSource = function() {
-    var source = this.resampling.source,
+    var saveLength,
+        source = this.resampling.source,
         length = this.data.length,
         pushedCount = 0
 
     //console.log( 'Sampling.sampleUpdatesFromSource ' + this.resolution + ' BEGIN  length ' + length)
     if( length <= 2) {
+      saveLength = length
       this.initialSample( source)
-      return this.data.length
+      return this.data.length - saveLength
     }
 
     var stepStart = this.resampling.nextStep - this.stepSize
     var sourceIndex = this.findIndexOfStepStartFromEnd( source.data, stepStart, this.resampling.unsampledCount)
     var sampledIndex = this.findIndexOfStepStartFromEnd( this.data, stepStart)
 
-    // Remove the last and, possibly, the second to last samples.
+    // Remove the last points that need to be resampled.
     this.data.splice( sampledIndex, length - sampledIndex)
+
+    if( this.data.length <= 2) {
+      saveLength = length
+      this.initialSample( source)
+      return this.data.length - saveLength
+    }
 
     var a = this.data[this.data.length-1],
         s = sampleUpdates( source.data, sourceIndex, a, this.stepSize, this.resampling.nextStep, this.access)
@@ -1818,23 +1826,26 @@
       return
 
     var source = this.resampling.source,
-        pushed = 0
+        thisPushedCount = 0
 
     if( this.nextResolution.higher === source) {
       this.resampling.unsampledCount += pushedCount
 
       // if source's latest point is beyond our nextStep
       if( source && source.extents && source.extents.x.values[1] >= this.resampling.nextStep) {
-        pushed = this.sampleUpdatesFromSource()
+        thisPushedCount = this.sampleUpdatesFromSource()
       }
 
     } else {
       this.initialSample( this.nextResolution.higher)
-      pushed = pushedCount
+      thisPushedCount = this.data.length
     }
 
-    if( pushed > 0)
+    if( thisPushedCount > 0) {
       this.notify( 'update')
+      if( this.nextResolution.lower)
+        this.nextResolution.lower.sourceUpdated( thisPushedCount)
+    }
 
   }
 
@@ -2540,40 +2551,45 @@
    * @param isDataStacked  T: This is an area plot with access.y(d) and d.y0. F: Use access.y(d)
    * @returns Array of focus objects
    */
-  function getFocusItems( data, focusPoint, focusConfig, access, x, y, color, isDataStacked) {
+  function getFocusItems( filteredSeries, focusPoint, focusConfig, access, x, y, color, isDataStacked) {
     var foci = [],
         targetDomain = new d3.trait.Point(x.invert(focusPoint.x), y.invert(focusPoint.y)),
         bisectLeft = d3.bisector(access.x).left,
         getRangePoint = isDataStacked ? getRangePointStacked : getRangePointNormal
 
-    data.forEach(function(series, seriesIndex, array) {
-      var found, alterIndex,
-          data = trait.murts.utils.getOrElse( access.seriesData(series), x),
-          // search the domain for the closest point in x
-          index = bisectLeft(data, targetDomain.x)
+    filteredSeries.forEach(function(series, seriesIndex, array) {
+      var found, alterIndex, index,
+          seriesData = trait.murts.utils.getOrElse( access.seriesData(series), x)
 
-      if( index >= data.length )
-        index = data.length - 1
-      found = getFocusItem(series, data, index, access, x, y, getRangePoint, focusPoint)
+      if( seriesData.length > 0) {
 
-      alterIndex = found.index - 1
-      if( alterIndex >= 0 ) {
-        var alter = getFocusItem(series, data, alterIndex, access, x, y, getRangePoint, focusPoint)
-        // console.log( "found x=" + access.x( found.item) + " y=" + access.y( found.item) + " d=" + found.distance + "  " + targetDomain.x + " " + targetDomain.y)
-        // console.log( "alter x=" + access.x( alter.item) + " y=" + access.y( alter.item) + " d=" + alter.distance + "  " + targetDomain.x + " " + targetDomain.y)
-        if( focusConfig.axis === 'x' ) {
-          if( alter.distanceX < found.distanceX )
-            found = alter
-        } else {
-          if( alter.distance < found.distance )
-            found = alter
+        // search the domain for the closest point in x
+        index = bisectLeft(seriesData, targetDomain.x)
+
+        if( index >= seriesData.length )
+          index = seriesData.length - 1
+        found = getFocusItem(series, seriesData, index, access, x, y, getRangePoint, focusPoint)
+
+        alterIndex = found.index - 1
+        if( alterIndex >= 0 ) {
+          var alter = getFocusItem(series, seriesData, alterIndex, access, x, y, getRangePoint, focusPoint)
+          // console.log( "found x=" + access.x( found.item) + " y=" + access.y( found.item) + " d=" + found.distance + "  " + targetDomain.x + " " + targetDomain.y)
+          // console.log( "alter x=" + access.x( alter.item) + " y=" + access.y( alter.item) + " d=" + alter.distance + "  " + targetDomain.x + " " + targetDomain.y)
+          if( focusConfig.axis === 'x' ) {
+            if( alter.distanceX < found.distanceX )
+              found = alter
+          } else {
+            if( alter.distance < found.distance )
+              found = alter
+          }
+        }
+
+        if( withinFocusDistance( found, focusConfig) ) {
+          found.color = color(series)
+          foci.push(found)
         }
       }
 
-      if( withinFocusDistance( found, focusConfig) ) {
-        found.color = color(series)
-        foci.push(found)
-      }
     })
 
     return foci
@@ -5142,14 +5158,14 @@
         return maxIndex + direction >= data.length ? data.length - 1 : maxIndex + direction
     }
 
-    function getDataInRange(data, scale, access) {
-      var indexMin, indexMax,
+    function getDataInRange(series, scale, access) {
+      var indexMin, indexMax, data,
           range = scale.range(),
           rangeMax = d3.trait.utils.extentMax(range),
           domainMin = scale.invert(range[0]),
           domainMax = scale.invert(rangeMax)
 
-      data = trait.murts.utils.getOrElse( data, scale)
+      data = trait.murts.utils.getOrElse( series, scale)
       //console.log( 'chartLine: getDataInRange: data.length: ' + data.length + ' res: ' + scale.resolution())
 
       indexMin = findClosestIndex(data, access, domainMin, -1)
