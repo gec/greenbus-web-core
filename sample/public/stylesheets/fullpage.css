@@ -1,0 +1,7 @@
+/* Full page css stylesheet */
+
+/* Override Bootstrap 3 */
+html, body, .container-fluid, .container-fluid > .ng-scope {
+  height:100%;
+}
+

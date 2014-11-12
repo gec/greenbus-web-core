@@ -159,7 +159,8 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
     function onResize( event) {
 
-//      $timeout( function() {
+      // Need the timeout because we don't get the correct size if we ask right away.
+      $timeout( function() {
 
         windowSize.width = documentElement.clientWidth
         windowSize.height = documentElement.clientHeight
@@ -174,7 +175,7 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
 
           if( size.height <= 150) {
             heightTop = size.height
-            heightBot = 1
+            heightBot = 0
           } else {
             heightBot = Math.floor( size.height * 0.18)
             if( heightBot < 50)
@@ -193,15 +194,10 @@ return angular.module( 'chartController', ['authentication.service', 'coral.rest
           size.height = heightBot
           $scope.chart.brushTraits.size( size)
         }
-//      })
+      })
     }
     $window.onresize = onResize
     onResize()
-//    $timeout( function() {
-//        onResize()
-//        $scope.loading = false
-//    }, 500)
-
 
     $window.addEventListener( 'unload', function( event) {
       $scope.chartRemove()

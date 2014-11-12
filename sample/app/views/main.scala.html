@@ -1,4 +1,4 @@
-@(title: String, appModule: Call)(content: Html)
+@(title: String, appModule: Call, customStylesheet: Option[Call] = None)(content: Html)
 
 <!DOCTYPE html>
 
@@ -10,6 +10,9 @@
         <link rel="stylesheet" href="@routes.Assets.at("lib/d3-traits/d3-traits.css")">
         <link rel="stylesheet" href="@routes.Assets.at("lib/angular-bootstrap-nav-tree/abn_tree.css")">
         <link rel="stylesheet" href="@routes.Assets.at("stylesheets/app.css")">
+        @for( styleSheet <- customStylesheet) {
+            <link rel="stylesheet" href="@customStylesheet">
+        }
         <link rel="shortcut icon" type="image/png" href="@routes.Assets.at("images/favicon.png")">
     </head>
     <body role="document">
