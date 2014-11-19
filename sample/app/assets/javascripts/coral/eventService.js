@@ -88,6 +88,7 @@ define([
           while( $scope.alarms.length > $scope.limit)
             $scope.alarms.pop()
           $scope.loading = false
+          $scope.$digest()
         }
 
         function onError( error, message) {
@@ -140,6 +141,7 @@ define([
           while( $scope.events.length > $scope.limit)
             $scope.events.pop()
           $scope.loading = false
+          $scope.$digest()
         }
 
         function onError( error, message) {
