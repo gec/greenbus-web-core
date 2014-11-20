@@ -398,6 +398,7 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
         } else {
             console.error( "CesesController.onMeasurement unknown type: '" + type + "'")
         }
+        $scope.$digest()
     }
 
     $scope.onError = function( error, message) {
@@ -625,6 +626,7 @@ function( $rootScope, $scope, reef, $routeParams, coralNav) {
                         removeEndpoint( endpointNotification.endpoint)
                         break;
                 }
+                $scope.$digest()
             },
             function( messageError, message){
                 console.error( 'EndpointControl.subscription error: ' + messageError)
