@@ -18,7 +18,7 @@
  */
 package controllers
 
-import org.totalgrid.web.auth.ValidationTiming
+import io.greenbus.web.auth.ValidationTiming
 import play.api.Logger
 import akka.util.Timeout
 import java.util.concurrent.atomic.AtomicInteger

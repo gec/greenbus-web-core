@@ -18,8 +18,8 @@
  */
 package controllers
 
-import org.totalgrid.web.auth.ReefAuthentication
-import org.totalgrid.web.connection.ConnectionStatus
+import io.greenbus.web.auth.ReefAuthentication
+import io.greenbus.web.connection.ConnectionStatus
 import play.api.mvc._
 import play.api.libs.json._
 import play.api.Logger

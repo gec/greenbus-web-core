@@ -21,7 +21,7 @@ object ApplicationBuild extends Build {
     version            := "0.2.0-SNAPSHOT",
     // Need these scala versions or it tries the wrong version
     scalaVersion       := "2.10.4",
-    organization       := "org.totalgrid.coral",
+    organization       := "io.greenbus.web",
     scalacOptions += "-feature", // show compiler warnings for language features
     scalacOptions += "-unchecked", // show compiler warnings for type aliases and ???
     scalacOptions += "-deprecation", // show compiler warnings for deprecated features
@@ -96,7 +96,7 @@ object ApplicationBuild extends Build {
     .settings(baseSettings: _*)
     .settings(
       testOptions in Test += Tests.Argument(TestFrameworks.Specs2, "junitxml", "console"),
-      TwirlKeys.templateImports in Compile += "org.totalgrid.coral._",
+      TwirlKeys.templateImports in Compile += "io.greenbus.web._",
       publishLocal := {},
       publish := {}
     )

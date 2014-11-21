@@ -21,7 +21,7 @@ package test
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
 import org.mockito.Matchers._
-import org.totalgrid.web.auth.{ValidationTiming, AuthTokenLocation}
+import io.greenbus.web.auth.{ValidationTiming, AuthTokenLocation}
 
 import play.api._
 import play.api.mvc.{Cookie, Controller}

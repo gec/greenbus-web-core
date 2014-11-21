@@ -18,7 +18,7 @@
  */
 package test
 
-import org.totalgrid.web.auth.{ValidationTiming, Authentication}
+import io.greenbus.web.auth.{ValidationTiming, Authentication}
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.Logger
@@ -51,7 +51,7 @@ trait AuthenticationImplMock extends Authentication {
   self: Controller =>
 
   import AuthenticationImplMock._
-  import org.totalgrid.web.auth.AuthTokenLocation
+  import io.greenbus.web.auth.AuthTokenLocation
   import AuthTokenLocation._
 
   val authToken1 = "authToken1"

@@ -19,18 +19,16 @@
 // No package. Just the root context. It's what play wants.
 
 import org.totalgrid.msg.Session
-import org.totalgrid.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
-import org.totalgrid.web.websocket.{WebSocketPushActor, WebSocketConsumerImpl}
+import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
+import io.greenbus.web.websocket.{WebSocketPushActor, WebSocketConsumerImpl}
 import play.api._
 import controllers.Application
-import org.totalgrid.reef.client.ReefConnection
 import play.api.Application
 import play.api.libs.concurrent.Akka
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.JsValue
 import play.api.Play.current
 import akka.actor.{Props, ActorContext}
-import org.totalgrid.web.models._
 
 
 object ClientPushActorFactory extends WebSocketPushActorFactory{

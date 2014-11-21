@@ -18,9 +18,9 @@
  */
 package controllers
 
-import org.totalgrid.web.connection.ReefServiceFactory
-import org.totalgrid.web.rest.RestServices
-import org.totalgrid.web.websocket.WebSocketServices
+import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.rest.RestServices
+import io.greenbus.web.websocket.WebSocketServices
 import play.api._
 import play.api.mvc._
 //import akka.util.Timeout
