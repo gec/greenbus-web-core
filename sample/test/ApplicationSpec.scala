@@ -19,6 +19,7 @@
 package test
 
 import org.specs2.mutable._
+import org.totalgrid.web.connection.ReefServiceFactory
 
 import play.api._
 import play.api.mvc._
@@ -33,10 +34,9 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, Props}
-import org.totalgrid.coral.mocks.ReefConnectionManagerMock
+import org.totalgrid.web.mocks.ReefConnectionManagerMock
 import controllers.Application
 import org.totalgrid.msg
-import org.totalgrid.coral.models.ReefServiceFactory
 import org.specs2.mock.Mockito
 import org.totalgrid.reef.client.service.EntityService
 import org.totalgrid.reef.client.service.proto.EntityRequests

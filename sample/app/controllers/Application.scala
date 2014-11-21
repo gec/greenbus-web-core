@@ -18,19 +18,20 @@
  */
 package controllers
 
+import org.totalgrid.web.connection.ReefServiceFactory
+import org.totalgrid.web.rest.RestServices
+import org.totalgrid.web.websocket.WebSocketServices
 import play.api._
 import play.api.mvc._
-import org.totalgrid.coral.controllers._
-import akka.util.Timeout
-import scala.concurrent.duration._
+//import akka.util.Timeout
+//import scala.concurrent.duration._
 import scala.language.postfixOps
 import akka.actor.ActorRef
 import play.api.libs.json._
-import play.api.libs.functional.syntax._
-import models.content._
-import play.api.libs.json.JsArray
-import scala.Some
-import org.totalgrid.coral.models.{ReefServiceFactory, ReefServiceFactoryImpl}
+//import play.api.libs.functional.syntax._
+//import models.content._
+//import play.api.libs.json.JsArray
+//import scala.Some
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 

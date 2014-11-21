@@ -18,11 +18,11 @@
  */
 package controllers
 
+import org.totalgrid.web.auth.ReefAuthentication
+import org.totalgrid.web.connection.ConnectionStatus
 import play.api.mvc._
 import play.api.libs.json._
-import org.totalgrid.coral.controllers.ReefAuthentication
 import play.api.Logger
-import org.totalgrid.coral.models.ConnectionStatus
 
 
 /**

@@ -11,7 +11,7 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "coral"
-  val playVersion       = "2.3.2"
+  val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
   val reefVersion       = "0.6.0.M3-SNAPSHOT"

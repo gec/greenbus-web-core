@@ -21,6 +21,7 @@ package test
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
 import org.mockito.Matchers._
+import org.totalgrid.web.auth.{ValidationTiming, AuthTokenLocation}
 
 import play.api._
 import play.api.mvc.{Cookie, Controller}
@@ -37,8 +38,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @author Flint O'Brien
  */
 class AuthenticationSpec extends Specification with Mockito {
-  import org.totalgrid.coral.models.AuthTokenLocation._
-  import org.totalgrid.coral.models.ValidationTiming._
+  import AuthTokenLocation._
+  import ValidationTiming._
   import AuthenticationImplMock._
 
 

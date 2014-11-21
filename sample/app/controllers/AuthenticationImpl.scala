@@ -18,6 +18,8 @@
  */
 package controllers
 
+import org.totalgrid.web.auth.{ValidationTiming, AuthTokenLocation, Authentication}
+import org.totalgrid.web.connection.ConnectionManagerRef
 import play.api.Logger
 import play.api.mvc._
 import play.api.libs.json._
@@ -26,8 +28,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
 import akka.actor._
 import akka.pattern.ask
-import org.totalgrid.coral.controllers.ConnectionManagerRef
-import org.totalgrid.coral.models._
+import org.totalgrid.web.models._
 
 
 trait AuthenticationImpl extends Authentication with ConnectionManagerRef {
