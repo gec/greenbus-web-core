@@ -19,6 +19,7 @@
 package org.totalgrid.web.mocks
 
 import akka.actor.Actor
+import org.totalgrid.web.connection.ConnectionStatus
 import play.api.Logger
 import org.totalgrid.web.models._
 
@@ -28,8 +29,7 @@ import org.totalgrid.web.models._
  */
 class ReefConnectionManagerMock extends Actor {
   import ConnectionStatus._
-  import AuthenticationMessages._
-  import LoginLogoutMessages._
+  import org.totalgrid.web.connection.ReefConnectionManager._
 
   val authToken1 = "authToken1"
 
