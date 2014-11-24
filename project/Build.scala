@@ -10,7 +10,7 @@ object ApplicationBuild extends Build {
   import play.Play.autoImport._
   import PlayKeys._
 
-  val appName           = "coral"
+  val appName           = "web-core"
   val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
@@ -18,7 +18,7 @@ object ApplicationBuild extends Build {
   val msgVersion       = "0.0.1-SNAPSHOT"
 
   lazy val baseSettings = Seq(
-    version            := "0.2.0-SNAPSHOT",
+    version            := "0.3.0-SNAPSHOT",
     // Need these scala versions or it tries the wrong version
     scalaVersion       := "2.10.4",
     organization       := "io.greenbus.web",
@@ -38,9 +38,9 @@ object ApplicationBuild extends Build {
   lazy val appPublishTo = { (v: String) =>
     val artifactory = "https://repo.totalgrid.org/artifactory/"
     if (v.trim.endsWith("SNAPSHOT"))
-      Some("snapshots" at artifactory + "totalgrid-private-snapshot")
+      Some("snapshots" at artifactory + "totalgrid-snapshot")
     else
-      Some("releases"  at artifactory + "totalgrid-private-release")
+      Some("releases"  at artifactory + "totalgrid-release")
   }
   lazy val appPomExtra = {
     <url>https://github.com/gec/coral.git</url>
@@ -80,7 +80,7 @@ object ApplicationBuild extends Build {
   lazy val test = Project("test", base = file("test"))
     .settings(baseSettings: _*)
     .settings(
-      name := appName + ".test",
+      name := appName + "-test",
       libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
       publishMavenStyle       := appPublishMavenStyle,
