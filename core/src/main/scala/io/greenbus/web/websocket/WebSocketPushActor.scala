@@ -272,9 +272,9 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
     result onSuccess {
       case (endointsWithComms, subscription) =>
-        pushChannel.push( endopintWithCommsSeqPushWrites.writes( subscribe.id, endointsWithComms))
+        pushChannel.push( endpointWithCommsSeqPushWrites.writes( subscribe.id, endointsWithComms))
         subscription.start { m =>
-          pushChannel.push( endopintWithCommsNotificationPushWrites.writes( subscribe.id, m))
+          pushChannel.push( endpointWithCommsNotificationPushWrites.writes( subscribe.id, m))
         }
         subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
     }

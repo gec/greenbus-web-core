@@ -45,10 +45,10 @@ object JsonPushFormatters {
     }
   }
 
-  lazy val endopintWithCommsPushWrites = new PushWrites( "endpoint", endpointWithCommsWrites)
-  lazy val endopintWithCommsSeqPushWrites = new PushWrites( "endpoint", endpointWithCommsSeqWrites)
+  lazy val endpointWithCommsPushWrites = new PushWrites( "endpoint", endpointWithCommsWrites)
+  lazy val endpointWithCommsSeqPushWrites = new PushWrites( "endpoints", endpointWithCommsSeqWrites)
 
-  lazy val endopintWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
+  lazy val endpointWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
 
   lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
 
