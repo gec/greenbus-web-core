@@ -25,24 +25,23 @@ GET           /models/:modelId/equipment                              controller
 GET           /models/:modelId/equipment/:entityId                    controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/equipment/:entityId/descendants        controllers.Application.getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 
-GET           /models/:modelId/points                                 controllers.Application.getPoints( modelId: String, equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
-GET           /models/:modelId/points/:uuid                           controllers.Application.getPoint( modelId: String, uuid: String)
+GET           /models/:modelId/points                                 controllers.Application.getPoints( modelId: String, pids: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/points/:pointId                        controllers.Application.getPoint( modelId: String, pointId: String)
 
-POST           /models/:modelId/points/commands                       controllers.Application.getPointsCommands( modelId: String)
+POST          /models/:modelId/points/commands                        controllers.Application.getPointsCommands( modelId: String)
 #GET           /models/:modelId/commands                               controllers.Application.getCommandsBy( modelId: String, ids: List[String])
 #GET           /models/:modelId/commands/:uuid                         controllers.Application.getCommand( modelId: String, uuid: String)
-POST           /models/:modelId/commandlock                           controllers.Application.postCommandLock( modelId: String)
-DELETE         /models/:modelId/commandlock/:id                       controllers.Application.deleteCommandLock( modelId: String, id: String)
-POST           /models/:modelId/commands/:id                          controllers.Application.postCommand( modelId: String, id: String)
+POST          /models/:modelId/commandlock                            controllers.Application.postCommandLock( modelId: String)
+DELETE        /models/:modelId/commandlock/:id                        controllers.Application.deleteCommandLock( modelId: String, id: String)
+POST          /models/:modelId/commands/:id                           controllers.Application.postCommand( modelId: String, id: String)
+
+GET           /models/:modelId/endpoints                              controllers.Application.getEndpoints( modelId: String)
 
 GET           /measurements                                           controllers.Application.getMeasurements
 
 GET           /commands                                               controllers.Application.getCommands
 GET           /commands/:name                                         controllers.Application.getCommand(name: String)
 
-GET           /equipmentwithpointsbytype                              controllers.Application.getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String])
-
-GET           /endpoints                                              controllers.Application.getEndpoints
 GET           /endpoints/*name                                        controllers.Application.getEndpointConnection( name: String)
 
 GET           /applications                                           controllers.Application.getApplications
