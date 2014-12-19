@@ -24,6 +24,7 @@ import com.google.protobuf.GeneratedMessage
 import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
 import org.totalgrid.reef.client.service.MeasurementService
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
+import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointSubscriptionQuery
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 import org.totalgrid.reef.client.service.proto.Measurements
@@ -464,8 +465,11 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
     result onSuccess {
       case (alarms, subscription) =>
-        timer.end( s"onSuccess alarms.length=${alarms.length}")
-        pushChannel.push( alarmSeqPushWrites.writes( subscribe.id, alarms.reverse))
+        // We subscribe to all alarm states so we get the "REMOVED" updates; however, for the initial
+        // batch, we don't want any REMOVED alarms.
+        val activeAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
+        timer.end( s"onSuccess activeAlarms.length=${activeAlarms.length}")
+        pushChannel.push( alarmSeqPushWrites.writes( subscribe.id, activeAlarms.reverse))
         subscription.start { alarmNotification =>
           pushChannel.push( alarmPushWrites.writes( subscribe.id, alarmNotification.getValue))
         }

@@ -21,6 +21,10 @@ GET           /coral/menus/:name                                      controller
 GET           /entities                                               controllers.Application.getEntities( types: List[String])
 GET           /entities/:uuid                                         controllers.Application.getEntity( uuid: String)
 
+GET           /models/:modelId/alarms                                 controllers.Application.getAlarms( modelId: String, limit: Int ?= 200)
+POST          /models/:modelId/alarms                                 controllers.Application.postAlarms( modelId: String)
+GET           /models/:modelId/events                                 controllers.Application.getEvents( modelId: String, limit: Int ?= 200)
+
 GET           /models/:modelId/equipment                              controllers.Application.getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/equipment/:entityId                    controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/equipment/:entityId/descendants        controllers.Application.getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
@@ -46,12 +50,6 @@ GET           /endpoints/*name                                        controller
 
 GET           /applications                                           controllers.Application.getApplications
 GET           /applications/:name                                     controllers.Application.getApplication( name: String)
-
-GET           /events                                                 controllers.Application.getEvents( limit: Int = 20)
-GET           /events/:limit                                          controllers.Application.getEvents( limit: Int)
-
-GET           /alarms                                                 controllers.Application.getAlarms( limit: Int = 20)
-GET           /alarms/:limit                                          controllers.Application.getAlarms( limit: Int)
 
 GET           /agents                                                 controllers.Application.getAgents
 GET           /agents/:name                                           controllers.Application.getAgent( name: String)

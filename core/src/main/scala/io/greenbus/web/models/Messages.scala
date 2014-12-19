@@ -22,6 +22,7 @@ import io.greenbus.web.auth.ValidationTiming
 import io.greenbus.web.connection.ConnectionStatus
 import io.greenbus.web.models._
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock,CommandRequest}
+import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.Model.ReefID
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -88,4 +89,23 @@ object ControlMessages {
     implicit val writer = Json.writes[CommandExecuteRequest]
     implicit val reader = Json.reads[CommandExecuteRequest]
   }
+}
+
+object AlarmMessages {
+
+  implicit val alarmStateReader = Reads[Alarm.State] {
+    case JsString(s) => s.toUpperCase match {
+      case "UNACK_SILENT" => JsSuccess( Alarm.State.UNACK_SILENT)
+      case "ACKNOWLEDGED" => JsSuccess( Alarm.State.ACKNOWLEDGED)
+      case "REMOVED" => JsSuccess( Alarm.State.REMOVED)
+      case _ => JsError("Unknown Alarm state: '" + s + "'")
+    }
+    case _ => JsError("Alarm state must be a string")
+  }
+
+  case class AlarmUpdateRequest( state: Alarm.State, ids: Seq[String])
+  def alarmUpdateRequestReads: Reads[AlarmUpdateRequest] = (
+    (__ \ "state").read[Alarm.State] and
+      (__ \ "ids").read[Seq[String]]
+    )(AlarmUpdateRequest.apply _)
 }

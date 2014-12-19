@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException
 import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
 import org.totalgrid.reef.client.service.proto.EntityRequests.{EntityEdgeQuery, EntityKeySet, EntityQuery, EntityRelationshipFlatQuery}
-import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmQuery, EventQuery}
+import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmStateUpdate, AlarmQuery, EventQuery}
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.FrontEnd.Point
 import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointQuery
@@ -741,9 +741,9 @@ trait RestServices extends ReefAuthentication {
       case result => Ok( Json.toJson( result(0))) }
   }
 
-  def getEvents( limit: Int) = ReefClientActionAsync { (request, session) =>
-    val service = EventService.client( session)
-    val query = EventQuery.newBuilder()
+  def getEvents( modelId: String, limit: Int) = ReefClientActionAsync { (request, session) =>
+    val service = serviceFactory.eventService( session)
+    val query = EventQuery.newBuilder().setLimit( limit)
 
     service.eventQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
@@ -754,14 +754,45 @@ trait RestServices extends ReefAuthentication {
    * @param limit
    * @return
    */
-  def getAlarms( limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getAlarms( modelId: String, limit: Int) = ReefClientActionAsync { (request, session) =>
 
-    val service = EventService.client( session)
+    val service = serviceFactory.eventService( session)
     val query = AlarmQuery.newBuilder().setEventQuery( EventQuery.newBuilder())
     query.addAlarmStates( Alarm.State.UNACK_AUDIBLE)
     query.addAlarmStates( Alarm.State.UNACK_SILENT)
 
     service.alarmQuery( query.build).map{ result => Ok( Json.toJson(result)) }
+  }
+
+  def postAlarms( modelId: String) = ReefClientActionAsync { (request, session) =>
+  import io.greenbus.web.models.AlarmMessages._
+
+    request.body.asJson.map { json =>
+      json.validate(alarmUpdateRequestReads).map {
+        case alarmUpdateRequest =>
+          val service = serviceFactory.eventService(session)
+          val updates = alarmUpdateRequest.ids.map { id =>
+            AlarmStateUpdate.newBuilder()
+              .setAlarmId( ReefID.newBuilder().setValue(id).build())
+              .setAlarmState( alarmUpdateRequest.state)
+              .build()
+          }
+
+          service.putAlarmState( updates) map { result =>
+            Ok(Json.toJson(result))
+          } recover {
+            case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+            case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+            case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+            case ex => throw ex
+          }
+
+      }.recoverTotal{
+        e => Future.successful( BadRequest("Detected error: "+ JsError.toFlatJson(e)))
+      }
+    }.getOrElse {
+      Future.successful( BadRequest("Expecting Json data"))
+    }
   }
 
   def getEndpoints( modelId: String) = ReefClientActionAsync { (request, session) =>
