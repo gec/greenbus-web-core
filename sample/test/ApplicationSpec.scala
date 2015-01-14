@@ -19,6 +19,7 @@
 package test
 
 import org.specs2.mutable._
+import io.greenbus.web.connection.ReefServiceFactory
 
 import play.api._
 import play.api.mvc._
@@ -33,10 +34,9 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, Props}
-import org.totalgrid.coral.mocks.ReefConnectionManagerMock
+import io.greenbus.web.mocks.ReefConnectionManagerMock
 import controllers.Application
 import org.totalgrid.msg
-import org.totalgrid.coral.models.ReefServiceFactory
 import org.specs2.mock.Mockito
 import org.totalgrid.reef.client.service.EntityService
 import org.totalgrid.reef.client.service.proto.EntityRequests
@@ -85,13 +85,8 @@ class ApplicationSpec extends Specification with Mockito {
     "send 404 on a bad request" in {
       running(FakeApplication(path = new File("sample"), withGlobal = globalMock) ) {
 
-        val result = route(FakeRequest(GET, "/boum"))
-        result match {
-          case Some( noPage) =>
-            status( noPage) must equalTo(NOT_FOUND)
-          case None =>
-            failure( "This used to be the expected failure")
-        }
+        val Some( result) = route(FakeRequest(GET, "/boum"))
+        status( result) must equalTo( NOT_FOUND)
 
       }
     }
@@ -100,9 +95,9 @@ class ApplicationSpec extends Specification with Mockito {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
         val home = route(goodRequest).get
         
-        status(home) must equalTo(OK)
-        contentType(home) must beSome.which(_ == "text/html")
-        contentAsString(home) must contain ("Coral Sample")
+        status(home) must equalTo(SEE_OTHER)
+//        contentType(home) must beSome.which(_ == "text/html")
+//        contentAsString(home) must contain ("Coral Sample")
       }
     }
 
@@ -162,10 +157,10 @@ class ApplicationSpec extends Specification with Mockito {
 
         Application.reefServiceFactory = serviceFactory
 
-        val resultAsync = route(
+        val Some( resultAsync) = route(
           FakeRequest(GET, "/entities")
             .withCookies( Cookie(cookieName, authTokenGood))
-        ).getOrElse( failure( "No result from GET /entities"))
+        )
 
         status(resultAsync) must equalTo(OK)
         contentType(resultAsync) must beSome.which(_ == "application/json")
@@ -180,10 +175,10 @@ class ApplicationSpec extends Specification with Mockito {
     "GET /entities, but with invalid authToken should return json error AUTHENTICATION_FAILURE" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        val resultAsync = route(
+        val Some( resultAsync) = route(
           FakeRequest(GET, "/entities")
             .withCookies( Cookie(cookieName, authTokenBad))
-        ).getOrElse( failure( "No result from GET /entities"))
+        )
 
         status(resultAsync) must equalTo(UNAUTHORIZED)
         contentType(resultAsync) must beSome.which(_ == "application/json")

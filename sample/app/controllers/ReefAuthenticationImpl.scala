@@ -18,11 +18,11 @@
  */
 package controllers
 
+import io.greenbus.web.auth.ReefAuthentication
+import io.greenbus.web.connection.ConnectionStatus
 import play.api.mvc._
 import play.api.libs.json._
-import org.totalgrid.coral.controllers.ReefAuthentication
 import play.api.Logger
-import org.totalgrid.coral.models.ConnectionStatus
 
 
 /**

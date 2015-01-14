@@ -18,13 +18,13 @@
  */
 package controllers
 
+import io.greenbus.web.auth.ValidationTiming
 import play.api.Logger
 import akka.util.Timeout
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.Some
-import org.totalgrid.coral.models.ValidationTiming
 
 // for 'seconds'
 import akka.actor.{Props, Actor}

@@ -19,21 +19,21 @@
 // No package. Just the root context. It's what play wants.
 
 import org.totalgrid.msg.Session
+import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
+import io.greenbus.web.websocket.{WebSocketPushActor, WebSocketConsumerImpl}
 import play.api._
 import controllers.Application
-import org.totalgrid.reef.client.ReefConnection
 import play.api.Application
 import play.api.libs.concurrent.Akka
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.JsValue
 import play.api.Play.current
 import akka.actor.{Props, ActorContext}
-import org.totalgrid.coral.models._
 
 
 object ClientPushActorFactory extends WebSocketPushActorFactory{
   import ConnectionStatus._
-  import WebSocketMessages._
+  import ReefConnectionManager._
 
   def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
     // Create a pushChannel that the new actor will use for push

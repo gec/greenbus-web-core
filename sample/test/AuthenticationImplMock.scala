@@ -18,6 +18,7 @@
  */
 package test
 
+import io.greenbus.web.auth.{ValidationTiming, Authentication}
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.Logger
@@ -26,8 +27,7 @@ import play.api.libs.concurrent.Execution.Implicits._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import controllers.routes
-import org.totalgrid.coral.models.Authentication
-import org.totalgrid.coral.models.ValidationTiming._
+import ValidationTiming._
 
 object AuthenticationImplMock {
 
@@ -51,8 +51,8 @@ trait AuthenticationImplMock extends Authentication {
   self: Controller =>
 
   import AuthenticationImplMock._
-  import org.totalgrid.coral.models.AuthTokenLocation
-  import org.totalgrid.coral.models.AuthTokenLocation._
+  import io.greenbus.web.auth.AuthTokenLocation
+  import AuthTokenLocation._
 
   val authToken1 = "authToken1"
   val client1 = "client1"
