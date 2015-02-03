@@ -45,17 +45,17 @@ object JsonFormatters {
     val q = m.getQuality
 
     if (q.getSource == Quality.Source.SUBSTITUTED) {
-      "R"
+      "R"  // Replaced
     } else if (q.getOperatorBlocked) {
-      "N"
+      "N"  // i.e. NIS, Not In Service
     } else if (q.getTest) {
       "T"
     } else if (q.getDetailQual.getOldData) {
       "O"
     } else if (q.getValidity == Quality.Validity.QUESTIONABLE) {
-      "A"
+      "Q"
     } else if (q.getValidity != Quality.Validity.GOOD) {
-      "B"
+      "B" // i.e. Bad
     } else {
       ""
     }
