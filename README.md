@@ -14,7 +14,7 @@ A modular framework for building applications using Reef [Reef](https://github.c
 ## Installing from Source
 
 1.  Install [Reef](https://github.com/gec/reef) or use an existing Reef server.
-1.  Install [Play Framework](http://www.playframework.com/download) 2.1.1
+1.  Install [Play Framework](http://www.playframework.com/download) 2.3.6
 1.  Clone the repository: `git clone https://github.com/gec/coral.git`
 1.  > cd coral
 1.  Edit `reef.cfg` so AMQP host and credentials refer to your Reef server (i.e. properties starting with `org.totalgrid.reef.amqp`).
@@ -22,14 +22,14 @@ A modular framework for building applications using Reef [Reef](https://github.c
 ### Running Sample Application
 
 ```
-> play "project sample" play run
+> activator "project sample" run
 Point your web browser at `http://localhost:9000`
 ```
 
 ### Running Tests
 
 ```
-> play "project sample" play test
+> activator "project sample" test
 ```
 
 ## License

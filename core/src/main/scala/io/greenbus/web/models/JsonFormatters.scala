@@ -25,7 +25,7 @@ import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
 import org.totalgrid.reef.client.service.proto.Model.{ Entity}
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Events.{Alarm, Event}
+import org.totalgrid.reef.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
 import org.totalgrid.reef.client.service.proto.Measurements._
 import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
 import org.totalgrid.reef.client.service.proto.FrontEnd._
@@ -380,8 +380,8 @@ object JsonFormatters {
       Json.obj(
         "id" -> o.getId.getValue,
         "deviceTime" -> o.getDeviceTime,
-        "eventType" -> o.getEventType,
-        "alarm" -> o.getAlarm,
+        "eventType" -> o.getEventType,  // ex: System
+        "alarm" -> o.getAlarm,          // Boolean
         "severity" -> o.getSeverity,
         "agent" -> o.getAgent,
         "entity" -> o.getEntity.getValue, // TODO: need entity name
@@ -389,6 +389,9 @@ object JsonFormatters {
         "time" -> o.getTime
       )
     }
+  }
+  implicit val eventNotificationWrites = new Writes[EventNotification] {
+    def writes( o: EventNotification): JsValue = eventWrites.writes( o.getValue)
   }
 
   implicit val eventSeqWrites = new Writes[Seq[Event]] {
@@ -399,12 +402,25 @@ object JsonFormatters {
 
   implicit val alarmWrites = new Writes[Alarm] {
     def writes( o: Alarm): JsValue = {
+      val e = o.getEvent
       Json.obj(
         "id" -> o.getId.getValue,
         "state" -> o.getState.name,
-        "event" -> o.getEvent
+        "eventId" -> e.getId.getValue,
+        "deviceTime" -> e.getDeviceTime,
+        "eventType" -> e.getEventType,  // ex: System
+        "alarm" -> e.getAlarm,          // Boolean
+        "severity" -> e.getSeverity,
+        "agent" -> e.getAgent,
+        "entity" -> e.getEntity.getValue, // TODO: need entity name
+        "message" -> e.getRendered,
+        "time" -> e.getTime
+
       )
     }
+  }
+  implicit val alarmNotificationWrites = new Writes[AlarmNotification] {
+    def writes( o: AlarmNotification): JsValue = alarmWrites.writes( o.getValue)
   }
 
   implicit val alarmSeqWrites = new Writes[Seq[Alarm]] {
@@ -418,7 +434,7 @@ object JsonFormatters {
       Json.obj(
         "name" -> o.getName,
         "id" -> o.getUuid.getValue,
-        "pointType" -> o.getPointType.name,
+        "pointType" -> o.getPointType.name, // ANALOG, COUNTER, STATUS
         "types" -> o.getTypesList.toList,
         "unit" -> o.getUnit,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName

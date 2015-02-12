@@ -21,10 +21,11 @@ package io.greenbus.web.websocket
 import akka.actor._
 import akka.util.Timeout
 import com.google.protobuf.GeneratedMessage
+import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
-import org.totalgrid.reef.client.service.MeasurementService
+import org.totalgrid.reef.client.service.{EventService, MeasurementService}
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
-import org.totalgrid.reef.client.service.proto.Events.Alarm
+import org.totalgrid.reef.client.service.proto.Events.{Alarm,AlarmNotification, Event, EventNotification}
 import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointSubscriptionQuery
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 import org.totalgrid.reef.client.service.proto.Measurements
@@ -43,6 +44,7 @@ import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
+import scala.reflect.runtime.universe._
 
 // for postfix 'seconds'
 
@@ -63,15 +65,39 @@ object WebSocketPushActor {
 
   implicit val timeout = Timeout(1 second)
 
-  trait Subscribe {
-    val id: String
+  sealed trait Subscribe {
+    val subscriptionId: String
   }
-  case class SubscribeToMeasurements( override val id: String, pointIds: Seq[String]) extends Subscribe
-  case class SubscribeToMeasurementHistory( override val id: String, pointUuid: String, timeFrom: Long, limit: Int) extends Subscribe
-  case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
-  //case class SubscribeToEvents( override val id: String, filter: EventSelect) extends Subscribe
-  case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
-  case class SubscribeToEndpoints( override val id: String, endpointIds: Seq[String]) extends Subscribe
+  case class SubscribeToMeasurements( override val subscriptionId: String, pointIds: Seq[String]) extends Subscribe
+  case class SubscribeToMeasurementHistory( override val subscriptionId: String, pointUuid: String, timeFrom: Long, limit: Int) extends Subscribe
+//  case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
+//  case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
+  case class SubscribeToEndpoints( override val subscriptionId: String, endpointIds: Seq[String]) extends Subscribe
+  case class SubscribeToEvents( override val subscriptionId: String,
+                                agents: Option[Seq[String]],      // defined in model
+                                activeAlarms: Option[Boolean],    // t: don't want alarm REMOVED events with initial results.
+                                alarmsOnly: Option[Boolean],      // t: just alarms
+                                alarmStates: Option[Seq[String]], // UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED, REMOVED
+                                eventTypes: Option[Seq[String]],  // defined in model
+                                severities: Option[Seq[Int]],     // default is 1-8
+                                subsystems: Option[Seq[String]],  // defined in model
+                                limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
+                              ) extends Subscribe
+  object SubscribeToEvents {
+    implicit val writer = Json.writes[SubscribeToEvents]
+    implicit val reader = Json.reads[SubscribeToEvents]
+  }
+
+  sealed trait SubscribeResult
+  case class SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) extends SubscribeResult
+  case class SubscribeToEventsSuccess( subscriptionId: String, subscription: Subscription[EventNotification], result: Seq[Event]) extends SubscribeResult
+  case class SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) extends SubscribeResult
+  case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
+  case class SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], result: PointMeasurementValues, timer: Timer) extends SubscribeResult
+  case class SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) extends SubscribeResult
+  case class SubscribeFailure( subscriptionId: String, subscribeType: String, subscribeAsString: String, queryAsString: String, throwable: Throwable) extends SubscribeResult
+  def makeSubscribeFailure( subscribe: Subscribe, query: String, throwable: Throwable) =
+    SubscribeFailure( subscribe.subscriptionId, subscribe.getClass.getSimpleName, subscribe.toString, query, throwable)
 
   case class Unsubscribe( id: String)
   case class MessageError( message: String, error: JsError)
@@ -93,16 +119,16 @@ object WebSocketPushActor {
       (__ \ "limit").read[Int]
     )(SubscribeToMeasurementHistory)
 
-  implicit val subscribeToActiveAlarmsReads = (
-    (__ \ "subscriptionId").read[String] and
-      (__ \ "limit").read[Int]
-    )(SubscribeToActiveAlarms)
-
-  implicit val subscribeToRecentEventsReads = (
-    (__ \ "subscriptionId").read[String] and
-      (__ \ "eventTypes").read[Seq[String]] and
-      (__ \ "limit").read[Int]
-    )(SubscribeToRecentEvents)
+//  implicit val subscribeToActiveAlarmsReads = (
+//    (__ \ "subscriptionId").read[String] and
+//      (__ \ "limit").read[Int]
+//    )(SubscribeToActiveAlarms)
+//
+//  implicit val subscribeToRecentEventsReads = (
+//    (__ \ "subscriptionId").read[String] and
+//      (__ \ "eventTypes").read[Seq[String]] and
+//      (__ \ "limit").read[Int]
+//    )(SubscribeToRecentEvents)
 
   implicit val subscribeToEndpointsReads = (
     (__ \ "subscriptionId").read[String] and
@@ -125,14 +151,28 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   import WebSocketPushActor._
   import JsonPushFormatters._
 
-  var clientStatus = initialClientStatus
-  var session : Option[Session] = Some( initialSession)
+  private var clientStatus = initialClientStatus
+  private var session : Option[Session] = Some( initialSession)
   //var service : Option[AllScadaService] = session.map( _.getService(classOf[AllScadaService]))
 
-  val pushChannel = aPushChannel
+  private val pushChannel = aPushChannel
 
-  var subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
-  var scheduleIdsMap = Map.empty[String, Cancellable]
+  // Map of client subscriptionId to totalgrid.msg.SubscriptionBindings
+  // subscribeToEvents is two subscriptions, so we need a Seq.
+  //
+  private var subscriptionIdsMap = Map.empty[String, Seq[SubscriptionBinding]]
+
+  // Map of client subscriptionIds that are awaiting SubscriptionBindings.
+  // subscribeToEvents uses two SubscriptionBindings, so we start with a count of 2.
+  // When the count is 0, we ...
+  //
+  private var subscriptionIdToPendingSubscribeResultsCount = Map.empty[String, Int]
+
+
+  // If debugging, debugGenerateMeasurementsForFastSubscription has a scheduler that needs to be cancelled.
+  //
+  private var debugScheduleIdsMap = Map.empty[String, Cancellable]
+
 
   override def preStart() {
     if( session.isDefined) {
@@ -149,7 +189,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
         Logger.debug( "receive.UpdateConnection session.isDefined context.become( receiveWithConnection)")
         context.become( receiveWithConnection)
       }
-    case subscribe: Subscribe => pushError( subscribe, "No Reef session.")
+    case subscribe: Subscribe => subscribeFailure( makeSubscribeFailure( subscribe, "", new Exception( "No GreenBus connection")))
     case Unsubscribe( id) => cancelSubscription( id)
     case Quit => quit
     case MessageError( message, jsError) => pushJsError( message, jsError)
@@ -167,10 +207,27 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       }
 
     case subscribe: SubscribeToMeasurements => subscribeToMeasurements( subscribe)
-    case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementsHistory( subscribe)
-    case subscribe: SubscribeToActiveAlarms => subscribeToActiveAlarms( subscribe)
-    case subscribe: SubscribeToRecentEvents => subscribeToRecentEvents( subscribe)
+    case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementHistoryPart1( subscribe)
+//    case subscribe: SubscribeToActiveAlarms => subscribeToActiveAlarms( subscribe)
+//    case subscribe: SubscribeToRecentEvents => subscribeToRecentEvents( subscribe)
+    case subscribe: SubscribeToEvents => subscribeToEvents( subscribe)
     case subscribe: SubscribeToEndpoints => subscribeToEndpoints( subscribe)
+
+    case SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) =>
+      subscribeSuccess( subscriptionId, subscription, result, alarmSeqPushWrites, alarmNotificationPushWrites)
+    case SubscribeToEventsSuccess( subscriptionId: String, subscription: Subscription[EventNotification], result: Seq[Event]) =>
+      subscribeSuccess( subscriptionId, subscription, result, eventSeqPushWrites, eventNotificationPushWrites)
+    case SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) =>
+      subscribeSuccess( subscriptionId, subscription, result, pointMeasurementsPushWrites, pointMeasurementNotificationPushWrites)
+    case SubscribeToMeasurementHistoryPart1Success(subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) =>
+      subscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, result, timer)
+    case SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], pointMeasurements: PointMeasurementValues, timer: Timer) =>
+      subscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
+    case SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) =>
+      subscribeToEndpointsSuccess( subscriptionId, subscription, result, endpointWithCommsSeqPushWrites, endpointWithCommsNotificationPushWrites)
+
+    case failure: SubscribeFailure => subscribeFailure( failure)
+
     case Unsubscribe( id) => cancelSubscription( id)
     case MessageError( message, jsError) => pushJsError( message, jsError)
     case UnknownMessage( messageName) => unknownMessage( messageName)
@@ -186,7 +243,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     // TODO: session is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef session.
   }
 
-  def unknownMessage( messageName: String) = {
+  private def unknownMessage( messageName: String) = {
     Logger.info( "WebSocketPushActor receive UnknownMessage: " + messageName)
     pushChannel.push( JsObject(
       Seq(
@@ -195,7 +252,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     ))
   }
 
-  def pushJsError( message: String, error: JsError) {
+  private def pushJsError( message: String, error: JsError) {
     val errorMessage = "Message of type: '" + message + "' was invalid."
     val jsError = JsError.toFlatJson( error)
     Logger.warn( "WebSocketPushActor JsError: " + errorMessage + ", " + jsError)
@@ -207,8 +264,10 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     )
   }
 
-  def pushError( message: Subscribe, error: String) {
-    val errorMessage = message.getClass.getSimpleName + " with id: "+ message.id +" returned " + error
+  private def subscribeFailure( failure: SubscribeFailure): Unit = {
+    val errorMessage = s"${failure.subscribeAsString} returned ${failure.throwable}"
+    Logger.error( s"subscribeFailure: $errorMessage")
+    decrementPendingSubscriptionCount( failure.subscriptionId)
     pushChannel.push(
       Json.obj(
         "error" -> errorMessage
@@ -223,110 +282,206 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     context.parent ! ChildActorStop( self)
   }
 
-  def subscriptionHandler[T <: GeneratedMessage]( result: SubscriptionResult[List[T],T], subscriptionId: String, pushWrites: PushWrites[T]): Subscription[T] = {
-    Logger.info( "subscriptionHandler subscriptionId: " + subscriptionId + ", result.length: " + result.result.length)
-
-    // Push immediate subscription result.
-    // Push in reverse order so the newest are pushed last.
-    result.result.reverse.map( m =>
-      pushChannel.push( pushWrites.writes( subscriptionId, m))
-    )
-
-    // Push subscription results as they come in.
-    val subscription = result.subscription
-//    subscription.start(new SubscriptionEventAcceptor[T] {
-//      def onEvent(event: SubscriptionEvent[T]) {
-//        pushChannel.push( pushWrites.writes( subscriptionId, event.getValue))
-//      }
-//    })
-    subscription
+  /**
+   * We're keeping count of pending subscriptions. Decrement the count. Remove
+   * @param subscriptionId
+   * @param count
+   */
+  private def setPendingSubscriptionCount( subscriptionId: String, count: Int) = {
+    subscriptionIdToPendingSubscribeResultsCount += (subscriptionId -> count)
   }
 
-  def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
+
+  /**
+   * We're keeping count of pending subscriptions. Decrement the count and return the original value. 
+   * @param subscriptionId
+   */
+  private def decrementPendingSubscriptionCount( subscriptionId: String): Int = {
+    subscriptionIdToPendingSubscribeResultsCount.get( subscriptionId) match {
+      case Some( count) =>
+        if( count > 1)
+          subscriptionIdToPendingSubscribeResultsCount += (subscriptionId -> (count - 1))
+        else {
+          subscriptionIdToPendingSubscribeResultsCount -= subscriptionId
+        }
+        count
+      case None =>
+        0
+    }
+  }
+
+  private def registerSuccessfulSubscription( subscriptionId: String, subscription: SubscriptionBinding) = {
+    val bindings = subscriptionIdsMap.getOrElse( subscriptionId, Seq[SubscriptionBinding]()) :+ subscription
+    subscriptionIdsMap += ( subscriptionId -> bindings)
+  }
+
+
+  private def subscribeSuccess[R <: GeneratedMessage, M <: GeneratedMessage]( subscriptionId: String,
+                                                                       subscription: Subscription[M],
+                                                                       result: Seq[R],
+                                                                       pushResults: PushWrites[Seq[R]],
+                                                                       pushMessage: PushWrites[M]) = {
+    Logger.info( "subscribeSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
+    
+    decrementPendingSubscriptionCount( subscriptionId) match {
+      case 0 =>
+        // There was no pending subscription, so it must have already been canceled by
+        // the client before we got all of the subscribe success messages from Reef.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        cancelSubscription( subscriptionId)
+      case _ =>
+        registerSuccessfulSubscription( subscriptionId, subscription)
+
+        // Push immediate subscription result.
+        pushChannel.push( pushResults.writes( subscriptionId, result))
+        subscription.start { m =>
+          pushChannel.push( pushMessage.writes( subscriptionId, m))
+        }
+    }
+  }
+
+  private def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
     val service = serviceFactory.measurementService( session.get)
-    Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.id)
+    Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.subscriptionId)
 
     val uuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
     val result = service.getCurrentValuesAndSubscribe( uuids)
 
     result onSuccess {
       case (measurements, subscription) =>
-        pushChannel.push( pointMeasurementsPushWrites.writes( subscribe.id, measurements))
-        subscription.start { m =>
-          pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
-        }
-        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+        self ! SubscribeToMeasurementsSuccess( subscribe.subscriptionId, subscription, measurements)
     }
     result onFailure {
-      case f => Logger.error( "WebSocketPushActor.subscribeToMeasurements.onFailure " + f)
-      pushError( subscribe, "Failure: " + f)
+      case f => self ! makeSubscribeFailure( subscribe,  uuids.mkString(","), f)
     }
   }
 
-  def subscribeToEndpoints( subscribe: SubscribeToEndpoints) = {
+  private def subscribeToEndpoints( subscribe: SubscribeToEndpoints) = {
     val service = serviceFactory.frontEndService( session.get)
-    Logger.debug( "WebSocketPushActor.subscribeToEndpoints " + subscribe.id)
+    Logger.debug( "WebSocketPushActor.subscribeToEndpoints " + subscribe.subscriptionId)
 
     val uuids = subscribe.endpointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
     val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
     val result = service.subscribeToEndpointWithComms( query.build)
 
     result onSuccess {
       case (endointsWithComms, subscription) =>
-        pushChannel.push( endpointWithCommsSeqPushWrites.writes( subscribe.id, endointsWithComms))
-        subscription.start { m =>
-          pushChannel.push( endpointWithCommsNotificationPushWrites.writes( subscribe.id, m))
-        }
-        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+        self ! SubscribeToEndpointsSuccess( subscribe.subscriptionId, subscription, endointsWithComms)
     }
     result onFailure {
-      case f => Logger.error( "WebSocketPushActor.subscribeToEndpointStatus.onFailure " + f)
-      pushError( subscribe, "Failure: " + f)
+      case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+    }
+  }
+  private def subscribeToEndpointsSuccess( subscriptionId: String,
+                                            subscription: Subscription[EndpointWithCommsNotification],
+                                            result: Seq[EndpointWithComms],
+                                            pushResults: PushWrites[Seq[EndpointWithComms]],
+                                            pushMessage: PushWrites[EndpointWithCommsNotification]) = {
+    Logger.info( "subscribeSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
+
+    decrementPendingSubscriptionCount( subscriptionId) match {
+      case 0 =>
+        // There was no pending subscription, so it must have already been canceled by
+        // the client before we got all of the subscribe success messages from Reef.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        cancelSubscription( subscriptionId)
+      case _ =>
+        registerSuccessfulSubscription( subscriptionId, subscription)
+
+        // Push immediate subscription result.
+        pushChannel.push( pushResults.writes( subscriptionId, result))
+        subscription.start { m =>
+          pushChannel.push( pushMessage.writes( subscriptionId, m))
+        }
     }
   }
 
-  def subscribeToMeasurementsHistory( subscribe: SubscribeToMeasurementHistory) = {
+
+  private def subscribeToMeasurementHistoryPart1( subscribe: SubscribeToMeasurementHistory) = {
     val timer = new Timer( "subscribeToMeasurementsHistory")
     val service = serviceFactory.measurementService( session.get)
-    Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.id)
+    Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
     val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
     timer.delta( "initialized service and uuid")
 
-    val result = service.getCurrentValuesAndSubscribe( Seq( pointReefId))
+    val points = Seq( pointReefId)
+    // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
+    // we can start the subscription.
+    //
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    val result = service.getCurrentValuesAndSubscribe( points)
     result onSuccess {
       case (measurements, subscription) =>
         timer.delta( "onSuccess 1")
-        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.id + ", measurements.length " + measurements.length)
-        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
-        if( measurements.nonEmpty)
-          subscribeToMeasurementsHistoryPart2( subscribe, service, subscription, pointReefId, measurements.head, timer)
+        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.subscriptionId + ", measurements.length " + measurements.length)
+        self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, measurements, timer)
+    }
+    result onFailure {
+      case f =>
+        timer.end( "failure")
+        self ! makeSubscribeFailure( subscribe,  points.mkString(","), f)
+    }
+
+  }
+
+  private def subscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory,
+                                                          pointReefId: ReefUUID,
+                                                          subscription: Subscription[MeasurementNotification],
+                                                          measurements: Seq[PointMeasurementValue],
+                                                          timer: Timer) = {
+    Logger.info( "subscribeToMeasurementHistorySuccess subscriptionId: " + subscribe.subscriptionId + ", result.length: " +  measurements.length)
+
+    decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
+      case 0 =>
+        // There was no pending subscription, so it must have already been canceled by
+        // the client before we got this subscribe success message from Reef.
+      case _ =>
+
+        if( measurements.nonEmpty) {
+          subscribeToMeasurementsHistoryPart2( subscribe, pointReefId, subscription, measurements.head, timer)
+        }
         else {
+          registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
           // Point has never had a measurement. Start subscription for new measurements.
           subscription.start { m =>
-            pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
+            pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m))
           }
           timer.end( "no current measurement, just subscription")
         }
     }
-    result onFailure {
-      case f =>
-        Logger.error( "WebSocketPushActor.subscribeToMeasurementsHistory.onFailure " + f)
-        pushError( subscribe, "Failure: " + f)
-    }
-
   }
 
-  def thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime: Long, subscribeTimeFrom: Long) = subscribeTimeFrom < currentMeasurementTime
+  private def thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime: Long, subscribeTimeFrom: Long) = subscribeTimeFrom < currentMeasurementTime
   val DebugSimulateLotsOfMeasurements = false
 
-  def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
-                                           service: MeasurementService,
-                                           subscription: Subscription[MeasurementNotification],
-                                           pointReefId: ReefUUID,
-                                           currentMeasurement: PointMeasurementValue,
-                                           timer: Timer) = {
+  /**
+   * In part one, we asked to subscribe to measurements for one point.
+   * In part two, we're going to get the history for the point, then start the subscription.
+   *
+   * @param subscribe
+   * @param pointReefId
+   * @param subscription
+   * @param currentMeasurement
+   * @param timer
+   */
+  private def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
+                                                   pointReefId: ReefUUID,
+                                                   subscription: Subscription[MeasurementNotification],
+                                                   currentMeasurement: PointMeasurementValue,
+                                                   timer: Timer) = {
+
+    // What we know:
+    // - The subscription hasn't been canceled yet.
+    // - We have a current measurement
+    //
+    // - We have a valid subscription object, but haven't started it yet.
+    // - We've already removed the pending subscription.
+    //
 
     val currentMeasurementTime = currentMeasurement.getValue.getTime
+    val service = serviceFactory.measurementService( session.get)
 
     if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
 
@@ -339,38 +494,18 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
         .build
       // problem with limit reached on messages having the same millisecond.
 
-      Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2 " + subscribe.id)
-
-      timer.delta( "Part2 service.getHistory call")
+      timer.delta( "Part2 service.getHistory call " + subscribe.subscriptionId)
+      setPendingSubscriptionCount( subscribe.subscriptionId, 1)
       val result = service.getHistory( query)
       result onSuccess {
         case pointMeasurements =>
-          timer.delta( "Part2 service.getHistory onSuccess")
-          Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.id)
-          // History will include the current measurement we already received.
-          // How will we know if the limit is reach. Currently, just seeing the returned number == limit
-          if( DebugSimulateLotsOfMeasurements) {
-            val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
-            Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
-            val pmv = PointMeasurementValues.newBuilder()
-            .setPointUuid( pointReefId)
-            .addAllValue( measurements)
-            pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pmv.build()))
-            debugGenerateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
-          } else {
-            pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pointMeasurements))
-            subscription.start { m =>
-              pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.id, m))
-            }
-          }
-          timer.end( "service.getHistory onSuccess end")
+          timer.delta( "Part2 service.getHistory onSuccess " + subscribe.subscriptionId)
+          self ! SubscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
       }
       result onFailure {
         case f =>
-          timer.delta( "Part2 service.getHistory onFailure")
-          Logger.error( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.onFailure " + f)
-          pushError( subscribe, "Failure: " + f)
-          timer.end( "Part2 service.getHistory onFailure")
+          self ! makeSubscribeFailure( subscribe,  query.toString, f)
+          timer.end( "Part2 service.getHistory onFailure " + subscribe.subscriptionId)
       }
       
     } else {
@@ -378,20 +513,22 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       timer.delta( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
 
       if( DebugSimulateLotsOfMeasurements) {
-        val measurements = debugGenerateMeasurementsBefore( currentMeasurement, 4000)
+        val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
         Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
+        val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
         val pmv = PointMeasurementValues.newBuilder()
           .setPointUuid( pointReefId)
           .addAllValue( measurements)
-        pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.id, pmv.build()))
-        debugGenerateMeasurementsForFastSubscription( subscribe.id, pointReefId, currentMeasurement)
+        pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build()))
+        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement.getValue)
       } else {
         // Current measurement is older than the time window of measurement history query so
         // no need to get history.
         // Just send current point with measurement.
-        pushChannel.push(pointMeasurementPushWrites.writes(subscribe.id, currentMeasurement))
+        registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
+        pushChannel.push(pointMeasurementPushWrites.writes(subscribe.subscriptionId, currentMeasurement))
         subscription.start { m =>
-          pushChannel.push(pointMeasurementNotificationPushWrites.writes(subscribe.id, m))
+          pushChannel.push(pointMeasurementNotificationPushWrites.writes(subscribe.subscriptionId, m))
         }
       }
       timer.end( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
@@ -399,11 +536,51 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
   }
 
-  val QualityGood = Measurements.Quality.newBuilder()
+  private def subscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory,
+                                                         subscription: Subscription[MeasurementNotification],
+                                                         pointMeasurements: PointMeasurementValues,
+                                                         timer: Timer) = {
+    Logger.info( "subscribeToMeasurementHistorySuccess subscriptionId: " + subscribe.subscriptionId + ", result.length: " +  pointMeasurements.getValueCount)
+
+    decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
+      case 0 =>
+        // There was no pending subscription, so it must have already been canceled by
+        // the client before we got this subscribe success message from Reef.
+        timer.end( "part2Success subscription was already canceled")
+      case _ =>
+
+        Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.subscriptionId)
+        // History will include the current measurement we already received.
+        // How will we know if the limit is reach. Currently, just seeing the returned number == limit
+        if( DebugSimulateLotsOfMeasurements) {
+          val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
+          val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
+          Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
+          val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+          val pmv = PointMeasurementValues.newBuilder()
+            .setPointUuid( pointReefId)
+            .addAllValue( measurements)
+          pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build()))
+          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement)
+        } else {
+          registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
+          pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pointMeasurements))
+          subscription.start { m =>
+            pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m))
+          }
+        }
+        timer.end( "part2Success")
+    }
+  }
+
+
+
+
+  private val QualityGood = Measurements.Quality.newBuilder()
     .setValidity( Measurements.Quality.Validity.GOOD)
     .setSource(Measurements.Quality.Source.PROCESS)
 
-  def debugGenerateMeasurement( value: Double, time: Long): Measurement = {
+  private def debugGenerateMeasurement( value: Double, time: Long): Measurement = {
     Measurement.newBuilder()
       .setType( Measurements.Measurement.Type.DOUBLE)
       .setDoubleVal( value)
@@ -412,9 +589,9 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       .build()
   }
 
-  def debugGenerateMeasurementsBefore( currentMeasurement: PointMeasurementValue, count: Int): IndexedSeq[Measurement] = {
-    var time = currentMeasurement.getValue.getTime - (1000 * count) - 1000
-    var value = currentMeasurement.getValue.getDoubleVal
+  private def debugGenerateMeasurementsBefore( currentMeasurement: Measurement, count: Int): IndexedSeq[Measurement] = {
+    var time = currentMeasurement.getTime - (1000 * count) - 1000
+    var value = currentMeasurement.getDoubleVal
     for( i <- 1 to count) yield {
       time += 1000;
       value += Math.random() * 2.0 - 1.0
@@ -422,14 +599,14 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     }
   }
 
-  def debugGenerateMeasurementsForFastSubscription(subscribeId: String,
+  private def debugGenerateMeasurementsForFastSubscription(subscribeId: String,
                                               pointReefId: ReefUUID,
-                                              currentMeasurement: PointMeasurementValue) = {
+                                              currentMeasurement: Measurement) = {
     import play.api.Play.current
     import play.api.libs.concurrent.Akka
 
-    var time = currentMeasurement.getValue.getTime
-    var value = currentMeasurement.getValue.getDoubleVal
+    var time = currentMeasurement.getTime
+    var value = currentMeasurement.getDoubleVal
     val r = new Random();
 
 
@@ -448,82 +625,182 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       pushChannel.push( pointMeasurementNotificationPushWrites.writes( subscribeId, measNotify))
     }
 
-    scheduleIdsMap = scheduleIdsMap + (subscribeId -> cancellable)
+    debugScheduleIdsMap = debugScheduleIdsMap + (subscribeId -> cancellable)
 
 
 
   }
 
-  def subscribeToActiveAlarms( subscribe: SubscribeToActiveAlarms) = {
-    Logger.debug( "WebSocketPushActor.subscribeToRecentAlarms " + subscribe.id)
-    val timer = new Timer( "WebSocketPushActor.subscribeToRecentAlarms")
-    val service = serviceFactory.eventService( session.get)
+  private def makeEventQuery( subscribe: SubscribeToEvents ) = {
     val eventQuery = EventSubscriptionQuery.newBuilder
+
+    subscribe.agents.foreach( eventQuery.addAllAgent( _))
+    subscribe.eventTypes.foreach( eventQuery.addAllEventType( _))
+    subscribe.severities.foreach{ severities =>
+      val severityIntegers = severities.map( i => new java.lang.Integer( i))
+      eventQuery.addAllSeverity( severityIntegers)
+    }
+    subscribe.subsystems.foreach( eventQuery.addAllSubsystem( _))
+    subscribe.limit.foreach( eventQuery.setLimit( _))
+    eventQuery
+  }
+
+  private def makeAlarmQuery( subscribe: SubscribeToEvents, eventQuery: EventSubscriptionQuery) = {
     val alarmQuery = AlarmSubscriptionQuery.newBuilder
-      .setEventQuery( eventQuery.build)
-    val result = service.subscribeToAlarms( alarmQuery.build)
+      .setEventQuery( eventQuery)
+
+    subscribe.alarmStates.foreach{ states =>
+      var s = Seq[Alarm.State]()
+      states.foreach {
+          case "UNACK_AUDIBLE" => s = s :+ Alarm.State.UNACK_AUDIBLE
+          case "UNACK_SILENT" => s = s :+ Alarm.State.UNACK_SILENT
+          case "ACKNOWLEDGED" => s = s :+ Alarm.State.ACKNOWLEDGED
+          case "REMOVED" => s = s :+ Alarm.State.REMOVED
+          case _ =>
+
+      }
+      alarmQuery.addAllAlarmStates( s)
+    }
+    alarmQuery
+  }
+
+  /**
+   * Subscribe to events and throw away alarms.
+   * Subscribe to alarms. Need to send the removes if also want events.
+   * Subscribe to current alarms, don't send the initial removes.
+   * Filtering:  alarm - state
+   * Filtering: event - eventType, severity, agent, subsystem, message
+   *
+   * Paging: GET: receive last event and last alarm; go from there.
+   * Toggle: Live vs History
+   */
+  private def subscribeToEvents( subscribe: SubscribeToEvents) = {
+    Logger.debug( "WebSocketPushActor.subscribeToEvents " + subscribe.subscriptionId)
+    val timer = new Timer( "WebSocketPushActor.subscribeToEvents")
+    val service = serviceFactory.eventService( session.get)
+    val eventQuery = makeEventQuery( subscribe).build()
+
+    if( ! subscribe.alarmsOnly.getOrElse(false)) {
+      setPendingSubscriptionCount( subscribe.subscriptionId, 2)
+      subscribeToEventsWithQuery( subscribe, service, eventQuery)
+    }
+    else
+      setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+
+    val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
+    val result = service.subscribeToAlarms( alarmQuery)
 
     result onSuccess {
       case (alarms, subscription) =>
-        // We subscribe to all alarm states so we get the "REMOVED" updates; however, for the initial
-        // batch, we don't want any REMOVED alarms.
-        val activeAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
-        timer.end( s"onSuccess activeAlarms.length=${activeAlarms.length}")
-        pushChannel.push( alarmSeqPushWrites.writes( subscribe.id, activeAlarms.reverse))
-        subscription.start { alarmNotification =>
-          pushChannel.push( alarmPushWrites.writes( subscribe.id, alarmNotification.getValue))
+        // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
+        //  for the initial batch, we don't want any REMOVED alarms.
+        val filteredAlarms = subscribe.activeAlarms.getOrElse( false) match {
+          case true => alarms.filter( _.getState != Alarm.State.REMOVED)
+          case false => alarms
         }
-        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+        self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
+        timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
     }
     result onFailure {
-      case f => Logger.error( "WebSocketPushActor.subscribeToRecentAlarms.onFailure " + f)
-        pushError( subscribe, "Failure: " + f)
+      case f =>
+        self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
+        timer.end( "failure")
     }
-
   }
 
-  def subscribeToRecentEvents( subscribe: SubscribeToRecentEvents) = {
-    Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
+
+  private def subscribeToEventsWithQuery( subscribe: Subscribe, service: EventService, query: EventSubscriptionQuery) = {
+    Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.subscriptionId)
     val timer = new Timer( "WebSocketPushActor.subscribeToRecentEvents")
-    val service = serviceFactory.eventService( session.get)
-    val query = EventSubscriptionQuery.newBuilder
-      .addAllEventType(subscribe.eventTypes.toList)
-      .setLimit( subscribe.limit)
-    val result = service.subscribeToEvents( query.build)
+    val result = service.subscribeToEvents( query)
 
     result onSuccess {
       case (events, subscription) =>
         timer.end( s"onSuccess events.length=${events.length}")
-        pushChannel.push( eventSeqPushWrites.writes( subscribe.id, events.reverse))
-        subscription.start { eventNotification =>
-          pushChannel.push( eventPushWrites.writes( subscribe.id, eventNotification.getValue))
-        }
-        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> subscription)
+        self ! SubscribeToEventsSuccess( subscribe.subscriptionId, subscription, events.reverse)
     }
     result onFailure {
-      case f => Logger.error( "WebSocketPushActor.subscribeToRecentEvents.onFailure " + f)
-        pushError( subscribe, "Failure: " + f)
+      case f =>
+        self ! makeSubscribeFailure( subscribe,  query.toString, f)
+        timer.end( "onFailure")
     }
 
   }
+
+//  private def subscribeToActiveAlarms( subscribe: SubscribeToActiveAlarms) = {
+//    Logger.debug( "WebSocketPushActor.subscribeToRecentAlarms " + subscribe.id)
+//    val timer = new Timer( "WebSocketPushActor.subscribeToRecentAlarms")
+//    val service = serviceFactory.eventService( session.get)
+//    val eventQuery = EventSubscriptionQuery.newBuilder
+//    val alarmQuery = AlarmSubscriptionQuery.newBuilder
+//      .setEventQuery( eventQuery.build)
+//    val result = service.subscribeToAlarms( alarmQuery.build)
+//
+//    setPendingSubscriptionCount( subscribe.id, 2)
+//
+//    result onSuccess {
+//      case (alarms, subscription) =>
+//        // We subscribe to all alarm states so we get the "REMOVED" updates; however, for the initial
+//        // batch, we don't want any REMOVED alarms.
+//        val activeAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
+//        timer.end( s"onSuccess activeAlarms.length=${activeAlarms.length}")
+//        self ! SubscribeToAlarmsSuccess( subscribe.id, subscription, activeAlarms)
+//    }
+//    result onFailure {
+//      case f =>
+//        self ! makeSubscribeFailure( subscribe,  alarmQuery.toString, f)
+//        timer.end( "onFailure")
+//    }
+//
+//  }
+//
+//  private def subscribeToRecentEvents( subscribe: SubscribeToRecentEvents) = {
+//    Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.id)
+//    val timer = new Timer( "WebSocketPushActor.subscribeToRecentEvents")
+//    val service = serviceFactory.eventService( session.get)
+//    val query = EventSubscriptionQuery.newBuilder
+//      .addAllEventType(subscribe.eventTypes.toList)
+//      .setLimit( subscribe.limit)
+//    val result = service.subscribeToEvents( query.build)
+//
+//    setPendingSubscriptionCount( subscribe.id, 1)
+//
+//    result onSuccess {
+//      case (events, subscription) =>
+//        timer.end( s"onSuccess events.length=${events.length}")
+//        pushChannel.push( eventSeqPushWrites.writes( subscribe.id, events.reverse))
+//        subscription.start { eventNotification =>
+//          pushChannel.push( eventPushWrites.writes( subscribe.id, eventNotification.getValue))
+//        }
+//        subscriptionIdsMap = subscriptionIdsMap + (subscribe.id -> Seq(subscription))
+//    }
+//    result onFailure {
+//      case f =>
+//        self ! makeSubscribeFailure( subscribe, query.toString, f)
+//        timer.end( "onFailure")
+//    }
+//
+//  }
 
   private def cancelAllSubscriptions = {
     Logger.info( "WebSocketPushActor.cancelAllSubscriptions: Cancelling " + subscriptionIdsMap.size + " subscriptions.")
-    subscriptionIdsMap.foreach{ case (subscriptionName, subscription) => subscription.cancel }
-    subscriptionIdsMap = Map.empty[String, SubscriptionBinding]
+    subscriptionIdsMap.foreach{ case (subscriptionName, subscriptions) =>
+      subscriptions.foreach{ case subscription =>  subscription.cancel}
+    }
+    subscriptionIdsMap = Map.empty[String, Seq[SubscriptionBinding]]
   }
 
   private def cancelSubscription( id: String) = {
-    Logger.info( "WebSocketPushActor receive Unsubscribe " + id)
-    subscriptionIdsMap.get(id) foreach { subscription =>
+    Logger.info( "WebSocketPushActor cancelSubscription " + id)
+    subscriptionIdsMap.get(id) foreach { subscriptions =>
       Logger.info( "WebSocketPushActor canceling subscription " + id)
-      subscription.cancel()
-      subscriptionIdsMap = subscriptionIdsMap - id
+      subscriptions.foreach( _.cancel)
+      subscriptionIdsMap -= id
     }
-    scheduleIdsMap.get(id) foreach { subscription =>
+    debugScheduleIdsMap.get(id) foreach { subscription =>
       Logger.info( "WebSocketPushActor canceling schedule " + id)
       subscription.cancel()
-      subscriptionIdsMap = subscriptionIdsMap - id
+      subscriptionIdsMap -= id
     }
   }
 }

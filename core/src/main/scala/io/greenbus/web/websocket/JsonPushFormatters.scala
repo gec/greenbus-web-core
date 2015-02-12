@@ -61,11 +61,13 @@ object JsonPushFormatters {
   lazy val pointMeasurementNotificationPushWrites = new PushWrites( "measurements", pointMeasurementNotificationWrites)
 
   lazy val eventPushWrites = new PushWrites( "event", eventWrites)
+  lazy val eventNotificationPushWrites = new PushWrites( "event", eventNotificationWrites)
 
-  lazy val eventSeqPushWrites = new PushWrites( "event", eventSeqWrites)
+  lazy val eventSeqPushWrites = new PushWrites( "events", eventSeqWrites)
 
   lazy val alarmPushWrites = new PushWrites( "alarm", alarmWrites)
-  lazy val alarmSeqPushWrites = new PushWrites( "alarm", alarmSeqWrites)
+  lazy val alarmNotificationPushWrites = new PushWrites( "alarm", alarmNotificationWrites)
+  lazy val alarmSeqPushWrites = new PushWrites( "alarms", alarmSeqWrites)
   lazy val equipmentWithPointsPushWrites = new PushWrites( "equipmentWithPoints", equipmentWithPointsWrites)
   lazy val frontEndConnectionStatusPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusWrites)
   lazy val frontEndConnectionStatusNotificationPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusNotificationWrites)

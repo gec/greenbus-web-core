@@ -57,15 +57,15 @@ object WebSocketConsumerImpl extends WebSocketConsumer {
             .map( request => pushActor ! request)
             .recoverTotal(  jsError => pushActor ! MessageError( "subscribeToMeasurementHistory", jsError))
 
-        case "subscribeToActiveAlarms" =>
-          subscribeToActiveAlarmsReads.reads( data)
-            .map( request => pushActor ! request)
-            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToActiveAlarms", jsError))
+//        case "subscribeToActiveAlarms" =>
+//          subscribeToActiveAlarmsReads.reads( data)
+//            .map( request => pushActor ! request)
+//            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToActiveAlarms", jsError))
 
-        case "subscribeToRecentEvents" =>
-          subscribeToRecentEventsReads.reads( data)
+        case "subscribeToEvents" =>
+          SubscribeToEvents.reader.reads( data)
             .map( request => pushActor ! request)
-            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToRecentEvents", jsError))
+            .recoverTotal( jsError => pushActor ! MessageError( "subscribeToEvents", jsError))
 
         case "subscribeToEndpoints" =>
           subscribeToEndpointsReads.reads( data)
