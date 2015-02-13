@@ -4,7 +4,7 @@ import org.totalgrid.msg.{Subscription, Session}
 import play.api.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
-import org.totalgrid.reef.client.service.EntityService
+import org.totalgrid.reef.client.service.ModelService
 
 object SessionMock {
   val session = new SessionMock
@@ -14,7 +14,7 @@ object SessionMock {
   var response: Array[Byte] = null
   var subscription: Subscription[Array[Byte]] = null
 
-  val entityServiceMock = new EntityServiceMock
+  val modelServiceMock = new ModelServiceMock
 }
 /**
  *

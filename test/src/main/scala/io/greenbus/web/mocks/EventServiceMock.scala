@@ -29,7 +29,7 @@ object EventServiceMock {
   def makeEvent( id: ReefID, severity: Int, alarm: Boolean): Event = {
     Event.newBuilder
       .setId( id)
-      .setAgent( "agent")
+      .setAgentName( "agent")
       .setAlarm( alarm)
       .setSeverity( severity)
       .setTime( 1)

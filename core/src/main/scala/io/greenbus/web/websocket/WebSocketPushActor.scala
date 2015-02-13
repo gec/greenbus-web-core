@@ -23,10 +23,10 @@ import akka.util.Timeout
 import com.google.protobuf.GeneratedMessage
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
+import org.totalgrid.reef.client.service.proto.ModelRequests.EndpointSubscriptionQuery
 import org.totalgrid.reef.client.service.{EventService, MeasurementService}
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
 import org.totalgrid.reef.client.service.proto.Events.{Alarm,AlarmNotification, Event, EventNotification}
-import org.totalgrid.reef.client.service.proto.FrontEndRequests.EndpointSubscriptionQuery
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 import org.totalgrid.reef.client.service.proto.Measurements
 import org.totalgrid.reef.client.service.proto.Measurements.{Measurement, MeasurementNotification, PointMeasurementValue, PointMeasurementValues}

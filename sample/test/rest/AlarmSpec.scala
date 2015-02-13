@@ -34,7 +34,7 @@ class AlarmSpec extends Specification with Mockito {
     override def loginService(session: Session): LoginService = throw new NotImplementedException
     override def eventService(session: Session): EventService = new EventServiceMock
     override def measurementService(session: Session): MeasurementService = throw new NotImplementedException
-    override def entityService(session: Session): EntityService = throw new NotImplementedException
+    override def modelService(session: Session): ModelService = throw new NotImplementedException
     override def frontEndService(session: Session): FrontEndService = throw new NotImplementedException
   }
 

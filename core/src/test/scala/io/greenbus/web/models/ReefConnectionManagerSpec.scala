@@ -11,7 +11,7 @@ import akka.testkit.{TestProbe, ImplicitSender, TestKit, TestActorRef}
 import org.specs2.time.NoTimeConversions
 import play.api.test.PlaySpecification
 import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service.{LoginService, EntityService}
+import org.totalgrid.reef.client.service.{LoginService, ModelService}
 import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
 import org.totalgrid.reef.client.{ReefHeaders, ReefConnection}
 import scala.concurrent.Future
@@ -47,11 +47,11 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     reefConnection.session returns session1
   }
   def serviceFactoryMock( reefConnection: ReefConnection): ReefConnectionManagerServiceFactory = {
-    val entityService = mock[EntityService]
+    val modelService = mock[ModelService]
     val loginService = mock[LoginService]
 
     val serviceFactory = mock[ReefConnectionManagerServiceFactory]
-    serviceFactory.entityService( any[Session]) returns entityService
+    serviceFactory.modelService( any[Session]) returns modelService
     serviceFactory.loginService( any[Session]) returns loginService
     serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
     serviceFactory.reefConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns reefConnection

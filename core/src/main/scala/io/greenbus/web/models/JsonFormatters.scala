@@ -19,11 +19,12 @@
 package io.greenbus.web.models
 
 import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
+import org.totalgrid.reef.client.service.proto.Model.Command
 import io.greenbus.web.connection.ConnectionStatus
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
-import org.totalgrid.reef.client.service.proto.Model.{ Entity}
+import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
 import org.totalgrid.reef.client.service.proto.Measurements._
@@ -141,7 +142,7 @@ object JsonFormatters {
     def writes( o: PermissionSet): JsValue =
       Json.obj(
         "name" -> o.getName,
-        "id" -> o.getUuid.getValue,
+        "id" -> o.getId.getValue,
         "permissions" -> o.getPermissionsList.toList
       )
   }
@@ -188,7 +189,7 @@ object JsonFormatters {
       Json.obj(
         "name" -> o.getName,
         "id" -> o.getUuid.getValue,
-        "commandType" -> o.getType.name,
+        "commandType" -> o.getCommandCategory.name,
         "displayName" -> o.getDisplayName,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
@@ -383,8 +384,8 @@ object JsonFormatters {
         "eventType" -> o.getEventType,  // ex: System
         "alarm" -> o.getAlarm,          // Boolean
         "severity" -> o.getSeverity,
-        "agent" -> o.getAgent,
-        "entity" -> o.getEntity.getValue, // TODO: need entity name
+        "agent" -> o.getAgentName,
+        "entity" -> o.getEntityUuid.getValue, // TODO: need entity name
         "message" -> o.getRendered,
         "time" -> o.getTime
       )
@@ -411,8 +412,8 @@ object JsonFormatters {
         "eventType" -> e.getEventType,  // ex: System
         "alarm" -> e.getAlarm,          // Boolean
         "severity" -> e.getSeverity,
-        "agent" -> e.getAgent,
-        "entity" -> e.getEntity.getValue, // TODO: need entity name
+        "agent" -> e.getAgentName,
+        "entity" -> e.getEntityUuid.getValue, // TODO: need entity name
         "message" -> e.getRendered,
         "time" -> e.getTime
 
@@ -434,7 +435,8 @@ object JsonFormatters {
       Json.obj(
         "name" -> o.getName,
         "id" -> o.getUuid.getValue,
-        "pointType" -> o.getPointType.name, // ANALOG, COUNTER, STATUS
+        // TODO: Change client to pointCategory
+        "pointType" -> o.getPointCategory.name, // ANALOG, COUNTER, STATUS
         "types" -> o.getTypesList.toList,
         "unit" -> o.getUnit,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName

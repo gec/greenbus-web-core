@@ -38,8 +38,8 @@ import io.greenbus.web.mocks.ReefConnectionManagerMock
 import controllers.Application
 import org.totalgrid.msg
 import org.specs2.mock.Mockito
-import org.totalgrid.reef.client.service.EntityService
-import org.totalgrid.reef.client.service.proto.EntityRequests
+import org.totalgrid.reef.client.service.ModelService
+import org.totalgrid.reef.client.service.proto.ModelRequests
 import org.totalgrid.reef.client.service.proto.Model.{ReefUUID, Entity}
 
 object GlobalMock extends GlobalSettings {
@@ -148,12 +148,12 @@ class ApplicationSpec extends Specification with Mockito {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
         val entities = Seq[Entity]( makeEntity("uuid1", "entity1"))
-        val entityService = mock[EntityService]
-        entityService.entityQuery( any[EntityRequests.EntityQuery]) returns Future.successful( entities)
-        //entityService.get( any[EntityRequests.EntityKeySet]) returns
+        val modelService = mock[ModelService]
+        modelService.entityQuery( any[ModelRequests.EntityQuery]) returns Future.successful( entities)
+        //modelService.get( any[ModelRequests.EntityKeySet]) returns
 
         val serviceFactory = mock[ReefServiceFactory]
-        serviceFactory.entityService( any[msg.Session]) returns entityService
+        serviceFactory.modelService( any[msg.Session]) returns modelService
 
         Application.reefServiceFactory = serviceFactory
 

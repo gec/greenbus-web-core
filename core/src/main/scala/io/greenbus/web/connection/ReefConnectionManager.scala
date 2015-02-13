@@ -30,10 +30,10 @@ import org.totalgrid.msg.amqp.util.LoadingException
 import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
 import org.totalgrid.msg.qpid.QpidBroker
 import org.totalgrid.reef.client.exception._
-import org.totalgrid.reef.client.service.proto.EntityRequests.EntityKeySet
+import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeySet
 import org.totalgrid.reef.client.service.proto.LoginRequests
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
-import org.totalgrid.reef.client.service.{EntityService, LoginService}
+import org.totalgrid.reef.client.service.{ModelService, LoginService}
 import org.totalgrid.reef.client.{ReefConnection, ReefHeaders}
 import io.greenbus.web.auth.ValidationTiming
 import io.greenbus.web.auth.ValidationTiming._
@@ -88,7 +88,7 @@ object ReefConnectionManager {
     def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection
 
     def loginService( session: Session): LoginService
-    def entityService( session: Session): EntityService = EntityService.client( session)
+    def modelService( session: Session): ModelService= ModelService.client( session)
   }
 
   object ReefConnectionManagerServiceFactorySingleton extends ReefConnectionManagerServiceFactory {
@@ -96,7 +96,7 @@ object ReefConnectionManager {
     override def reefConnect(settings: AmqpSettings, broker: AmqpBroker, timeoutMs: Long): ReefConnection =
       ReefConnection.connect( settings, broker, timeoutMs)
 
-    override def entityService( session: Session): EntityService = EntityService.client( session)
+    override def modelService( session: Session): ModelService = ModelService.client( session)
     override def loginService( session: Session): LoginService = LoginService.client( session)
 
 
@@ -194,7 +194,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
 
       case PREVALIDATED =>
         //TODO: use new validate method
-        val service = serviceFactory.entityService( newSession)
+        val service = serviceFactory.modelService( newSession)
         val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
 
         service.get(EntityKeySet.newBuilder().addUuids( uuid).build).map { entities =>
@@ -230,7 +230,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
   private def maybePrevalidateAuthToken( session: Session, validationTiming: ValidationTiming) = {
     if( validationTiming == PREVALIDATED) {
       Logger.info( "ReefConnectionManager: maybePrevalidateAuthToken validationTiming == PREVALIDATED")
-      val service = serviceFactory.entityService( session)
+      val service = serviceFactory.modelService( session)
       //TODO: use new validate method
       val uuid = ReefUUID.newBuilder().setValue( UUID.randomUUID.toString)
       // TODO: use a future
