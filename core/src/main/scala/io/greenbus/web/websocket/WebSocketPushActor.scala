@@ -70,23 +70,43 @@ object WebSocketPushActor {
   }
   case class SubscribeToMeasurements( override val subscriptionId: String, pointIds: Seq[String]) extends Subscribe
   case class SubscribeToMeasurementHistory( override val subscriptionId: String, pointUuid: String, timeFrom: Long, limit: Int) extends Subscribe
-//  case class SubscribeToActiveAlarms( override val id: String, val limit: Int) extends Subscribe
-//  case class SubscribeToRecentEvents( override val id: String, eventTypes: Seq[String], limit: Int) extends Subscribe
   case class SubscribeToEndpoints( override val subscriptionId: String, endpointIds: Seq[String]) extends Subscribe
-  case class SubscribeToEvents( override val subscriptionId: String,
+  case class SubscribeToAlarms( override val subscriptionId: String,
                                 agents: Option[Seq[String]],      // defined in model
-                                activeAlarms: Option[Boolean],    // t: don't want alarm REMOVED events with initial results.
-                                alarmsOnly: Option[Boolean],      // t: just alarms
                                 alarmStates: Option[Seq[String]], // UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED, REMOVED
                                 eventTypes: Option[Seq[String]],  // defined in model
                                 severities: Option[Seq[Int]],     // default is 1-8
                                 subsystems: Option[Seq[String]],  // defined in model
                                 limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
+                                ) extends Subscribe
+  case class SubscribeToEvents( override val subscriptionId: String,
+                                agents: Option[Seq[String]],      // defined in model
+                                eventTypes: Option[Seq[String]],  // defined in model
+                                severities: Option[Seq[Int]],     // default is 1-8
+                                subsystems: Option[Seq[String]],  // defined in model
+                                limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
                               ) extends Subscribe
+//  case class SubscribeToAlarmsAndEvents( override val subscriptionId: String,
+//                                         agents: Option[Seq[String]],      // defined in model
+//                                         alarmsOnly: Option[Boolean],      // t: just alarms
+//                                         alarmStates: Option[Seq[String]], // UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED, REMOVED
+//                                         eventTypes: Option[Seq[String]],  // defined in model
+//                                         severities: Option[Seq[Int]],     // default is 1-8
+//                                         subsystems: Option[Seq[String]],  // defined in model
+//                                         limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
+//                                         ) extends Subscribe
+  object SubscribeToAlarms {
+    implicit val writer = Json.writes[SubscribeToAlarms]
+    implicit val reader = Json.reads[SubscribeToAlarms]
+  }
   object SubscribeToEvents {
     implicit val writer = Json.writes[SubscribeToEvents]
     implicit val reader = Json.reads[SubscribeToEvents]
   }
+//  object SubscribeToAlarmsAndEvents {
+//    implicit val writer = Json.writes[SubscribeToAlarmsAndEvents]
+//    implicit val reader = Json.reads[SubscribeToAlarmsAndEvents]
+//  }
 
   sealed trait SubscribeResult
   case class SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) extends SubscribeResult
@@ -118,17 +138,6 @@ object WebSocketPushActor {
     (__ \ "timeFrom").read[Long] and
       (__ \ "limit").read[Int]
     )(SubscribeToMeasurementHistory)
-
-//  implicit val subscribeToActiveAlarmsReads = (
-//    (__ \ "subscriptionId").read[String] and
-//      (__ \ "limit").read[Int]
-//    )(SubscribeToActiveAlarms)
-//
-//  implicit val subscribeToRecentEventsReads = (
-//    (__ \ "subscriptionId").read[String] and
-//      (__ \ "eventTypes").read[Seq[String]] and
-//      (__ \ "limit").read[Int]
-//    )(SubscribeToRecentEvents)
 
   implicit val subscribeToEndpointsReads = (
     (__ \ "subscriptionId").read[String] and
@@ -208,8 +217,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
     case subscribe: SubscribeToMeasurements => subscribeToMeasurements( subscribe)
     case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementHistoryPart1( subscribe)
-//    case subscribe: SubscribeToActiveAlarms => subscribeToActiveAlarms( subscribe)
-//    case subscribe: SubscribeToRecentEvents => subscribeToRecentEvents( subscribe)
+//    case subscribe: SubscribeToAlarmsAndEvents => subscribeToAlarmsAndEvents( subscribe)
+    case subscribe: SubscribeToAlarms => subscribeToAlarms( subscribe)
     case subscribe: SubscribeToEvents => subscribeToEvents( subscribe)
     case subscribe: SubscribeToEndpoints => subscribeToEndpoints( subscribe)
 
@@ -645,7 +654,21 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     eventQuery
   }
 
-  private def makeAlarmQuery( subscribe: SubscribeToEvents, eventQuery: EventSubscriptionQuery) = {
+  private def makeEventQuery( subscribe: SubscribeToAlarms ) = {
+    val eventQuery = EventSubscriptionQuery.newBuilder
+
+    subscribe.agents.foreach( eventQuery.addAllAgent( _))
+    subscribe.eventTypes.foreach( eventQuery.addAllEventType( _))
+    subscribe.severities.foreach{ severities =>
+      val severityIntegers = severities.map( i => new java.lang.Integer( i))
+      eventQuery.addAllSeverity( severityIntegers)
+    }
+    subscribe.subsystems.foreach( eventQuery.addAllSubsystem( _))
+    subscribe.limit.foreach( eventQuery.setLimit( _))
+    eventQuery
+  }
+
+  private def makeAlarmQuery( subscribe: SubscribeToAlarms, eventQuery: EventSubscriptionQuery) = {
     val alarmQuery = AlarmSubscriptionQuery.newBuilder
       .setEventQuery( eventQuery)
 
@@ -664,6 +687,87 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     alarmQuery
   }
 
+//  /**
+//   * Subscribe to events and throw away alarms.
+//   * Subscribe to alarms. Need to send the removes if also want events.
+//   * Subscribe to current alarms, don't send the initial removes.
+//   * Filtering:  alarm - state
+//   * Filtering: event - eventType, severity, agent, subsystem, message
+//   *
+//   * Paging: GET: receive last event and last alarm; go from there.
+//   * Toggle: Live vs History
+//   */
+//  private def subscribeToAlarmsAndEvents( subscribe: SubscribeToAlarmsAndEvents) = {
+//    Logger.debug( "WebSocketPushActor.subscribeToEvents " + subscribe.subscriptionId)
+//    val timer = new Timer( "WebSocketPushActor.subscribeToEvents")
+//    val service = serviceFactory.eventService( session.get)
+//    val eventQuery = makeEventQuery( subscribe).build()
+//
+//    if( ! subscribe.alarmsOnly.getOrElse(false)) {
+//      setPendingSubscriptionCount( subscribe.subscriptionId, 2)
+//      subscribeToEventsWithQuery( subscribe, service, eventQuery)
+//    }
+//    else
+//      setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+//
+//    val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
+//    val result = service.subscribeToAlarms( alarmQuery)
+//
+//    result onSuccess {
+//      case (alarms, subscription) =>
+//        // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
+//        //  for the initial batch, we don't want any REMOVED alarms.
+//        val filteredAlarms = subscribe.activeAlarms.getOrElse( false) match {
+//          case true => alarms.filter( _.getState != Alarm.State.REMOVED)
+//          case false => alarms
+//        }
+//        self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
+//        timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
+//    }
+//    result onFailure {
+//      case f =>
+//        self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
+//        timer.end( "failure")
+//    }
+//  }
+
+
+  /**
+   * Subscribe to events and throw away alarms.
+   * Subscribe to alarms. Need to send the removes if also want events.
+   * Subscribe to current alarms, don't send the initial removes.
+   * Filtering:  alarm - state
+   * Filtering: event - eventType, severity, agent, subsystem, message
+   *
+   * Paging: GET: receive last event and last alarm; go from there.
+   * Toggle: Live vs History
+   */
+  private def subscribeToAlarms( subscribe: SubscribeToAlarms) = {
+    Logger.debug( "WebSocketPushActor.subscribeToAlarms " + subscribe.subscriptionId)
+    val timer = new Timer( "WebSocketPushActor.subscribeToAlarms")
+    val service = serviceFactory.eventService( session.get)
+    val eventQuery = makeEventQuery( subscribe).build()
+
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
+    val result = service.subscribeToAlarms( alarmQuery)
+
+    result onSuccess {
+      case (alarms, subscription) =>
+        // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
+        //  for the initial batch, we don't want any REMOVED alarms.
+        val filteredAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
+        self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
+        timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
+    }
+    result onFailure {
+      case f =>
+        self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
+        timer.end( "failure")
+    }
+  }
+
+
   /**
    * Subscribe to events and throw away alarms.
    * Subscribe to alarms. Need to send the removes if also want events.
@@ -680,39 +784,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val service = serviceFactory.eventService( session.get)
     val eventQuery = makeEventQuery( subscribe).build()
 
-    if( ! subscribe.alarmsOnly.getOrElse(false)) {
-      setPendingSubscriptionCount( subscribe.subscriptionId, 2)
-      subscribeToEventsWithQuery( subscribe, service, eventQuery)
-    }
-    else
-      setPendingSubscriptionCount( subscribe.subscriptionId, 1)
-
-    val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
-    val result = service.subscribeToAlarms( alarmQuery)
-
-    result onSuccess {
-      case (alarms, subscription) =>
-        // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
-        //  for the initial batch, we don't want any REMOVED alarms.
-        val filteredAlarms = subscribe.activeAlarms.getOrElse( false) match {
-          case true => alarms.filter( _.getState != Alarm.State.REMOVED)
-          case false => alarms
-        }
-        self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
-        timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
-    }
-    result onFailure {
-      case f =>
-        self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
-        timer.end( "failure")
-    }
-  }
-
-
-  private def subscribeToEventsWithQuery( subscribe: Subscribe, service: EventService, query: EventSubscriptionQuery) = {
-    Logger.debug( "WebSocketPushActor.subscribeToRecentEvents " + subscribe.subscriptionId)
-    val timer = new Timer( "WebSocketPushActor.subscribeToRecentEvents")
-    val result = service.subscribeToEvents( query)
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    val result = service.subscribeToEvents( eventQuery)
 
     result onSuccess {
       case (events, subscription) =>
@@ -721,11 +794,11 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     }
     result onFailure {
       case f =>
-        self ! makeSubscribeFailure( subscribe,  query.toString, f)
+        self ! makeSubscribeFailure( subscribe,  eventQuery.toString, f)
         timer.end( "onFailure")
     }
-
   }
+
 
 //  private def subscribeToActiveAlarms( subscribe: SubscribeToActiveAlarms) = {
 //    Logger.debug( "WebSocketPushActor.subscribeToRecentAlarms " + subscribe.id)
