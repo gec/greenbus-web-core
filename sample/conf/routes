@@ -21,9 +21,9 @@ GET           /coral/menus/:name                                      controller
 GET           /entities                                               controllers.Application.getEntities( types: List[String])
 GET           /entities/:uuid                                         controllers.Application.getEntity( uuid: String)
 
-GET           /models/:modelId/alarms                                 controllers.Application.getAlarms( modelId: String, limit: Int ?= 200)
+GET           /models/:modelId/alarms                                 controllers.Application.getAlarms( modelId: String, states: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int ?= 200, startAfterId: Option[String])
 POST          /models/:modelId/alarms                                 controllers.Application.postAlarms( modelId: String)
-GET           /models/:modelId/events                                 controllers.Application.getEvents( modelId: String, limit: Int ?= 200)
+GET           /models/:modelId/events                                 controllers.Application.getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int ?= 200, startAfterId: Option[String])
 
 GET           /models/:modelId/equipment                              controllers.Application.getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/equipment/:entityId                    controllers.Application.getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)

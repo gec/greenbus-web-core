@@ -749,25 +749,89 @@ trait RestServices extends ReefAuthentication {
       case result => Ok( Json.toJson( result(0))) }
   }
 
-  def getEvents( modelId: String, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def makeEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String]) = {
+    val query = EventQueryParams.newBuilder()
+    if( ! agents.isEmpty)
+      query.addAllAgent( agents)
+    if( ! eventTypes.isEmpty)
+      query.addAllEventType( eventTypes)
+    if( ! severities.isEmpty)
+      query.addAllSeverity( severities.asInstanceOf[java.util.List[java.lang.Integer]])
+    if( ! subsystems.isEmpty)
+      query.addAllSubsystem( subsystems)
+
+    query
+  }
+  def haveEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String]) = {
+    ! agents.isEmpty || ! eventTypes.isEmpty || ! severities.isEmpty || ! subsystems.isEmpty
+  }
+
+  /**
+   *
+   * @param modelId
+   * @param ag  agents
+   * @param et  eventTypes
+   * @param sv  severities
+   * @param sb  subsystems
+   * @param limit
+   * @param startAfterId Skip forward to start results after ID.
+   * @return
+   */
+  def getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String]) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.eventService( session)
     val query = EventQuery.newBuilder().setPageSize( limit)
+
+    if( haveEventQueryParams( ag, et, sv, sb))
+      query.setQueryParams( makeEventQueryParams( ag, et, sv, sb))
+
+    if( startAfterId.isDefined)
+      query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
 
     service.eventQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
 
+  def alarmQueryCollectStates( states: List[String]): List[Alarm.State] = {
+
+    if( states.length == 1 && states.head == "all")
+      List.empty
+    else
+      states.isEmpty match {
+        case true => List( Alarm.State.UNACK_AUDIBLE, Alarm.State.UNACK_SILENT, Alarm.State.ACKNOWLEDGED)
+        case false =>
+          val ( valids, invalids) = states partition (Alarm.State.valueOf( _) != null)
+          val validEnums = valids.map( Alarm.State.valueOf)
+          Logger.error( s"getAlarms requested with invalid states ${invalids.mkString(",")}")
+          validEnums
+      }
+  }
+
+
   /**
-   * Get unacknowledged alarms.
    *
+   * @param modelId
+   * @param st  states - Default list is: UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED
+   *            'all' will return alarms for all states.
+   *            Valid values: all, UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED, REMOVED
+   * @param ag  agents
+   * @param et  eventTypes
+   * @param sv  severities
+   * @param sb  subsystems
    * @param limit
+   * @param startAfterId Skip forward to start results after ID.
    * @return
    */
-  def getAlarms( modelId: String, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getAlarms( modelId: String, st: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String]) = ReefClientActionAsync { (request, session) =>
 
     val service = serviceFactory.eventService( session)
     val query = AlarmQuery.newBuilder()
-      .addAlarmStates( Alarm.State.UNACK_AUDIBLE)
-      .addAlarmStates( Alarm.State.UNACK_SILENT)
+
+    query.addAllAlarmStates( alarmQueryCollectStates( st))
+
+    if( haveEventQueryParams( ag, et, sv, sb))
+      query.setEventQueryParams( makeEventQueryParams( ag, et, sv, sb))
+
+    if( startAfterId.isDefined)
+      query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
 
     service.alarmQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
