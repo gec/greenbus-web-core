@@ -749,7 +749,7 @@ trait RestServices extends ReefAuthentication {
       case result => Ok( Json.toJson( result(0))) }
   }
 
-  def makeEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String]) = {
+  def makeEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String], latest: Boolean) = {
     val query = EventQueryParams.newBuilder()
     if( ! agents.isEmpty)
       query.addAllAgent( agents)
@@ -759,11 +759,13 @@ trait RestServices extends ReefAuthentication {
       query.addAllSeverity( severities.asInstanceOf[java.util.List[java.lang.Integer]])
     if( ! subsystems.isEmpty)
       query.addAllSubsystem( subsystems)
+    if( ! latest)
+      query.setLatest( false)
 
     query
   }
-  def haveEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String]) = {
-    ! agents.isEmpty || ! eventTypes.isEmpty || ! severities.isEmpty || ! subsystems.isEmpty
+  def haveEventQueryParams( agents: List[String], eventTypes: List[String], severities: List[Int], subsystems: List[String], latest: Boolean) = {
+    ! agents.isEmpty || ! eventTypes.isEmpty || ! severities.isEmpty || ! subsystems.isEmpty || ! latest
   }
 
   /**
@@ -777,17 +779,19 @@ trait RestServices extends ReefAuthentication {
    * @param startAfterId Skip forward to start results after ID.
    * @return
    */
-  def getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String]) = ReefClientActionAsync { (request, session) =>
+  def getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.eventService( session)
     val query = EventQuery.newBuilder().setPageSize( limit)
 
-    if( haveEventQueryParams( ag, et, sv, sb))
-      query.setQueryParams( makeEventQueryParams( ag, et, sv, sb))
+    if( haveEventQueryParams( ag, et, sv, sb, latest))
+      query.setQueryParams( makeEventQueryParams( ag, et, sv, sb, latest))
 
     if( startAfterId.isDefined)
       query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
 
-    service.eventQuery( query.build).map{ result => Ok( Json.toJson(result)) }
+    val builtQuery = query.build
+    Logger.debug( s"getEvents EventQuery: ${builtQuery}")
+    service.eventQuery( builtQuery).map{ result => Ok( Json.toJson(result)) }
   }
 
   def alarmQueryCollectStates( states: List[String]): List[Alarm.State] = {
@@ -820,15 +824,15 @@ trait RestServices extends ReefAuthentication {
    * @param startAfterId Skip forward to start results after ID.
    * @return
    */
-  def getAlarms( modelId: String, st: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String]) = ReefClientActionAsync { (request, session) =>
+  def getAlarms( modelId: String, st: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ReefClientActionAsync { (request, session) =>
 
     val service = serviceFactory.eventService( session)
     val query = AlarmQuery.newBuilder()
 
     query.addAllAlarmStates( alarmQueryCollectStates( st))
 
-    if( haveEventQueryParams( ag, et, sv, sb))
-      query.setEventQueryParams( makeEventQueryParams( ag, et, sv, sb))
+    if( haveEventQueryParams( ag, et, sv, sb, latest))
+      query.setEventQueryParams( makeEventQueryParams( ag, et, sv, sb, latest))
 
     if( startAfterId.isDefined)
       query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
