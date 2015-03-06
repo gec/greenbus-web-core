@@ -21,6 +21,7 @@ package io.greenbus.web.models
 import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
 import org.totalgrid.reef.client.service.proto.Model.Command
 import io.greenbus.web.connection.ConnectionStatus
+import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
@@ -304,6 +305,16 @@ object JsonFormatters {
         "validity" -> o.getQuality.getValidity.name,
         "shortQuality" -> shortQuality(o),
         "longQuality" -> longQuality(o)
+      )
+    }
+  }
+
+
+  implicit val measurementOverrideWrites = new Writes[MeasOverride] {
+    def writes( o: MeasOverride): JsValue = {
+      Json.obj(
+        "measurement" -> o.getMeasurement,
+        "pointId" -> o.getPointUuid.getValue
       )
     }
   }

@@ -24,11 +24,13 @@ import java.util.concurrent.TimeoutException
 
 import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
+import org.totalgrid.reef.client.service.proto.Measurements.Measurement
 import org.totalgrid.reef.client.service.proto.ModelRequests._
 import org.totalgrid.reef.client.service.proto.EventRequests.{EventQueryParams, AlarmStateUpdate, AlarmQuery, EventQuery}
 import org.totalgrid.reef.client.service.proto.Events.Alarm
 import org.totalgrid.reef.client.service.proto.Model.Point
 import org.totalgrid.reef.client.service.proto.Model.{Entity, EntityEdge, ReefID, ReefUUID}
+import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
 import org.totalgrid.reef.client.service.proto._
 import org.totalgrid.reef.client.service.{ModelService, EventService, MeasurementService}
 import io.greenbus.web.auth.ReefAuthentication
@@ -620,6 +622,92 @@ trait RestServices extends ReefAuthentication {
       }
     }.getOrElse {
       CommandExecuteRequest( "", None)
+    }
+  }
+
+  def postPointOverride( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+    import io.greenbus.web.models.OverrideMessages._
+
+    request.body.asJson.map { json =>
+      json.validate(OverrideRequest.reader).map {
+        case OverrideRequest( pointId, value, valueType) =>
+
+          val meas = Measurement.newBuilder().setType(valueType)
+          try {
+            valueType match {
+              case Measurement.Type.INT => meas.setIntVal( value.toInt)
+              case Measurement.Type.BOOL => meas.setBoolVal( value.toLowerCase == "true")
+              case Measurement.Type.DOUBLE => meas.setDoubleVal( value.toDouble)
+              case Measurement.Type.STRING => meas.setStringVal( value)
+              case Measurement.Type.NONE => throw new BadRequestException( "Override request cannot have measurement value type of NONE.")
+            }
+
+            val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+            val measOverride = MeasOverride.newBuilder()
+              .setPointUuid(reefId)
+              .setMeasurement( meas.build())
+
+            val service = serviceFactory.processingService(session)
+            val future = service.putOverrides( Seq(measOverride.build))
+
+            future map { measOverrides =>
+              if( measOverrides.length == 1)
+                Ok(Json.toJson(measOverrides.head))
+              else
+                // TODO: When could the result be something other than one?
+                Ok(Json.toJson(measOverrides))
+            } recover {
+              case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+              case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+              case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+              case ex: Throwable => throw ex
+            }
+
+          } catch {
+            case ex: NumberFormatException => Future.successful( Forbidden( Json.toJson( ExceptionMessage( "NumberFormatException", ex.getMessage))))
+            case ex: Throwable => throw ex
+          }
+
+      }.recoverTotal{
+        e => Future.successful( BadRequest("Detected error:"+ JsError.toFlatJson(e)))
+      }
+    }.getOrElse {
+      Future.successful( BadRequest("Expecting Json data"))
+    }
+  }
+
+  def postPointNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+
+    val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+    val measNis = MeasOverride.newBuilder()
+      .setPointUuid(reefId)
+
+    val service = serviceFactory.processingService(session)
+    val future = service.putOverrides( Seq(measNis.build))
+
+    future map { measOverrides =>
+      Ok(Json.toJson(measOverrides))
+    } recover {
+      case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex => throw ex
+    }
+  }
+
+  def deletePointOverrideOrNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+
+    val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+    val service = serviceFactory.processingService(session)
+    val future = service.deleteOverrides( Seq(reefId))
+
+    future map { measOverrides =>
+      Ok(Json.toJson(measOverrides))
+    } recover {
+      case ex: LockedException => Forbidden( Json.toJson( ExceptionMessage( "LockedException", ex.getMessage)))
+      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex => throw ex
     }
   }
 

@@ -23,6 +23,7 @@ import io.greenbus.web.connection.ConnectionStatus
 import io.greenbus.web.models._
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock,CommandRequest}
 import org.totalgrid.reef.client.service.proto.Events.Alarm
+import org.totalgrid.reef.client.service.proto.Measurements.Measurement
 import org.totalgrid.reef.client.service.proto.Model.ReefID
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -89,6 +90,31 @@ object ControlMessages {
     implicit val writer = Json.writes[CommandExecuteRequest]
     implicit val reader = Json.reads[CommandExecuteRequest]
   }
+}
+
+object OverrideMessages {
+
+  implicit val overrideTypeReader = Reads[Measurement.Type] {
+    case JsString(s) => s.toUpperCase match {
+      case "BOOL" => JsSuccess( Measurement.Type.BOOL)
+      case "INT" => JsSuccess( Measurement.Type.INT)
+      case "DOUBLE" => JsSuccess( Measurement.Type.DOUBLE)
+      case "STRING" => JsSuccess( Measurement.Type.STRING)
+      case _ => JsError("No Measurement.Type for '" + s + "'")
+    }
+    case _ => JsError("Measurement.Type must be a string")
+  }
+
+  case class OverrideRequest( pointId: String, value: String, valueType: Measurement.Type)
+  object OverrideRequest {
+    //implicit val writer = Json.writes[OverrideRequest]
+    implicit val reader = Json.reads[OverrideRequest]
+  }
+//  def commandLockRequestReads: Reads[OverrideRequest] = (
+//    (__ \ "type").read[Measurement.Type] and
+//      (__ \ "pointId").read[String]
+//    )(OverrideRequest.apply _)
+
 }
 
 object AlarmMessages {

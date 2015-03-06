@@ -16,6 +16,7 @@ trait ReefServiceFactory {
   def frontEndService( session: Session): FrontEndService
   def loginService( session: Session): LoginService
   def measurementService( session: Session): MeasurementService
+  def processingService( session: Session): ProcessingService
 }
 
 trait ReefServiceFactoryImpl extends ReefServiceFactory {
@@ -26,6 +27,7 @@ trait ReefServiceFactoryImpl extends ReefServiceFactory {
   def measurementService( session: Session): MeasurementService = MeasurementService.client( session)
   def frontEndService( session: Session): FrontEndService =
     new FrontEndService( service.FrontEndService.client( session), modelService( session))
+  def processingService( session: Session): ProcessingService = ProcessingService.client( session)
 }
 
 object ReefServiceFactoryDefault extends ReefServiceFactoryImpl
