@@ -629,8 +629,8 @@ trait RestServices extends ReefAuthentication {
     import io.greenbus.web.models.OverrideMessages._
 
     request.body.asJson.map { json =>
-      json.validate(OverrideRequest.reader).map {
-        case OverrideRequest( pointId, value, valueType) =>
+      json.validate(OverrideValue.reader).map {
+        case OverrideValue( value, valueType) =>
 
           val meas = Measurement.newBuilder().setType(valueType)
           try {
@@ -641,6 +641,7 @@ trait RestServices extends ReefAuthentication {
               case Measurement.Type.STRING => meas.setStringVal( value)
               case Measurement.Type.NONE => throw new BadRequestException( "Override request cannot have measurement value type of NONE.")
             }
+            meas.setTime( System.currentTimeMillis)
 
             val reefId = ReefUUID.newBuilder().setValue(pointId).build()
             val measOverride = MeasOverride.newBuilder()
@@ -648,9 +649,12 @@ trait RestServices extends ReefAuthentication {
               .setMeasurement( meas.build())
 
             val service = serviceFactory.processingService(session)
+            val measOverrideBuilt = measOverride.build
+            Logger.debug( s"postPointOverride putOverrides \n$measOverrideBuilt")
             val future = service.putOverrides( Seq(measOverride.build))
 
             future map { measOverrides =>
+              Logger.debug( s"postPointOverride reply \n$measOverrides")
               if( measOverrides.length == 1)
                 Ok(Json.toJson(measOverrides.head))
               else

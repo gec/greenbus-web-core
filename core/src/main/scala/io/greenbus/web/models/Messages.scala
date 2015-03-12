@@ -105,15 +105,15 @@ object OverrideMessages {
     case _ => JsError("Measurement.Type must be a string")
   }
 
-  case class OverrideRequest( pointId: String, value: String, valueType: Measurement.Type)
-  object OverrideRequest {
-    //implicit val writer = Json.writes[OverrideRequest]
-    implicit val reader = Json.reads[OverrideRequest]
+  case class OverrideValue( value: String, valueType: Measurement.Type)
+  object OverrideValue {
+    //implicit val writer = Json.writes[OverrideValue]
+    implicit val reader = Json.reads[OverrideValue]
   }
-//  def commandLockRequestReads: Reads[OverrideRequest] = (
+//  def commandLockRequestReads: Reads[OverrideValue] = (
 //    (__ \ "type").read[Measurement.Type] and
 //      (__ \ "pointId").read[String]
-//    )(OverrideRequest.apply _)
+//    )(OverrideValue.apply _)
 
 }
 
