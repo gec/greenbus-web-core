@@ -367,6 +367,13 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     } catch {
       case ex: IOException => {
         Logger.error( "Error connecting to AMQP. Exception: " + ex)
+        var cause = ex.getCause
+        var causeCount = 1
+        while( cause != null && causeCount <= 10) {
+          Logger.error( s"Error connecting to AMQP. Exception.getCause $causeCount: $cause")
+          causeCount += 1
+          cause = cause.getCause
+        }
         (AMQP_DOWN, None, None)
       }
       case ex: Throwable => {
