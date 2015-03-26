@@ -64,9 +64,9 @@ object Navigation {
     implicit val navigationItemSourceFormat = Json.format[NavigationItemSource]
   }
 
-  implicit val navigationElementListWrites: Writes[List[NavigationElement]] = new Writes[List[NavigationElement]] {
-    def writes( o: List[NavigationElement]): JsValue = JsArray( o.map( NavigationElement.navigationElementFormat.writes))
-  }
+//  implicit val navigationElementListWrites: Writes[List[NavigationElement]] = new Writes[List[NavigationElement]] {
+//    def writes( o: List[NavigationElement]): JsValue = JsArray( o.map( NavigationElement.navigationElementFormat.writes))
+//  }
 
 
 }

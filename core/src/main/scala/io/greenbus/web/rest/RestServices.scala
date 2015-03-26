@@ -22,6 +22,7 @@ package io.greenbus.web.rest
 
 import java.util.concurrent.TimeoutException
 
+import io.greenbus.web.config.dal.NavigationUrls
 import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
@@ -50,6 +51,7 @@ import scala.concurrent.Future
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import play.api.db.slick._
 
 
 // for postfix 'seconds'
@@ -1018,6 +1020,12 @@ trait RestServices extends ReefAuthentication {
     Future.successful( Ok( Json.toJson( JSON_EMPTY_ARRAY)) )
   }
 
+
+  def getMenu(url: String) = DBAction { implicit rs =>
+    NavigationUrls.findNavigationElementsByUrl(url).map { elements =>
+      Ok( Json.toJson( elements))
+    }.getOrElse(NotFound)
+  }
 
   /**
    * Get Equipment by types with child Points by types

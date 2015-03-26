@@ -69,6 +69,8 @@ object ApplicationBuild extends Build {
       libraryDependencies += "org.totalgrid.msg" % "msg-qpid" % msgVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5" % "test",
       libraryDependencies += "com.typesafe.akka" %% "akka-testkit" % playVersion % "test",
+      libraryDependencies += "com.typesafe.slick" %% "slick" % "2.1.0",
+      libraryDependencies += "com.typesafe.play" %% "play-slick" % "0.8.1",
       testOptions in Test += Tests.Argument(TestFrameworks.Specs2, "junitxml", "console"),
       publishMavenStyle       := appPublishMavenStyle,
       publishArtifact in Test := appPublishArtifactInTest,
