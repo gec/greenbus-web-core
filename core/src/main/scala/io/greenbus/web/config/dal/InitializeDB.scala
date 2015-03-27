@@ -6,6 +6,8 @@ import play.api._
 import java.util.ServiceConfigurationError
 
 import play.api.db.slick._
+import play.api.db.slick.Config.driver.simple._
+import scala.slick.jdbc.meta._
 import play.api.Play.current
 import java.nio.file.Files
 import java.io.File
@@ -24,7 +26,8 @@ object InitialDB {
   lazy val appOperatorMenuTop = List[NavigationElement](
     NavigationItem( "GreenBus", "applications", "#/",
       children = List[NavigationElement](
-        NavigationItem( "Operator", "operator", "/apps/operator/#/")
+        NavigationItem( "Operator", "operator", "/apps/operator/#/"),
+        NavigationItem( "Admin", "admin", "/apps/admin/#/")
       )
     ),
     NavigationItem( "", "session", "",
@@ -47,10 +50,30 @@ object InitialDB {
     NavigationItem( "Events", "events", "/events"),
     NavigationItem( "Alarms", "alarms", "/alarms")
   )
-  
+
+  lazy val appAdminMenuLeft = List[NavigationElement](
+    NavigationHeader( "Model"),
+    NavigationItem( "Entities", "entities", "#/entities", selected=true),
+    NavigationItem( "Points", "points", "#/points"),
+    NavigationItem( "Commands", "commands", "#/commands"),
+    NavigationHeader( "Data"),
+    NavigationItem( "CES", "esses", "#/esses"),
+    NavigationItem( "Measurements", "measurements", "#/measurements"),
+    NavigationItem( "Events", "events", "#/events"),
+    NavigationItem( "Alarms", "alarms", "#/alarms"),
+    NavigationHeader( "Components"),
+    NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
+    NavigationItem( "Applications", "applications", "#/applications"),
+    NavigationHeader( "Auth"),
+    NavigationItem( "Agents", "agents", "#/agents"),
+    NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+  )
+
+
   lazy val navigationUrlsDefault = List[NavigationUrl] (
     NavigationUrl( None, "/apps/operator/menus/top", appOperatorMenuTop),
-    NavigationUrl( None, "/apps/operator/menus/left", appOperatorMenuLeft)
+    NavigationUrl( None, "/apps/operator/menus/left", appOperatorMenuLeft),
+    NavigationUrl( None, "/apps/admin/menus/left", appAdminMenuLeft)
   )
 
 
@@ -90,9 +113,21 @@ object InitialDB {
 
   def init(): Unit = {
     DB.withSession { implicit s: Session =>
-      if( NavigationUrls.count == 0) {
+
+      if( ! initialized) {
+        NavigationUrls.navigationUrls.ddl.create
+
         getMenus.foreach( NavigationUrls.insert)
+
+      } else {
+
+        if( NavigationUrls.count == 0) {
+          getMenus.foreach( NavigationUrls.insert)
+        }
       }
+
     }
   }
+
+  def initialized(implicit session: Session): Boolean = ! MTable.getTables("NavigationUrls").list.isEmpty
 }

@@ -7,16 +7,13 @@ GET           /                                                       controller
 GET           /apps/operator/                                         controllers.Application.appsOperator
 GET           /apps/admin/                                            controllers.Application.appsAdmin
 GET           /chart                                                  controllers.Application.chart
+GET           /apps/:app/menus/:menu                                  controllers.Application.getAppsMenus( app: String, menu: String)
 
 GET           /login                                                  controllers.Application.getLoginOrAlreadyLoggedIn
 DELETE        /login                                                  controllers.Application.deleteLogin
 POST          /login                                                  controllers.Application.postLogin
 
 GET           /websocket                                              controllers.Application.getWebSocket( authToken)
-
-GET           /menus/:name                                            controllers.Application.getMenus( name: String)
-#          /:applicationName/menus/:name
-GET           /coral/menus/:name                                      controllers.Application.getCoralMenus( name: String)
 
 GET           /entities                                               controllers.Application.getEntities( types: List[String])
 GET           /entities/:uuid                                         controllers.Application.getEntity( uuid: String)

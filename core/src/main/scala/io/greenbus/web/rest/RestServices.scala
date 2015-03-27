@@ -1021,7 +1021,8 @@ trait RestServices extends ReefAuthentication {
   }
 
 
-  def getMenu(url: String) = DBAction { implicit rs =>
+  def getAppsMenus( app: String, menu: String) = DBAction { implicit rs =>
+    val url = s"/apps/$app/menus/$menu"
     NavigationUrls.findNavigationElementsByUrl(url).map { elements =>
       Ok( Json.toJson( elements))
     }.getOrElse(NotFound)

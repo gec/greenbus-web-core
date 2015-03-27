@@ -21,6 +21,7 @@
 import org.totalgrid.msg.Session
 import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
 import io.greenbus.web.websocket.{WebSocketPushActor, WebSocketConsumerImpl}
+import io.greenbus.web.config.dal.InitialDB
 import play.api._
 import controllers.Application
 import play.api.Application
@@ -69,5 +70,6 @@ object Global extends GlobalSettings {
     }
     */
 
+    InitialDB.init()
   }
 }

@@ -85,6 +85,8 @@ object ApplicationBuild extends Build {
       name := appName + "-test",
       libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion,
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5",
+      libraryDependencies += "com.typesafe.slick" %% "slick" % "2.1.0",
+      libraryDependencies += "com.typesafe.play" %% "play-slick" % "0.8.1",
       publishMavenStyle       := appPublishMavenStyle,
       publishArtifact in Test := appPublishArtifactInTest,
       pomIncludeRepository    := appPomIncludeRepository,
