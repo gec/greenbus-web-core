@@ -87,12 +87,15 @@ object InitialDB {
     if( file.exists()) {
       val menusFile = new File( configDir, "menus.json")
       if( menusFile.exists()) {
+        Logger.info( s"Initializing Database: GreenBus Web Menus: Loading file '${menusFile.getCanonicalPath}'...")
         val fileLines = scala.io.Source.fromFile( menusFile, "UTF-8").mkString
 
 //        val result = NavigationUrl.navigationUrlsReads.reads( Json.parse(fileLines))
         val result = Json.parse(fileLines).validate[List[NavigationUrl]]
         result.isSuccess match {
-          case true => result.get
+          case true =>
+            Logger.info( s"Initializing Database: GreenBus Web Menus: Loading file '${menusFile.getCanonicalPath}'. Loaded.")
+            result.get
           case false =>
             result.recoverTotal(  jsError =>
               Logger.error( s"Error parsing ${menusFile.getCanonicalPath} $jsError")
