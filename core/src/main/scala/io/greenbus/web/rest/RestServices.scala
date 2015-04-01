@@ -346,11 +346,7 @@ trait RestServices extends ReefAuthentication {
       .setDescendantOf(true)
       .setPageSize(limit)
       .setDepthLimit( depth)  // default is infinite
-
-    if( pointTypes.isEmpty)
-      query.addEndTypes( "Point")
-    else
-      query.addAllEndTypes( pointTypes)
+      .addAllEndTypes( ensureType( "Point", pointTypes))
 
     modelService.relationshipFlatQuery( query.build)
   }
@@ -479,7 +475,18 @@ trait RestServices extends ReefAuthentication {
           Future.successful( Ok(JSON_EMPTY_OBJECT)) // No points for this list of equipment.
         } else {
           t1.delta( "got pointsAsEntities")
-          val pointIds = pointsAsEntities.map( _.getUuid)
+//          val pointTypesSet = pointTypes.toSet
+//          val pointsAsEntitiesWithCorrectType = pointsAsEntities.filter( p => p.getTypesList.exists( pointTypesSet.contains))
+
+          val pointIds = pointTypes.isEmpty match {
+            case true =>
+              pointsAsEntities.map( _.getUuid)
+            case false =>
+              val pointTypesSet = pointTypes.toSet
+              val pointsAsEntitiesWithCorrectType = pointsAsEntities.filter( _.getTypesList.exists( pointTypesSet.contains))
+              pointsAsEntitiesWithCorrectType.map( _.getUuid)
+          }
+
           //TODO: Currently re-getting entities as Point. Need new API from Reef to directly get points under equipment.
           queryPointsByIds( pointIds, modelService).flatMap { points =>
             t1.delta( "got getPointsByIds")
