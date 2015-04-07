@@ -39,13 +39,13 @@ object InitialDB {
   lazy val appOperatorMenuByTypes = List[NavigationElement](
     NavigationItemSource( "Equipment", "equipment", "/measurements/equipment", "/models/1/equipment/$parent/descendants?depth=1", InsertLocation.CHILDREN),
     NavigationItemSource( "Solar", "solar", "/measurements/solar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", InsertLocation.CHILDREN),
-    NavigationItemSource( "Energy Storage", "esses", "/esses/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES", InsertLocation.CHILDREN),
-    NavigationItemSource( "Generator", "generator", "/measurements/generator", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator", InsertLocation.CHILDREN),
+    NavigationItemSource( "Energy Storage", "esses", "/esses/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=ESS", InsertLocation.CHILDREN),
+    NavigationItemSource( "Generation", "generation", "/measurements/generation", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generation", InsertLocation.CHILDREN),
     NavigationItemSource( "Load", "load", "/measurements/load", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", InsertLocation.CHILDREN)
   )
   
   lazy val appOperatorMenuLeft = List[NavigationElement](
-    NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=1&rootTypes=Root", InsertLocation.REPLACE, selected=true, children=appOperatorMenuByTypes),
+    NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=1&rootTypes=MicroGrid", InsertLocation.REPLACE, selected=true, children=appOperatorMenuByTypes),
     NavigationItem( "Endpoints", "endpoints", "/endpoints"),
     NavigationItem( "Events", "events", "/events"),
     NavigationItem( "Alarms", "alarms", "/alarms")
