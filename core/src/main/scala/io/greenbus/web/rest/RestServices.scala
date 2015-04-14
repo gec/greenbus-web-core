@@ -22,7 +22,9 @@ package io.greenbus.web.rest
 
 import java.util.concurrent.TimeoutException
 
+import io.greenbus.web.config.Navigation.NavigationHeader
 import io.greenbus.web.config.dal.NavigationUrls
+import org.h2.jdbc.JdbcSQLException
 import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
 import org.totalgrid.reef.client.service.proto.Measurements.Measurement
@@ -1030,9 +1032,33 @@ trait RestServices extends ReefAuthentication {
 
   def getAppsMenus( app: String, menu: String) = DBAction { implicit rs =>
     val url = s"/apps/$app/menus/$menu"
-    NavigationUrls.findNavigationElementsByUrl(url).map { elements =>
-      Ok( Json.toJson( elements))
-    }.getOrElse(NotFound)
+    try {
+      NavigationUrls.findNavigationElementsByUrl(url).map { elements =>
+        Ok(Json.toJson(elements))
+      }.getOrElse(NotFound)
+    } catch {
+      case ex: JdbcSQLException =>
+        Logger.error( s"getAppsMenus JdbcSQLException $ex")
+        var cause = ex.getCause
+        var causeCount = 1
+        while( cause != null && causeCount <= 20) {
+          Logger.error( s"getAppsMenus Exception.getCause $causeCount: $cause")
+          causeCount += 1
+          cause = cause.getCause
+        }
+        //Ok(Json.toJson( List( NavigationHeader( "Internal Error"))))
+        throw ex
+      case ex: Throwable =>
+        Logger.error( s"getAppsMenus Throwable exception $ex")
+        var cause = ex.getCause
+        var causeCount = 1
+        while( cause != null && causeCount <= 20) {
+          Logger.error( s"getAppsMenus Exception.getCause $causeCount: $cause")
+          causeCount += 1
+          cause = cause.getCause
+        }
+        throw ex
+    }
   }
 
   /**

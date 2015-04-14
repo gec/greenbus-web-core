@@ -115,16 +115,20 @@ object InitialDB {
   }
 
   def init(): Unit = {
+    Logger.info( s"InitializeDB.init - Checking if DB is initialized.")
     DB.withSession { implicit s: Session =>
 
       if( ! initialized) {
+        Logger.info( s"InitializeDB.init NavigationUrls table does not exist. Creating and initializing...")
         NavigationUrls.navigationUrls.ddl.create
 
         getMenus.foreach( NavigationUrls.insert)
 
       } else {
 
+        Logger.info( s"InitializeDB.init NavigationUrls table exists")
         if( NavigationUrls.count == 0) {
+          Logger.info( s"InitializeDB.init NavigationUrls table exists, but is empty. Initializing...")
           getMenus.foreach( NavigationUrls.insert)
         }
       }
