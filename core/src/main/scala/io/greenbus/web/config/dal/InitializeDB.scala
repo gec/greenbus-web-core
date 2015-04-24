@@ -21,52 +21,53 @@ import play.api.libs.json.Json
 /** Initial set of data to be imported into the sample application. */
 object InitialDB {
   import NavigationUrls._
+  import ComponentType._
 
 
   lazy val appOperatorMenuTop = List[NavigationElement](
-    NavigationItem( "GreenBus", "applications", "#/",
+    NavigationItemToPage( "GreenBus", "applications", "#/",
       children = List[NavigationElement](
-        NavigationItem( "Operator", "operator", "/apps/operator/#/"),
-        NavigationItem( "Admin", "admin", "/apps/admin/#/")
+        NavigationItemToPage( "Operator", "operator", "/apps/operator/#/"),
+        NavigationItemToPage( "Admin", "admin", "/apps/admin/#/")
       )
     ),
-    NavigationItem( "", "session", "",
+    NavigationItemToPage( "", "session", "",
       children = List[NavigationElement](
-        NavigationItem( "Logout", "logout", "#/logout")
+        NavigationItemToPage( "Logout", "logout", "#/logout")
       )
     )
   )
   lazy val appOperatorMenuByTypes = List[NavigationElement](
-    NavigationItemSource( "Equipment", "equipment", "/measurements/equipment", "/models/1/equipment/$parent/descendants?depth=1", InsertLocation.CHILDREN),
-    NavigationItemSource( "Solar", "solar", "/measurements/solar", "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", InsertLocation.CHILDREN),
-    NavigationItemSource( "Energy Storage", "esses", "/esses/", "/models/1/equipment/$parent/descendants?depth=0&childTypes=ESS", InsertLocation.CHILDREN),
-    NavigationItemSource( "Generation", "generation", "/measurements/generation", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generation", InsertLocation.CHILDREN),
-    NavigationItemSource( "Load", "load", "/measurements/load", "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", InsertLocation.CHILDREN)
+    NavigationItemSource( "Equipment", "equipment", "/measurements/equipment", "gb-measurements", COMPONENT, "/models/1/equipment/$parent/descendants?depth=1", InsertLocation.CHILDREN),
+    NavigationItemSource( "Solar", "solar", "/measurements/solar", "gb-measurements", COMPONENT, "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV", InsertLocation.CHILDREN),
+    NavigationItemSource( "Energy Storage", "esses", "/esses/", "gb-esses", COMPONENT, "/models/1/equipment/$parent/descendants?depth=0&childTypes=ESS", InsertLocation.CHILDREN),
+    NavigationItemSource( "Generation", "generation", "/measurements/generation", "gb-measurements", COMPONENT, "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generation", InsertLocation.CHILDREN),
+    NavigationItemSource( "Load", "load", "/measurements/load", "gb-measurements", COMPONENT, "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load", InsertLocation.CHILDREN)
   )
   
   lazy val appOperatorMenuLeft = List[NavigationElement](
-    NavigationItemSource( "Loading...", "equipment", "#/someRoute", "/models/1/equipment?depth=1&rootTypes=MicroGrid", InsertLocation.REPLACE, selected=true, children=appOperatorMenuByTypes),
-    NavigationItem( "Endpoints", "endpoints", "/endpoints"),
-    NavigationItem( "Events", "events", "/events"),
-    NavigationItem( "Alarms", "alarms", "/alarms")
+    NavigationItemSource( "Loading...", "microgrid", "/microgrid/dashboard", "gb-measurements", COMPONENT, "/models/1/equipment?depth=1&rootTypes=MicroGrid", InsertLocation.REPLACE, selected=true, children=appOperatorMenuByTypes),
+    NavigationItem( "Endpoints", "endpoints", "/endpoints", "gb-endpoints", COMPONENT),
+    NavigationItem( "Events", "events", "/events", "<gb-events limit=\"40\"/>", TEMPLATE),
+    NavigationItem( "Alarms", "alarms", "/alarms", "<gb-alarms limit=\"40\"/>", TEMPLATE)
   )
 
   lazy val appAdminMenuLeft = List[NavigationElement](
     NavigationHeader( "Model"),
-    NavigationItem( "Entities", "entities", "#/entities", selected=true),
-    NavigationItem( "Points", "points", "#/points"),
-    NavigationItem( "Commands", "commands", "#/commands"),
+    NavigationItem( "Entities", "entities", "#/entities", "gb-entities", COMPONENT, selected=true),
+    NavigationItem( "Points", "points", "#/points", "gb-points", COMPONENT),
+    NavigationItem( "Commands", "commands", "#/commands", "gb-commands", COMPONENT),
     NavigationHeader( "Data"),
-    NavigationItem( "CES", "esses", "#/esses"),
-    NavigationItem( "Measurements", "measurements", "#/measurements"),
-    NavigationItem( "Events", "events", "#/events"),
-    NavigationItem( "Alarms", "alarms", "#/alarms"),
+    NavigationItem( "CES", "esses", "#/esses", "gb-esses", COMPONENT),
+    NavigationItem( "Measurements", "measurements", "#/measurements", "gb-measurements", COMPONENT),
+    NavigationItem( "Events", "events", "/events", "<gb-events limit=\"40\"/>", TEMPLATE),
+    NavigationItem( "Alarms", "alarms", "/alarms", "<gb-alarms limit=\"40\"/>", TEMPLATE),
     NavigationHeader( "Components"),
-    NavigationItem( "Endpoints", "endpointconnections", "#/endpointconnections"),
-    NavigationItem( "Applications", "applications", "#/applications"),
+    NavigationItem( "Endpoints", "endpoints", "/endpoints", "gb-endpoints", COMPONENT),
+    NavigationItem( "Applications", "applications", "#/applications", "gb-applications", COMPONENT),
     NavigationHeader( "Auth"),
-    NavigationItem( "Agents", "agents", "#/agents"),
-    NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets")
+    NavigationItem( "Agents", "agents", "#/agents", "gb-agents", COMPONENT),
+    NavigationItem( "Permission Sets", "permissionsets", "#/permissionsets", "gb-permissionsets", COMPONENT)
   )
 
 

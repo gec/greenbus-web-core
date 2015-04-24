@@ -3,6 +3,11 @@ package io.greenbus.web.config
 import play.api.libs.json._
 
 /**
+ * Navigation elements for menus. A menu is a list of NavigationElement.
+ *
+ * NavigationItem - Menu item that, when clicked, will bring up the specified view/component (ex: ops dashboard)
+ * NavigationItemSource - Menu item representing a list of Reef entities. On the client, the item is replaced by
+ *                        a list of entities.
  *
  * @author Flint O'Brien
  */
@@ -20,6 +25,18 @@ object Navigation {
   import InsertLocation._
   implicit val insertLocationFormat = EnumUtils.enumFormat(InsertLocation)
 
+  /**
+   * For NavigationItemSource, where will the results be inserted?
+   */
+  object ComponentType extends Enumeration {
+    type ComponentType = Value
+    val COMPONENT = Value     // ex: gb-measurement-table
+    val TEMPLATE = Value      // ex: <div>...</div>
+    val TEMPLATE_URL = Value  // ex: /partials/view1.html
+  }
+  import ComponentType._
+  implicit val componentTypeFormat = EnumUtils.enumFormat(ComponentType)
+
   sealed trait ItemLoadable {
     def sourceUrl: String
     def insertLocation: InsertLocation
@@ -28,8 +45,48 @@ object Navigation {
   sealed trait NavigationElement
   case object NavigationDivider extends NavigationElement
   case class NavigationHeader( label: String) extends NavigationElement
-  case class NavigationItem( label: String, id: String, route: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
-  case class NavigationItemSource( label: String, id: String, route: String, val sourceUrl: String, val insertLocation: InsertLocation, selected: Boolean = false, val children: List[NavigationElement] = List()) extends NavigationElement with ItemLoadable
+
+  /**
+   * Menu item that, when clicked, will go to a new page (i.e. new Angular App)
+   * Menus can have nested children.
+   *
+   * @param label Visible label
+   * @param state When clicked, goto this UI state. Must be unique within each app
+   * @param url Visible URL in browser location bar
+   * @param selected True if this item is selected when menu is first rendered
+   * @param children Submenus
+   */
+  case class NavigationItemToPage( label: String, state: String, url: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+
+  /**
+   * Menu item that, when clicked, will bring up the specified view/component (ex: ops dashboard).
+   * Menus can have nested children.
+   *
+   * @param label Visible label
+   * @param state When clicked, goto this UI state. Must be unique within each app
+   * @param url Visible URL in browser location bar
+   * @param component Component view to display when menu is clicked
+   * @param componentType Component, template, or templateUrl
+   * @param selected True if this item is selected when menu is first rendered
+   * @param children Submenus
+   */
+  case class NavigationItem( label: String, state: String, url: String,  component: String,  componentType: ComponentType, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+
+  /**
+   * Menu item representing a list of Reef entities. On the client, the item is replaced by
+   * a list of entities. If this item has children defined, The children are replicated for each entity.
+   *
+   * @param label Visible label
+   * @param state When clicked, goto this UI state. Must be unique within each app
+   * @param url Visible URL in browser location bar
+   * @param component Component view to display when menu is clicked
+   * @param componentType Component, template, or templateUrl
+   * @param sourceUrl The rest request for a list of entities
+   * @param insertLocation Does the list of entities replace this item or go underneath this item.
+   * @param selected True if this item is selected when menu is first rendered
+   * @param children Submenus
+   */
+  case class NavigationItemSource( label: String, state: String, url: String, component: String,  componentType: ComponentType, val sourceUrl: String, val insertLocation: InsertLocation, selected: Boolean = false, val children: List[NavigationElement] = List()) extends NavigationElement with ItemLoadable
 
 
   object NavigationElement {
@@ -38,6 +95,7 @@ object Navigation {
         // case object NavigationDivider is a value, not a type.
         case NavigationDivider => (NavigationDivider, Json.toJson(Json.obj()))
         case b: NavigationHeader => (b, Json.toJson(b)(NavigationHeader.navigationHeaderFormat))
+        case b: NavigationItemToPage => (b, Json.toJson(b)(NavigationItemToPage.navigationItemToPageFormat))
         case b: NavigationItem => (b, Json.toJson(b)(NavigationItem.navigationItemFormat))
         case b: NavigationItemSource => (b, Json.toJson(b)(NavigationItemSource.navigationItemSourceFormat))
       }
@@ -48,6 +106,7 @@ object Navigation {
       (`class` match {
         case "NavigationDivider" => JsSuccess[NavigationElement](NavigationDivider)
         case "NavigationHeader" => Json.fromJson[NavigationHeader](data)(NavigationHeader.navigationHeaderFormat)
+        case "NavigationItemToPage" => Json.fromJson[NavigationItemToPage](data)(NavigationItemToPage.navigationItemToPageFormat)
         case "NavigationItem" => Json.fromJson[NavigationItem](data)(NavigationItem.navigationItemFormat)
         case "NavigationItemSource" => Json.fromJson[NavigationItemSource](data)(NavigationItemSource.navigationItemSourceFormat)
       }).get
@@ -56,6 +115,9 @@ object Navigation {
   }
   object NavigationHeader {
     implicit val navigationHeaderFormat = Json.format[NavigationHeader]
+  }
+  object NavigationItemToPage {
+    implicit val navigationItemToPageFormat = Json.format[NavigationItemToPage]
   }
   object NavigationItem {
     implicit val navigationItemFormat = Json.format[NavigationItem]

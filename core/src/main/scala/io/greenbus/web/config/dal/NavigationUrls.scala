@@ -11,15 +11,34 @@ import scala.slick.lifted.Tag
 import scala.language.implicitConversions
 
 /**
+ * Persistence for Navigation Elements. A menu is a list of NavigationElement
+ *
+ * Goals:
+ * 1. Get a menu from the DB based on a request URL.
+ * 2. Store a menu for a request URL.
+ */
+
+/**
+ * @param id DB ID
+ * @param url Request URL for navigation menu (list of NavigationElement)
+ * @param elements List of NavigationElement to store
  *
  * @author Flint O'Brien
  */
 case class NavigationUrl(id: Option[Long], url: String, elements: List[NavigationElement])
-case class NavigationUrlBytes(id: Option[Long], url: String, bytes: Array[Byte])
 object NavigationUrl {
   implicit val writer = Json.writes[NavigationUrl]
   implicit val reader = Json.reads[NavigationUrl]
 }
+
+/**
+ * @param id DB ID
+ * @param url Request URL for navigation menu (list of NavigationElement)
+ * @param bytes List of NavigationElement as bytes. Easiest way to use Slick DB
+ *
+ * @author Flint O'Brien
+ */
+case class NavigationUrlBytes(id: Option[Long], url: String, bytes: Array[Byte])
 
 class NavigationUrls(tag: Tag) extends Table[NavigationUrlBytes](tag, "NavigationUrls") {
   def parseNavigationElements(bytes: Array[Byte]): List[NavigationElement] = {
