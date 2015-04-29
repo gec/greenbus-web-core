@@ -6,6 +6,7 @@ import play.api.libs.json._
  * Navigation elements for menus. A menu is a list of NavigationElement.
  *
  * NavigationItem - Menu item that, when clicked, will bring up the specified view/component (ex: ops dashboard)
+ * NavigationItemToPage - Menu item that, when clicked, will go to a new page (i.e. new Angular App)
  * NavigationItemSource - Menu item representing a list of Reef entities. On the client, the item is replaced by
  *                        a list of entities.
  *
@@ -25,18 +26,6 @@ object Navigation {
   import InsertLocation._
   implicit val insertLocationFormat = EnumUtils.enumFormat(InsertLocation)
 
-  /**
-   * For NavigationItemSource, where will the results be inserted?
-   */
-  object ComponentType extends Enumeration {
-    type ComponentType = Value
-    val COMPONENT = Value     // ex: gb-measurement-table
-    val TEMPLATE = Value      // ex: <div>...</div>
-    val TEMPLATE_URL = Value  // ex: /partials/view1.html
-  }
-  import ComponentType._
-  implicit val componentTypeFormat = EnumUtils.enumFormat(ComponentType)
-
   sealed trait ItemLoadable {
     def sourceUrl: String
     def insertLocation: InsertLocation
@@ -51,7 +40,7 @@ object Navigation {
    * Menus can have nested children.
    *
    * @param label Visible label
-   * @param state When clicked, goto this UI state. Must be unique within each app
+   * @param state ui.router state. States starting with '.' are assumed to be nested, so the parent's state will be prepended.
    * @param url Visible URL in browser location bar
    * @param selected True if this item is selected when menu is first rendered
    * @param children Submenus
@@ -59,34 +48,28 @@ object Navigation {
   case class NavigationItemToPage( label: String, state: String, url: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
 
   /**
-   * Menu item that, when clicked, will bring up the specified view/component (ex: ops dashboard).
+   * Menu item that, when clicked, will bring up the specified state (ex: ops dashboard).
    * Menus can have nested children.
    *
    * @param label Visible label
-   * @param state When clicked, goto this UI state. Must be unique within each app
-   * @param url Visible URL in browser location bar
-   * @param component Component view to display when menu is clicked
-   * @param componentType Component, template, or templateUrl
+   * @param state ui.router state. States starting with '.' are assumed to be nested, so the parent's state will be prepended.
    * @param selected True if this item is selected when menu is first rendered
    * @param children Submenus
    */
-  case class NavigationItem( label: String, state: String, url: String,  component: String,  componentType: ComponentType, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
+  case class NavigationItem( label: String, state: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
 
   /**
    * Menu item representing a list of Reef entities. On the client, the item is replaced by
    * a list of entities. If this item has children defined, The children are replicated for each entity.
    *
    * @param label Visible label
-   * @param state When clicked, goto this UI state. Must be unique within each app
-   * @param url Visible URL in browser location bar
-   * @param component Component view to display when menu is clicked
-   * @param componentType Component, template, or templateUrl
+   * @param state ui.router state. States starting with '.' are assumed to be nested, so the parent's state will be prepended.
    * @param sourceUrl The rest request for a list of entities
    * @param insertLocation Does the list of entities replace this item or go underneath this item.
    * @param selected True if this item is selected when menu is first rendered
    * @param children Submenus
    */
-  case class NavigationItemSource( label: String, state: String, url: String, component: String,  componentType: ComponentType, val sourceUrl: String, val insertLocation: InsertLocation, selected: Boolean = false, val children: List[NavigationElement] = List()) extends NavigationElement with ItemLoadable
+  case class NavigationItemSource( label: String, state: String, val sourceUrl: String, val insertLocation: InsertLocation, selected: Boolean = false, val children: List[NavigationElement] = List()) extends NavigationElement with ItemLoadable
 
 
   object NavigationElement {
