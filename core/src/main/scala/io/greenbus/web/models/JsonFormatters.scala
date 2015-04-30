@@ -19,13 +19,12 @@
 package io.greenbus.web.models
 
 import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
-import org.totalgrid.reef.client.service.proto.Model.Command
+import org.totalgrid.reef.client.service.proto.Model.{EntityKeyValue, Command, Entity, Point}
 import io.greenbus.web.connection.ConnectionStatus
 import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
-import org.totalgrid.reef.client.service.proto.Model.{Entity, Point}
 import scala.collection.JavaConversions._
 import org.totalgrid.reef.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
 import org.totalgrid.reef.client.service.proto.Measurements._
@@ -466,14 +465,6 @@ object JsonFormatters {
   }
 
 
-//  implicit val entityWithChildrenWrites = new Writes[EntityWithChildren] {
-//    def writes( o: EntityWithChildren): JsValue =
-//      Json.obj(
-//        "entity" -> o.entity,
-//        "children" -> o.children
-//      )
-//  }
-
   implicit lazy val entityWithChildrenWrites: Writes[EntityWithChildren] = (
     (__ \ "entity").write[Entity] and
       (__ \ "children").lazyWrite(Writes.seq[EntityWithChildren](entityWithChildrenWrites))
@@ -515,6 +506,35 @@ object JsonFormatters {
    */
   implicit val frontEndConnectionStatusSeqWrites = new Writes[Seq[FrontEndConnectionStatus]] {
     def writes( o: Seq[FrontEndConnectionStatus]): JsValue = {
+      Json.toJson( o)
+    }
+  }
+
+
+  implicit val entityKeyValueWrites = new Writes[EntityKeyValue] {
+    def writes( o: EntityKeyValue): JsValue = {
+      if( o.getValue.hasBoolValue)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getBoolValue)
+      else if( o.getValue.hasStringValue)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getStringValue)
+      else if( o.getValue.hasDoubleValue)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getDoubleValue)
+      else if( o.getValue.hasInt32Value)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getInt32Value)
+      else if( o.getValue.hasInt64Value)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getInt64Value)
+      else if( o.getValue.hasByteArrayValue)
+        Json.obj("key" -> o.getKey, "value" -> Json.parse( o.getValue.getByteArrayValue.toByteArray))
+      else if( o.getValue.hasUint32Value)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getUint32Value)
+      else if( o.getValue.hasUint64Value)
+        Json.obj("key" -> o.getKey, "value" -> o.getValue.getUint64Value)
+      else
+        Json.obj("key" -> o.getKey, "value" -> JsNull)
+    }
+  }
+  implicit val entityKeyValueSeqWrites = new Writes[Seq[EntityKeyValue]] {
+    def writes( o: Seq[EntityKeyValue]): JsValue = {
       Json.toJson( o)
     }
   }

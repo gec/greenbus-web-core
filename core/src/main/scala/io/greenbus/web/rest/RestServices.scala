@@ -50,7 +50,6 @@ import play.api.mvc._
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import play.api.db.slick._
@@ -336,6 +335,31 @@ trait RestServices extends ReefAuthentication {
 
     service.relationshipFlatQuery( query.build).map{ result =>
       Ok( Json.toJson(result))
+    }
+  }
+
+  /**
+   *
+   * @param modelId
+   * @param entityId Entity UUID
+   * @param keys
+   * @param limit
+   * @return
+   */
+  def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
+    val service = serviceFactory.modelService( session)
+    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+
+    service.getEntityKeys( Seq( reefUuid)).flatMap{ entityKeyPairs =>
+      if( entityKeyPairs.nonEmpty) {
+        val filteredKeys = keys.isEmpty match {
+          case true => entityKeyPairs
+          case false => entityKeyPairs.filter(kp => keys.contains(kp.getKey))
+        }
+        service.getEntityKeyValues( filteredKeys).map{ keyValues => Ok(Json.toJson(keyValues)) }
+      }
+      else
+        Future.successful( NotFound( JSON_EMPTY_OBJECT))
     }
   }
 
