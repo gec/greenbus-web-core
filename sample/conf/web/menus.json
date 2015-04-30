@@ -1,168 +1,85 @@
 [
-  { "id": null,
+  { "state": null,
     "url": "/apps/operator/menus/top",
     "elements": [
-      {"class":"NavigationItem",
-       "data":{"label":"GreenBus","id":"applications","route":"#/","selected":false,
-               "children":[
-                 {"class":"NavigationItem","data":{"label":"Operator","id":"operator","route":"/apps/operator/#/","selected":false,"children":[]}},
-                 {"class":"NavigationItem","data":{"label":"Admin","id":"admin","route":"/apps/admin/#/","selected":false,"children":[]}}
-               ]}},
-      {"class":"NavigationItem",
-       "data":{"label":"","id":"session","route":"","selected":false,
-               "children":[
-                 {"class":"NavigationItem","data":{"label":"Logout","id":"logout","route":"#/logout","selected":false,"children":[]}}
-               ]}
+      {"class":"NavigationItemToPage",
+        "data":{"label":"GreenBus","state":"applications","url":"#/","selected":false,
+          "children":[
+            {"class":"NavigationItemToPage","data":{"label":"Operations","state":"operations","url":"/apps/operator/#/","selected":false,"children":[]}},
+            {"class":"NavigationItemToPage","data":{"label":"Admin","state":"admin","url":"/apps/admin/#/","selected":false,"children":[]}}
+          ]}},
+      {"class":"NavigationItemToPage",
+        "data":{"label":"","state":"session","url":"","selected":false,
+          "children":[
+            {"class":"NavigationItemToPage","data":{"label":"Logout","state":"logout","url":"#/logout","selected":false,"children":[]}}
+          ]}
+      }
+    ]
+  },
+
+  { "state": null,
+    "url": "/apps/admin/menus/top",
+    "elements": [
+      {"class":"NavigationItemToPage",
+        "data":{"label":"GreenBus","state":"applications","url":"#/","selected":false,
+          "children":[
+            {"class":"NavigationItemToPage","data":{"label":"Operations","state":"operations","url":"/apps/operator/#/","selected":false,"children":[]}},
+            {"class":"NavigationItemToPage","data":{"label":"Admin","state":"admin","url":"/apps/admin/#/","selected":false,"children":[]}}
+          ]}},
+      {"class":"NavigationItemToPage",
+        "data":{"label":"","state":"session","url":"","selected":false,
+          "children":[
+            {"class":"NavigationItemToPage","data":{"label":"Logout","state":"logout","url":"#/logout","selected":false,"children":[]}}
+          ]}
       }
     ]
   },
 
   {
-    "id": null,
+    "state": null,
     "url": "/apps/operator/menus/left",
     "elements": [
       {
         "class": "NavigationItemSource",
         "data": {
           "label": "Loading...",
-          "id": "equipment",
-          "route": "#/someRoute",
-          "sourceUrl": "/models/1/equipment?depth=1&rootTypes=Root",
+          "state": "microgrids.dashboard",
+          "sourceUrl": "/models/1/equipment?depth=1&rootTypes=MicroGrid",
           "insertLocation": "REPLACE",
           "selected": true,
           "children": [
-            {
-              "class": "NavigationItemSource",
-              "data": {
-                "label": "Equipment",
-                "id": "equipment",
-                "route": "/measurements/equipment",
-                "sourceUrl": "/models/1/equipment/$parent/descendants?depth=1",
-                "insertLocation": "CHILDREN",
-                "selected": false,
-                "children": []
-              }
-            },
-            {
-              "class": "NavigationItemSource",
-              "data": {
-                "label": "Solar",
-                "id": "solar",
-                "route": "/measurements/solar",
-                "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV",
-                "insertLocation": "CHILDREN",
-                "selected": false,
-                "children": []
-              }
-            },
-            {
-              "class": "NavigationItemSource",
-              "data": {
-                "label": "Energy Storage",
-                "id": "esses",
-                "route": "/esses/",
-                "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=CES",
-                "insertLocation": "CHILDREN",
-                "selected": false,
-                "children": []
-              }
-            },
-            {
-              "class": "NavigationItemSource",
-              "data": {
-                "label": "Generator",
-                "id": "generator",
-                "route": "/measurements/generator",
-                "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generator",
-                "insertLocation": "CHILDREN",
-                "selected": false,
-                "children": []
-              }
-            },
-            {
-              "class": "NavigationItemSource",
-              "data": {
-                "label": "Load",
-                "id": "load",
-                "route": "/measurements/load",
-                "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load",
-                "insertLocation": "CHILDREN",
-                "selected": false,
-                "children": []
-              }
-            }
+            { "class": "NavigationItemSource", "data": { "label": "Equipment",      "state": ".equipments",  "sourceUrl": "/models/1/equipment/$parent/descendants?depth=1",                       "insertLocation": "CHILDREN", "selected": false, "children": []}},
+            { "class": "NavigationItemSource", "data": { "label": "Solar",          "state": ".pvs",         "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=PV",         "insertLocation": "CHILDREN", "selected": false, "children": []}},
+            { "class": "NavigationItemSource", "data": { "label": "Energy Storage", "state": ".esses",       "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=ESS",        "insertLocation": "CHILDREN", "selected": false, "children": []}},
+            { "class": "NavigationItemSource", "data": { "label": "Generation",     "state": ".generations", "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=Generation", "insertLocation": "CHILDREN", "selected": false, "children": []}},
+            { "class": "NavigationItemSource", "data": { "label": "Load",           "state": ".loads",       "sourceUrl": "/models/1/equipment/$parent/descendants?depth=0&childTypes=Load",       "insertLocation": "CHILDREN", "selected": false, "children": []}}
           ]
         }
       },
-      {
-        "class": "NavigationItem",
-        "data": {
-          "label": "Endpoints",
-          "id": "endpoints",
-          "route": "/endpoints",
-          "selected": false,
-          "children": []
-        }
-      },
-      {
-        "class": "NavigationItem",
-        "data": {
-          "label": "Events",
-          "id": "events",
-          "route": "/events",
-          "selected": false,
-          "children": []
-        }
-      },
-      {
-        "class": "NavigationItem",
-        "data": {
-          "label": "Alarms",
-          "id": "alarms",
-          "route": "/alarms",
-          "selected": false,
-          "children": []
-        }
-      }
+      { "class": "NavigationItem", "data": { "label": "Endpoints", "state": "endpoints", "selected": false, "children": []}},
+      { "class": "NavigationItem", "data": { "label": "Events",    "state": "events", "selected": false, "children": []}},
+      { "class": "NavigationItem", "data": { "label": "Alarms",    "state": "alarms", "selected": false, "children": []}}
     ]
   },
 
-  { "id": null,
-    "url": "/apps/admin/menus/top",
-    "elements": [
-      {"class":"NavigationItem",
-        "data":{"label":"GreenBus","id":"applications","route":"#/","selected":false,
-          "children":[
-            {"class":"NavigationItem","data":{"label":"Operator","id":"operator","route":"/apps/operator/#/","selected":false,"children":[]}},
-            {"class":"NavigationItem","data":{"label":"Admin","id":"admin","route":"/apps/admin/#/","selected":false,"children":[]}}
-          ]}},
-      {"class":"NavigationItem",
-        "data":{"label":"","id":"session","route":"","selected":false,
-          "children":[
-            {"class":"NavigationItem","data":{"label":"Logout","id":"logout","route":"#/logout","selected":false,"children":[]}}
-          ]}
-      }
-    ]
-  },
-
-  { "id": null,
+  { "state": null,
     "url": "/apps/admin/menus/left",
     "elements": [
       {"class":"NavigationHeader", "data":{"label":"Model"}},
-      {"class":"NavigationItem", "data":{"label":"Entities","id":"entities","route":"#/entities","selected":true, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Points","id":"points","route":"#/points","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Commands","id":"commands","route":"#/commands","selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Entities",       "state":"entities",      "selected":true, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Points",         "state":"points",        "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Commands",       "state":"commands",      "selected":false, "children":[]}},
       {"class":"NavigationHeader", "data":{"label":"Data"}},
-      {"class":"NavigationItem", "data":{"label":"CES","id":"esses","route":"#/esses","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Measurements","id":"measurements","route":"#/measurements","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Events","id":"events","route":"#/events","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Alarms","id":"alarms","route":"#/alarms","selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"CES",            "state":"esses",         "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Measurements",   "state":"measurements",  "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Events",         "state":"events",        "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Alarms",         "state":"alarms",        "selected":false, "children":[]}},
       {"class":"NavigationHeader", "data":{"label":"Components"}},
-      {"class":"NavigationItem", "data":{"label":"Endpoints","id":"endpointconnections","route":"#/endpointconnections","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Applications","id":"applications","route":"#/applications","selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Endpoints",      "state":"endpoints",     "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Applications",   "state":"applications",  "selected":false, "children":[]}},
       {"class":"NavigationHeader", "data":{"label":"Auth"}},
-      {"class":"NavigationItem", "data":{"label":"Agents","id":"agents","route":"#/agents","selected":false, "children":[]}},
-      {"class":"NavigationItem", "data":{"label":"Permission Sets","id":"permissionsets","route":"#/permissionsets","selected":false, "children":[]}}
+      {"class":"NavigationItem", "data":{"label":"Agents",         "state":"agents",        "selected":false, "children":[]}},
+      {"class":"NavigationItem", "data":{"label":"Permission Sets","state":"permissionsets","selected":false, "children":[]}}
     ]
   }
 ]

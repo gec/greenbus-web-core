@@ -35,7 +35,7 @@ class NavigationSpec extends Specification with Mockito {
           val Some(navigationElements) = NavigationUrls.findNavigationElementsByUrl("/apps/operator/menus/top")
 
           navigationElements.length must equalTo(2)
-          val item = navigationElements(0).asInstanceOf[NavigationItem]
+          val item = navigationElements(0).asInstanceOf[NavigationItemToPage]
           item.label must equalTo( "GreenBus")
         }
       }
@@ -93,10 +93,10 @@ class NavigationSpec extends Specification with Mockito {
         status(menu) must equalTo(OK)
         val json = contentAsJson( menu)
         json.as[JsArray].value.length must beEqualTo( 2)
-        (json(0) \ "class").as[String] must beEqualTo("NavigationItem")
+        (json(0) \ "class").as[String] must beEqualTo("NavigationItemToPage")
         (json(0) \ "data" \ "label").as[String] must beEqualTo("GreenBus")
-        (json \\ "class").map( _.as[String]) must_== Seq("NavigationItem", "NavigationItem", "NavigationItem", "NavigationItem", "NavigationItem")
-        (json \\ "label").map( _.as[String]) must_== Seq( "Operator", "Admin", "GreenBus", "Logout", "")
+        (json \\ "class").map( _.as[String]) must_== Seq("NavigationItemToPage", "NavigationItemToPage", "NavigationItemToPage", "NavigationItemToPage", "NavigationItemToPage")
+        (json \\ "label").map( _.as[String]) must_== Seq( "Operations", "Admin", "GreenBus", "Logout", "")
       }
 
     }
