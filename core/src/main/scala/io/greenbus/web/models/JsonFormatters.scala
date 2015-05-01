@@ -19,7 +19,7 @@
 package io.greenbus.web.models
 
 import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
-import org.totalgrid.reef.client.service.proto.Model.{EntityKeyValue, Command, Entity, Point}
+import org.totalgrid.reef.client.service.proto.Model._
 import io.greenbus.web.connection.ConnectionStatus
 import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
 import play.api.libs.json._
@@ -537,6 +537,10 @@ object JsonFormatters {
     def writes( o: Seq[EntityKeyValue]): JsValue = {
       Json.toJson( o)
     }
+  }
+
+  implicit val entityKeyValueNotificationWrites = new Writes[EntityKeyValueNotification] {
+    def writes( o: EntityKeyValueNotification): JsValue = entityKeyValueWrites.writes( o.getValue)
   }
 
 

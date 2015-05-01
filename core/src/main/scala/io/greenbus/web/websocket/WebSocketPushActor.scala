@@ -23,14 +23,14 @@ import akka.util.Timeout
 import com.google.protobuf.GeneratedMessage
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
-import org.totalgrid.reef.client.service.proto.ModelRequests.EndpointSubscriptionQuery
+import org.totalgrid.reef.client.service.proto.ModelRequests.{EntityKeyPair, EntityKeyValueSubscriptionQuery, EndpointSubscriptionQuery}
 import org.totalgrid.reef.client.service.{EventService, MeasurementService}
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
 import org.totalgrid.reef.client.service.proto.Events.{Alarm,AlarmNotification, Event, EventNotification}
 import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
 import org.totalgrid.reef.client.service.proto.Measurements
 import org.totalgrid.reef.client.service.proto.Measurements.{Measurement, MeasurementNotification, PointMeasurementValue, PointMeasurementValues}
-import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+import org.totalgrid.reef.client.service.proto.Model.{EntityKeyValue, EntityKeyValueNotification, ReefUUID}
 import io.greenbus.web.connection.{ReefServiceFactory, ReefConnectionManager}
 import io.greenbus.web.connection.ConnectionStatus._
 import io.greenbus.web.util.Timer
@@ -95,6 +95,11 @@ object WebSocketPushActor {
 //                                         subsystems: Option[Seq[String]],  // defined in model
 //                                         limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
 //                                         ) extends Subscribe
+
+  case class SubscribeToProperties( override val subscriptionId: String, entityId: String, keys: Option[Seq[String]]) extends Subscribe
+
+  // Readers and writers
+  //
   object SubscribeToAlarms {
     implicit val writer = Json.writes[SubscribeToAlarms]
     implicit val reader = Json.reads[SubscribeToAlarms]
@@ -103,6 +108,11 @@ object WebSocketPushActor {
     implicit val writer = Json.writes[SubscribeToEvents]
     implicit val reader = Json.reads[SubscribeToEvents]
   }
+  object SubscribeToProperties {
+    implicit val writer = Json.writes[SubscribeToProperties]
+    implicit val reader = Json.reads[SubscribeToProperties]
+  }
+
 //  object SubscribeToAlarmsAndEvents {
 //    implicit val writer = Json.writes[SubscribeToAlarmsAndEvents]
 //    implicit val reader = Json.reads[SubscribeToAlarmsAndEvents]
@@ -115,6 +125,7 @@ object WebSocketPushActor {
   case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
   case class SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], result: PointMeasurementValues, timer: Timer) extends SubscribeResult
   case class SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) extends SubscribeResult
+  case class SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) extends SubscribeResult
   case class SubscribeFailure( subscriptionId: String, subscribeType: String, subscribeAsString: String, queryAsString: String, throwable: Throwable) extends SubscribeResult
   def makeSubscribeFailure( subscribe: Subscribe, query: String, throwable: Throwable) =
     SubscribeFailure( subscribe.subscriptionId, subscribe.getClass.getSimpleName, subscribe.toString, query, throwable)
@@ -221,6 +232,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     case subscribe: SubscribeToAlarms => subscribeToAlarms( subscribe)
     case subscribe: SubscribeToEvents => subscribeToEvents( subscribe)
     case subscribe: SubscribeToEndpoints => subscribeToEndpoints( subscribe)
+    case subscribe: SubscribeToProperties => subscribeToProperties( subscribe)
 
     case SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) =>
       subscribeSuccess( subscriptionId, subscription, result, alarmSeqPushWrites, alarmNotificationPushWrites)
@@ -234,6 +246,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       subscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
     case SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) =>
       subscribeToEndpointsSuccess( subscriptionId, subscription, result, endpointWithCommsSeqPushWrites, endpointWithCommsNotificationPushWrites)
+    case SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) =>
+      subscribeToPropertiesSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
 
     case failure: SubscribeFailure => subscribeFailure( failure)
 
@@ -391,7 +405,59 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
                                             result: Seq[EndpointWithComms],
                                             pushResults: PushWrites[Seq[EndpointWithComms]],
                                             pushMessage: PushWrites[EndpointWithCommsNotification]) = {
-    Logger.info( "subscribeSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
+    Logger.info( "subscribeToEndpointsSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
+
+    decrementPendingSubscriptionCount( subscriptionId) match {
+      case 0 =>
+        // There was no pending subscription, so it must have already been canceled by
+        // the client before we got all of the subscribe success messages from Reef.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        cancelSubscription( subscriptionId)
+      case _ =>
+        registerSuccessfulSubscription( subscriptionId, subscription)
+
+        // Push immediate subscription result.
+        pushChannel.push( pushResults.writes( subscriptionId, result))
+        subscription.start { m =>
+          pushChannel.push( pushMessage.writes( subscriptionId, m))
+        }
+    }
+  }
+
+
+  private def subscribeToProperties( subscribe: SubscribeToProperties) = {
+    val service = serviceFactory.modelService( session.get)
+    Logger.debug( "WebSocketPushActor.subscribeToProperties " + subscribe.subscriptionId)
+
+    val entityId = ReefUUID.newBuilder().setValue( subscribe.entityId).build()
+    val query = EntityKeyValueSubscriptionQuery.newBuilder()
+
+    if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
+      // Got keys. Get only those properties.
+      val entityKeyPairs = subscribe.keys.get.map( key => EntityKeyPair.newBuilder().setUuid( entityId).setKey( key).build())
+      query.addAllKeyPairs( entityKeyPairs)
+    } else {
+      // No keys. Get all properties
+      query.addUuids( entityId)
+    }
+
+    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    val result = service.subscribeToEntityKeyValues( query.build)
+
+    result onSuccess {
+      case (properties, subscription) =>
+        self ! SubscribeToPropertiesSuccess( subscribe.subscriptionId, subscription, properties)
+    }
+    result onFailure {
+      case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+    }
+  }
+  private def subscribeToPropertiesSuccess( subscriptionId: String,
+                                            subscription: Subscription[EntityKeyValueNotification],
+                                            result: Seq[EntityKeyValue],
+                                            pushResults: PushWrites[Seq[EntityKeyValue]],
+                                            pushMessage: PushWrites[EntityKeyValueNotification]) = {
+    Logger.info( "subscribeToPropertiesSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
 
     decrementPendingSubscriptionCount( subscriptionId) match {
       case 0 =>
