@@ -32,10 +32,17 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
   val authTokenGood = "goodAuthToken"
   val mockModelService = mock[ModelService]
 
-  val keyPair1 = EntityKeyPair.newBuilder().setKey("key1").build()
+  val key1 = "key1"
+  val value1 = "value1"
+  val entityId = "1"
+  val entityUuid = ReefUUID.newBuilder().setValue( entityId).build()
+  val keyPair1 = EntityKeyPair.newBuilder()
+    .setUuid( entityUuid)
+    .setKey(key1)
+    .build()
   val keyPairs = Seq( keyPair1)
-  val value1 = StoredValue.newBuilder().setStringValue("value1").build()
-  val keyValue1 = EntityKeyValue.newBuilder().setKey( "key1").setValue( value1).build()
+  val storedValue1 = StoredValue.newBuilder().setStringValue(value1).build()
+  val keyValue1 = EntityKeyValue.newBuilder().setKey( key1).setValue( storedValue1).build()
 
   object ReefServiceFactorMock extends ReefServiceFactory {
     import sun.reflect.generics.reflectiveObjects.NotImplementedException
@@ -58,7 +65,7 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
 
   "getEquipmentProperties" should {
 
-    "get all key values" in {
+    "get all properties" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
         Application.reefServiceFactory = ReefServiceFactorMock
@@ -71,12 +78,28 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
 
         val json = Json.parse( contentAsString(result)).as[JsArray]
         json.value.length == 1 must beTrue
-        (json(0) \ "key").as[String] mustEqual "key1"
-        (json(0) \ "value").as[String] mustEqual "value1"
+        (json(0) \ "key").as[String] mustEqual key1
+        (json(0) \ "value").as[String] mustEqual value1
       }
     }
 
-    "get a specific requested key value" in {
+    "get all properties without values" in {
+      running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
+
+        Application.reefServiceFactory = ReefServiceFactorMock
+        mockModelService.getEntityKeys( any[Seq[ReefUUID]]) returns Future.successful( keyPairs)
+
+        val Some( result) = routeGet("/models/1/equipment/1/properties?values=false")
+        status(result) must equalTo(OK)
+        contentType(result) must beSome.which(_ == "application/json")
+
+        val json = Json.parse( contentAsString(result)).as[JsArray]
+        json.value.length == 1 must beTrue
+        json(0).as[String] mustEqual key1
+      }
+    }
+
+    "get all properties for the specified list of keys" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
         Application.reefServiceFactory = ReefServiceFactorMock
@@ -89,8 +112,24 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
 
         val json = Json.parse( contentAsString(result)).as[JsArray]
         json.value.length == 1 must beTrue
-        (json(0) \ "key").as[String] mustEqual "key1"
-        (json(0) \ "value").as[String] mustEqual "value1"
+        (json(0) \ "key").as[String] mustEqual key1
+        (json(0) \ "value").as[String] mustEqual value1
+      }
+    }
+
+    "get one property" in {
+      running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
+
+        Application.reefServiceFactory = ReefServiceFactorMock
+        mockModelService.getEntityKeyValues( keyPairs) returns Future.successful( Seq( keyValue1))
+
+        val Some( result) = routeGet("/models/1/equipment/1/properties/key1")
+        status(result) must equalTo(OK)
+        contentType(result) must beSome.which(_ == "application/json")
+
+        val json = Json.parse( contentAsString(result)).as[JsObject]
+        (json \ "key").as[String] mustEqual key1
+        (json \ "value").as[String] mustEqual value1
       }
     }
 

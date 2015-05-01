@@ -339,27 +339,72 @@ trait RestServices extends ReefAuthentication {
   }
 
   /**
+   * Get properties attached to one piece of equipment. Can return keys with values or just keys.
    *
    * @param modelId
    * @param entityId Entity UUID
-   * @param keys
-   * @param limit
-   * @return
+   * @param keys If specified, return only these properties. Ignored if values = false
+   * @param values If true, return keys with values; otherwise, return a sequece of keys only.
+   * @return keys with values or just keys
    */
-  def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], values: Boolean) = ReefClientActionAsync { (request, session) =>
+//    import org.totalgrid.reef.client.service.proto.Model.{StoredValue, EntityKeyValue}
+//    import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeyPair
+
     val service = serviceFactory.modelService( session)
     val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
 
-    service.getEntityKeys( Seq( reefUuid)).flatMap{ entityKeyPairs =>
+    val future = service.getEntityKeys( Seq( reefUuid))
+    future flatMap { entityKeyPairs =>
       if( entityKeyPairs.nonEmpty) {
-        val filteredKeys = keys.isEmpty match {
-          case true => entityKeyPairs
-          case false => entityKeyPairs.filter(kp => keys.contains(kp.getKey))
+        if( values) {
+          val filteredKeys = keys.isEmpty match {
+            case true => entityKeyPairs
+            case false => entityKeyPairs.filter(kp => keys.contains(kp.getKey))
+          }
+          service.getEntityKeyValues( filteredKeys).map{ keyValues => Ok(Json.toJson(keyValues)) }
+        } else {
+          Future.successful( Ok( Json.toJson( entityKeyPairs.map( _.getKey))))
         }
-        service.getEntityKeyValues( filteredKeys).map{ keyValues => Ok(Json.toJson(keyValues)) }
       }
       else
         Future.successful( NotFound( JSON_EMPTY_OBJECT))
+    } recover {
+      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex: Throwable => throw ex
+    }
+  }
+
+  /**
+   * Get one property attached to one piece of equipment.
+   *
+   * @param modelId
+   * @param entityId Entity UUID
+   * @param key The property to be returned
+   * @return The key and value
+   */
+  def getEquipmentProperty( modelId: String, entityId: String, key: String) = ReefClientActionAsync { (request, session) =>
+//    import org.totalgrid.reef.client.service.proto.Model.{StoredValue, EntityKeyValue}
+    import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeyPair
+
+    val service = serviceFactory.modelService( session)
+    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+    val entityKeyPair = EntityKeyPair.newBuilder()
+      .setKey( key)
+      .setUuid( reefUuid)
+      .build()
+
+    val future = service.getEntityKeyValues( Seq( entityKeyPair))
+    future map { keyValues =>
+      if( ! keyValues.isEmpty)
+        Ok(Json.toJson(keyValues.head))
+      else
+        NotFound( JSON_EMPTY_OBJECT)
+    } recover {
+      case ex: ForbiddenException => Forbidden( Json.toJson( ExceptionMessage( "ForbiddenException", ex.getMessage)))
+      case ex: BadRequestException => Forbidden( Json.toJson( ExceptionMessage( "BadRequestException", ex.getMessage)))
+      case ex: Throwable => throw ex
     }
   }
 
