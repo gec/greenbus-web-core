@@ -514,23 +514,23 @@ object JsonFormatters {
   implicit val entityKeyValueWrites = new Writes[EntityKeyValue] {
     def writes( o: EntityKeyValue): JsValue = {
       if( o.getValue.hasBoolValue)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getBoolValue)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getBoolValue)
       else if( o.getValue.hasStringValue)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getStringValue)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getStringValue)
       else if( o.getValue.hasDoubleValue)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getDoubleValue)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getDoubleValue)
       else if( o.getValue.hasInt32Value)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getInt32Value)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getInt32Value)
       else if( o.getValue.hasInt64Value)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getInt64Value)
-      else if( o.getValue.hasByteArrayValue)
-        Json.obj("key" -> o.getKey, "value" -> Json.parse( o.getValue.getByteArrayValue.toByteArray))
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getInt64Value)
+      else if( o.getValue.hasByteArrayValue)  // TODO: assume these are JSON for now. In the future, these can also be XML (i.e. schematic), images, etc.
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> Json.parse( o.getValue.getByteArrayValue.toByteArray))
       else if( o.getValue.hasUint32Value)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getUint32Value)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getUint32Value)
       else if( o.getValue.hasUint64Value)
-        Json.obj("key" -> o.getKey, "value" -> o.getValue.getUint64Value)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getUint64Value)
       else
-        Json.obj("key" -> o.getKey, "value" -> JsNull)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> JsNull)
     }
   }
   implicit val entityKeyValueSeqWrites = new Writes[Seq[EntityKeyValue]] {
