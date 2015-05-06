@@ -540,7 +540,13 @@ object JsonFormatters {
   }
 
   implicit val entityKeyValueNotificationWrites = new Writes[EntityKeyValueNotification] {
-    def writes( o: EntityKeyValueNotification): JsValue = entityKeyValueWrites.writes( o.getValue)
+    def writes( o: EntityKeyValueNotification): JsValue = {
+      Json.obj(
+        "operation" -> o.getEventType.name,     // SubscriptionEventType: ADDED, MODIFIED, REMOVED
+        "value" -> entityKeyValueWrites.writes( o.getValue)
+      )
+    }
+
   }
 
 

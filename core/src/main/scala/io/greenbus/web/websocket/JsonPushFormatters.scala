@@ -45,7 +45,6 @@ object JsonPushFormatters {
     }
   }
 
-  lazy val endpointWithCommsPushWrites = new PushWrites( "endpoint", endpointWithCommsWrites)
   lazy val endpointWithCommsSeqPushWrites = new PushWrites( "endpoints", endpointWithCommsSeqWrites)
 
   lazy val endpointWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
@@ -73,7 +72,6 @@ object JsonPushFormatters {
   lazy val frontEndConnectionStatusNotificationPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusNotificationWrites)
   lazy val frontEndConnectionStatusSeqPushWrites = new PushWrites( "endpointStatus", frontEndConnectionStatusSeqWrites)
 
-  lazy val entityKeyValuePushWrites = new PushWrites( "property", entityKeyValueWrites)
   lazy val entityKeyValueSeqPushWrites = new PushWrites( "properties", entityKeyValueSeqWrites)
-  lazy val entityKeyValueNotificationPushWrites = new PushWrites( "property", entityKeyValueNotificationWrites)
+  lazy val entityKeyValueNotificationPushWrites = new PushWrites( "notification.property", entityKeyValueNotificationWrites)
 }
