@@ -348,19 +348,19 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     
     decrementPendingSubscriptionCount( subscriptionId) match {
       case 0 =>
-        Logger.debug( s"subscribeSuccess case 0 subscriptionId: $subscriptionId")
+        //Logger.debug( s"subscribeSuccess case 0 subscriptionId: $subscriptionId")
         // There was no pending subscription, so it must have already been canceled by
         // the client before we got all of the subscribe success messages from Reef.
         // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
         cancelSubscription( subscriptionId)
       case _ =>
-        Logger.debug( s"subscribeSuccess case _ subscriptionId: $subscriptionId, result.length: ${result.length}")
+        //Logger.debug( s"subscribeSuccess case _ subscriptionId: $subscriptionId, result.length: ${result.length}")
         registerSuccessfulSubscription( subscriptionId, subscription)
 
         // Push immediate subscription result.
         pushChannel.push( pushResults.writes( subscriptionId, result))
         subscription.start { m =>
-          Logger.debug( s"subscribeSuccess subscriptionId: $subscriptionId message: $m")
+          //Logger.debug( s"subscribeSuccess subscriptionId: $subscriptionId message: $m")
           pushChannel.push( pushMessage.writes( subscriptionId, m))
         }
     }
