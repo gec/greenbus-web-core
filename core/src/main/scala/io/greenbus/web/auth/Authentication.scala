@@ -99,20 +99,22 @@ trait Authentication {
    * Authenticate the request by using the authToken.
    */
   def authenticateRequest( request: RequestHeader, authTokenLocation: AuthTokenLocation, validationTiming: ValidationTiming) : Future[ Option[ (String, ServiceClient)]] = {
-//    val timer = new Timer( "TIMER: AAR Authentication.authenticateRequest validationTiming: " + validationTiming)
+    //import io.greenbus.web.util.Timer
+    //val timer = Timer.trace( "Authentication.authenticateRequest validationTiming: " + validationTiming)
 
     getAuthToken( request, authTokenLocation) match {
       case Some( authToken) =>
+        //val timer = Timer.debug( "Authentication.authenticateRequest validationTiming: " + validationTiming)
         getService( authToken, validationTiming).map {
           case Right( session) =>
-//            timer.end( "Right( session) validationTiming: " + validationTiming)
+            //timer.end( "Right( session) validationTiming: " + validationTiming)
             Some((authToken, session))
           case Left( failure) =>
-//            timer.end( "None validationTiming: " + validationTiming)
+            //timer.end( "None validationTiming: " + validationTiming)
             None
         }
       case None =>
-//        timer.end( "No auth token validationTiming: " + validationTiming)
+        //timer.end( "No auth token validationTiming: " + validationTiming)
         Future(None)
     }
   }
