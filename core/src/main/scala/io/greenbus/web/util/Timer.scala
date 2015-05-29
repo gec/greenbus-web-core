@@ -8,6 +8,10 @@ object Timer {
   case object INFO extends LogType
   case object DEBUG extends LogType
   case object TRACE extends LogType
+
+  def info( name: String) = new Timer( name, INFO)
+  def debug( name: String) = new Timer( name, DEBUG)
+  def trace( name: String) = new Timer( name, TRACE)
 }
 
 /**
