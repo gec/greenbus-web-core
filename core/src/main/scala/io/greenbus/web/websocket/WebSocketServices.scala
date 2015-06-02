@@ -26,26 +26,30 @@ import io.greenbus.web.models._
 import play.api._
 import play.api.libs.json._
 import play.api.mvc._
+import play.api.Play.current
 
 import scala.concurrent.ExecutionContext.Implicits._
+import io.greenbus.web.auth.ReefAuthentication
 
 
 /**
  *
  * @author Flint O'Brien
  */
-trait WebSocketServices extends ConnectionManagerRef {
+trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
   self: Controller =>
+
   import io.greenbus.web.connection.ConnectionManagerRef._
   import io.greenbus.web.connection.ConnectionStatus._
   import ValidationTiming._
 
+  def webSocketServiceProviders: Seq[WebSocketActor.WebSocketServiceProvider]
 
   /**
    * Setup a WebSocket. The connectionManager is responsible for authentication
    * before replying with WebSocketChannels.
    */
-  def getWebSocket( authToken: String) = WebSocket.tryAccept[JsValue] { request  =>
+  def getWebSocketOld( authToken: String) = WebSocket.tryAccept[JsValue] { request  =>
     (connectionManager ? WebSocketOpen( authToken, PREVALIDATED)).map {
       case WebSocketChannels( iteratee, enumerator) =>
         Logger.debug( "getWebSocket WebSocketChannels returned from WebSocketOpen")
@@ -54,6 +58,26 @@ trait WebSocketServices extends ConnectionManagerRef {
         Logger.debug( "getWebSocket WebSocketChannels returned WebSocketError " + status)
         Left( ServiceUnavailable( Json.obj("error" -> status)))
     }
+  }
+
+  /**
+   *
+   * @param authToken authToken is passed in the query string because WebSocket spec doesn't allow additional HTTP headers.
+   * @return
+   */
+  def getWebSocket( authToken: String) = WebSocket.tryAcceptWithActor[JsValue, JsValue] { request =>
+    getService( authToken, ValidationTiming.PREVALIDATED).map {
+      case Right( session) =>
+        // props() is a partial function. After this, someone applies (out: ActorRef)
+        Right(WebSocketActor.props( connectionManager, session, webSocketServiceProviders))
+      case Left( failure) =>
+        Left(Forbidden)
+    }
+
+//    Future.successful(request.session.get("user") match {
+//      case None => Left(Forbidden)
+//      case Some(_) => Right(WebSocketActor.props)
+//    })
   }
 
 //  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {

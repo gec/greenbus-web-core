@@ -20,7 +20,8 @@
 
 import org.totalgrid.msg.Session
 import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
-import io.greenbus.web.websocket.{WebSocketPushActor, WebSocketConsumerImpl}
+import io.greenbus.web.websocket._
+import io.greenbus.web.websocket.WebSocketActor.WebSocketServiceProvider
 import io.greenbus.web.config.dal.InitialDB
 import play.api._
 import controllers.Application
@@ -61,6 +62,7 @@ object Global extends GlobalSettings {
     Logger.info( "Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
     Application.reefServiceFactory = ReefServiceFactoryDefault
+    Application.myWebSocketServiceProviders = Seq( WebSocketServiceProvider( Subscriptions.messageTypes, SubscriptionServicesActor.props( ReefServiceFactoryDefault)))
     Logger.info( "Application started")
 
     /*
