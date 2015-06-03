@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
 
-object Subscriptions {
+object SubscriptionServicesActor {
   import WebSocketActor._
 
   case class SubscribeToMeasurements( override val name: String,
@@ -78,7 +78,7 @@ object Subscriptions {
   implicit val subscribeToEventsFormat = Json.format[SubscribeToEvents]
   implicit val subscribeToPropertiesFormat = Json.format[SubscribeToProperties]
 
-  def messageTypes = {
+  val messageTypes = {
     Seq(
       MessageType( "SubscribeToMeasurements", subscribeToMeasurementsFormat.reads),
       MessageType( "SubscribeToMeasurementHistory", subscribeToMeasurementHistoryFormat.reads),
@@ -88,13 +88,10 @@ object Subscriptions {
       MessageType( "SubscribeToProperties", subscribeToPropertiesFormat.reads)
     )
   }
-}
 
+  def props( serviceFactory: ReefServiceFactory)(session: Session)(out: ActorRef) = Props(new SubscriptionServicesActor( out, session, serviceFactory))
+  def webSocketServiceProvider( reefServiceFactory: ReefServiceFactory) = WebSocketServiceProvider( messageTypes, props( reefServiceFactory))
 
-
-object SubscriptionServicesActor {
-  import WebSocketActor._
-  import Subscriptions.SubscribeToMeasurementHistory
 
 
   sealed trait SubscribeResult
@@ -105,11 +102,6 @@ object SubscriptionServicesActor {
   case class SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], result: PointMeasurementValues, timer: Timer) extends SubscribeResult
   case class SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) extends SubscribeResult
   case class SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) extends SubscribeResult
-  case class SubscribeFailure( subscriptionId: String, subscribeType: String, subscribeAsString: String, queryAsString: String, throwable: Throwable) extends SubscribeResult
-  def makeSubscribeFailure( subscribe: AbstractSubscriptionMessage, query: String, throwable: Throwable) =
-    SubscribeFailure( subscribe.subscriptionId, subscribe.getClass.getSimpleName, subscribe.toString, query, throwable)
-
-  def props( serviceFactory: ReefServiceFactory)(session: Session)(out: ActorRef) = Props(new SubscriptionServicesActor( out, session, serviceFactory))
 
 }
 
@@ -117,23 +109,12 @@ object SubscriptionServicesActor {
  *
  * @author Flint O'Brien
  */
-class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends Actor {
+class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractSubscriptionServicesActor( out) {
   import SubscriptionServicesActor._
-  import Subscriptions._
+  import AbstractSubscriptionServicesActor._
+
 
   private var session : Option[Session] = Some( initialSession)
-
-  // Map of client subscriptionId to totalgrid.msg.SubscriptionBindings
-  // subscribeToEvents is two subscriptions, so we need a Seq.
-  //
-  private var subscriptionIdsMap = Map.empty[String, Seq[SubscriptionBinding]]
-
-  // Map of client subscriptionIds that are awaiting SubscriptionBindings.
-  // subscribeToEvents uses two SubscriptionBindings, so we start with a count of 2.
-  // When the count is 0, we ...
-  //
-  private var subscriptionIdToPendingSubscribeResultsCount = Map.empty[String, Int]
-
 
   // If debugging, debugGenerateMeasurementsForFastSubscription has a scheduler that needs to be cancelled.
   //
@@ -143,7 +124,6 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
   def receive = {
     case subscribe: SubscribeToMeasurements =>  subscribeToMeasurements( subscribe)
     case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementHistoryPart1( subscribe)
-    //    case subscribe: SubscribeToAlarmsAndEvents => subscribeToAlarmsAndEvents( subscribe)
     case subscribe: SubscribeToAlarms => subscribeToAlarms( subscribe)
     case subscribe: SubscribeToEvents => subscribeToEvents( subscribe)
     case subscribe: SubscribeToEndpoints => subscribeToEndpoints( subscribe)
@@ -162,9 +142,11 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     case SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) =>
       subscribeToEndpointsSuccess( subscriptionId, subscription, result, endpointWithCommsSeqPushWrites, endpointWithCommsNotificationPushWrites)
     case SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) =>
-      subscribeToPropertiesSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
+      subscribeSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
 
     case failure: SubscribeFailure => subscribeFailure( failure)
+      
+    case WebSocketActor.Unsubscribe( authToken, id) => cancelSubscription( id)
 
   }
 
@@ -172,8 +154,8 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     val service = serviceFactory.measurementService( session.get)
     Logger.debug( "SubscriptionServicesActor.subscribeToMeasurements " + subscribe.subscriptionId)
 
-    val uuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    val uuids = idsToReefUuids( subscribe.pointIds)
+    addPendingSubscription( subscribe.subscriptionId)
     val result = service.getCurrentValuesAndSubscribe( uuids)
 
     result onSuccess {
@@ -185,81 +167,14 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     }
   }
 
-  /**
-   * We're keeping count of pending subscriptions. Decrement the count. Remove
-   * @param subscriptionId
-   * @param count
-   */
-  private def setPendingSubscriptionCount( subscriptionId: String, count: Int) = {
-    subscriptionIdToPendingSubscribeResultsCount += (subscriptionId -> count)
-  }
-
-
-  /**
-   * We're keeping count of pending subscriptions. Decrement the count and return the original value.
-   * @param subscriptionId
-   */
-  private def decrementPendingSubscriptionCount( subscriptionId: String): Int = {
-    subscriptionIdToPendingSubscribeResultsCount.get( subscriptionId) match {
-      case Some( count) =>
-        if( count > 1)
-          subscriptionIdToPendingSubscribeResultsCount += (subscriptionId -> (count - 1))
-        else {
-          subscriptionIdToPendingSubscribeResultsCount -= subscriptionId
-        }
-        count
-      case None =>
-        0
-    }
-  }
-
-  private def registerSuccessfulSubscription( subscriptionId: String, subscription: SubscriptionBinding) = {
-    val bindings = subscriptionIdsMap.getOrElse( subscriptionId, Seq[SubscriptionBinding]()) :+ subscription
-    subscriptionIdsMap += ( subscriptionId -> bindings)
-  }
-
-
-  private def subscribeSuccess[R <: GeneratedMessage, M <: GeneratedMessage]( subscriptionId: String,
-                                                                              subscription: Subscription[M],
-                                                                              result: Seq[R],
-                                                                              pushResults: PushWrites[Seq[R]],
-                                                                              pushMessage: PushWrites[M]) = {
-    Logger.info( "subscribeSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
-
-    decrementPendingSubscriptionCount( subscriptionId) match {
-      case 0 =>
-        //Logger.debug( s"subscribeSuccess case 0 subscriptionId: $subscriptionId")
-        // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
-        cancelSubscription( subscriptionId)
-      case _ =>
-        //Logger.debug( s"subscribeSuccess case _ subscriptionId: $subscriptionId, result.length: ${result.length}")
-        registerSuccessfulSubscription( subscriptionId, subscription)
-
-        // Push immediate subscription result.
-        out ! pushResults.writes( subscriptionId, result)
-        subscription.start { m =>
-          //Logger.debug( s"subscribeSuccess subscriptionId: $subscriptionId message: $m")
-          out ! pushMessage.writes( subscriptionId, m)
-        }
-    }
-  }
-
-  private def subscribeFailure( failure: SubscribeFailure): Unit = {
-    val errorMessage = s"${failure.subscribeAsString} returned ${failure.throwable}"
-    Logger.error( s"subscribeFailure: $errorMessage")
-    decrementPendingSubscriptionCount( failure.subscriptionId)
-    out ! Json.obj("error" -> errorMessage)
-  }
 
   private def subscribeToEndpoints( subscribe: SubscribeToEndpoints) = {
     val service = serviceFactory.frontEndService( session.get)
     Logger.debug( "SubscriptionServicesActor.subscribeToEndpoints " + subscribe.subscriptionId)
 
-    val uuids = subscribe.endpointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+    val uuids = idsToReefUuids( subscribe.endpointIds)
     val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    addPendingSubscription( subscribe.subscriptionId)
     val result = service.subscribeToEndpointWithComms( query.build)
 
     result onSuccess {
@@ -270,6 +185,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
       case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
     }
   }
+  // Note: Can't use subscribeSuccess because EndpointWithComms is not a proto. It's a polyfill.
   private def subscribeToEndpointsSuccess( subscriptionId: String,
                                            subscription: Subscription[EndpointWithCommsNotification],
                                            result: Seq[EndpointWithComms],
@@ -277,20 +193,14 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
                                            pushMessage: PushWrites[EndpointWithCommsNotification]) = {
     Logger.info( "subscribeToEndpointsSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
 
-    decrementPendingSubscriptionCount( subscriptionId) match {
-      case 0 =>
-        // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
-        cancelSubscription( subscriptionId)
-      case _ =>
-        registerSuccessfulSubscription( subscriptionId, subscription)
+    if( pendingSubscription( subscriptionId)) {
+      registerSuccessfulSubscription( subscriptionId, subscription)
 
-        // Push immediate subscription result.
-        out ! pushResults.writes( subscriptionId, result)
-        subscription.start { m =>
-          out ! pushMessage.writes( subscriptionId, m)
-        }
+      // Push immediate subscription result.
+      out ! pushResults.writes( subscriptionId, result)
+      subscription.start { m =>
+        out ! pushMessage.writes( subscriptionId, m)
+      }
     }
   }
 
@@ -299,7 +209,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     val service = serviceFactory.modelService( session.get)
     Logger.debug( "SubscriptionServicesActor.subscribeToProperties " + subscribe.subscriptionId)
 
-    val entityId = ReefUUID.newBuilder().setValue( subscribe.entityId).build()
+    val entityId = idToReefUuid(  subscribe.entityId)
     val query = EntityKeyValueSubscriptionQuery.newBuilder()
 
     if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
@@ -311,7 +221,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
       query.addUuids( entityId)
     }
 
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    addPendingSubscription( subscribe.subscriptionId)
     val result = service.subscribeToEntityKeyValues( query.build)
 
     result onSuccess {
@@ -322,43 +232,20 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
       case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
     }
   }
-  private def subscribeToPropertiesSuccess( subscriptionId: String,
-                                            subscription: Subscription[EntityKeyValueNotification],
-                                            result: Seq[EntityKeyValue],
-                                            pushResults: PushWrites[Seq[EntityKeyValue]],
-                                            pushMessage: PushWrites[EntityKeyValueNotification]) = {
-    Logger.info( "subscribeToPropertiesSuccess subscriptionId: " + subscriptionId + ", result.length: " +  result.length)
-
-    decrementPendingSubscriptionCount( subscriptionId) match {
-      case 0 =>
-        // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
-        cancelSubscription( subscriptionId)
-      case _ =>
-        registerSuccessfulSubscription( subscriptionId, subscription)
-
-        // Push immediate subscription result.
-        out ! pushResults.writes( subscriptionId, result)
-        subscription.start { m =>
-          out ! pushMessage.writes( subscriptionId, m)
-        }
-    }
-  }
 
 
   private def subscribeToMeasurementHistoryPart1( subscribe: SubscribeToMeasurementHistory) = {
     val timer = new Timer( "subscribeToMeasurementsHistory")
     val service = serviceFactory.measurementService( session.get)
     Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
-    val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+    val pointReefId = idToReefUuid(  subscribe.pointUuid)
     timer.delta( "initialized service and uuid")
 
     val points = Seq( pointReefId)
     // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
     // we can start the subscription.
     //
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    addPendingSubscription( subscribe.subscriptionId)
     val result = service.getCurrentValuesAndSubscribe( points)
     result onSuccess {
       case (measurements, subscription) =>
@@ -381,23 +268,18 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
                                                          timer: Timer) = {
     Logger.info( "subscribeToMeasurementHistorySuccess subscriptionId: " + subscribe.subscriptionId + ", result.length: " +  measurements.length)
 
-    decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
-      case 0 =>
-      // There was no pending subscription, so it must have already been canceled by
-      // the client before we got this subscribe success message from Reef.
-      case _ =>
-
-        if( measurements.nonEmpty) {
-          subscribeToMeasurementsHistoryPart2( subscribe, pointReefId, subscription, measurements.head, timer)
+    if( pendingSubscription( subscribe.subscriptionId)) {
+      if( measurements.nonEmpty) {
+        subscribeToMeasurementsHistoryPart2( subscribe, pointReefId, subscription, measurements.head, timer)
+      }
+      else {
+        registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
+        // Point has never had a measurement. Start subscription for new measurements.
+        subscription.start { m =>
+          out ! pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m)
         }
-        else {
-          registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
-          // Point has never had a measurement. Start subscription for new measurements.
-          subscription.start { m =>
-            out ! pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m)
-          }
-          timer.end( "no current measurement, just subscription")
-        }
+        timer.end( "no current measurement, just subscription")
+      }
     }
   }
 
@@ -443,7 +325,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
       // problem with limit reached on messages having the same millisecond.
 
       timer.delta( "Part2 service.getHistory call " + subscribe.subscriptionId)
-      setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+      addPendingSubscription( subscribe.subscriptionId)
       val result = service.getHistory( query)
       result onSuccess {
         case pointMeasurements =>
@@ -463,7 +345,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
       if( DebugSimulateLotsOfMeasurements) {
         val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
         Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
-        val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+        val pointReefId = idToReefUuid(  subscribe.pointUuid)
         val pmv = PointMeasurementValues.newBuilder()
           .setPointUuid( pointReefId)
           .addAllValue( measurements)
@@ -490,35 +372,33 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
                                                          timer: Timer) = {
     Logger.info( "subscribeToMeasurementHistorySuccess subscriptionId: " + subscribe.subscriptionId + ", result.length: " +  pointMeasurements.getValueCount)
 
-    decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
-      case 0 =>
-        // There was no pending subscription, so it must have already been canceled by
-        // the client before we got this subscribe success message from Reef.
-        timer.end( "part2Success subscription was already canceled")
-      case _ =>
-
-        Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.subscriptionId)
-        // History will include the current measurement we already received.
-        // How will we know if the limit is reach. Currently, just seeing the returned number == limit
-        if( DebugSimulateLotsOfMeasurements) {
-          val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
-          val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
-          Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
-          val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
-          val pmv = PointMeasurementValues.newBuilder()
-            .setPointUuid( pointReefId)
-            .addAllValue( measurements)
-          out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
-          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement)
-        } else {
-          registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
-          out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pointMeasurements)
-          subscription.start { m =>
-            out ! pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m)
-          }
+    if( pendingSubscription( subscribe.subscriptionId)) {
+      Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess " + subscribe.subscriptionId)
+      // History will include the current measurement we already received.
+      // How will we know if the limit is reach. Currently, just seeing the returned number == limit
+      if( DebugSimulateLotsOfMeasurements) {
+        val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
+        val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
+        Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
+        val pointReefId = idToReefUuid(  subscribe.pointUuid)
+        val pmv = PointMeasurementValues.newBuilder()
+          .setPointUuid( pointReefId)
+          .addAllValue( measurements)
+        out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
+        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement)
+      } else {
+        registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
+        out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pointMeasurements)
+        subscription.start { m =>
+          out ! pointMeasurementNotificationPushWrites.writes( subscribe.subscriptionId, m)
         }
-        timer.end( "part2Success")
-    }
+      }
+      timer.end( "part2Success")
+    } else
+      // There was no pending subscription, so it must have already been canceled by
+      // the client before we got this subscribe success message from Reef.
+      timer.end( "part2Success subscription was already canceled")
+
   }
 
 
@@ -574,8 +454,6 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     }
 
     debugScheduleIdsMap = debugScheduleIdsMap + (subscribeId -> cancellable)
-
-
 
   }
 
@@ -642,7 +520,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     val service = serviceFactory.eventService( session.get)
     val eventQuery = makeEventQuery( subscribe).build()
 
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    addPendingSubscription( subscribe.subscriptionId)
     val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
     val result = service.subscribeToAlarms( alarmQuery)
 
@@ -678,7 +556,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
     val service = serviceFactory.eventService( session.get)
     val eventQuery = makeEventQuery( subscribe).build()
 
-    setPendingSubscriptionCount( subscribe.subscriptionId, 1)
+    addPendingSubscription( subscribe.subscriptionId)
     val result = service.subscribeToEvents( eventQuery)
 
     result onSuccess {
@@ -694,27 +572,12 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
   }
 
 
-
-
-  private def cancelAllSubscriptions = {
-    Logger.info( "SubscriptionServicesActor.cancelAllSubscriptions: Cancelling " + subscriptionIdsMap.size + " subscriptions.")
-    subscriptionIdsMap.foreach{ case (subscriptionName, subscriptions) =>
-      subscriptions.foreach{ case subscription =>  subscription.cancel}
-    }
-    subscriptionIdsMap = Map.empty[String, Seq[SubscriptionBinding]]
-  }
-
-  private def cancelSubscription( id: String) = {
-    Logger.info( "SubscriptionServicesActor cancelSubscription " + id)
-    subscriptionIdsMap.get(id) foreach { subscriptions =>
-      Logger.info( "SubscriptionServicesActor canceling subscription " + id)
-      subscriptions.foreach( _.cancel)
-      subscriptionIdsMap -= id
-    }
+  override def cancelSubscription( id: String) = {
+    super.cancelSubscription( id)
     debugScheduleIdsMap.get(id) foreach { subscription =>
       Logger.info( "SubscriptionServicesActor canceling schedule " + id)
       subscription.cancel()
-      subscriptionIdsMap -= id
+      debugScheduleIdsMap -= id
     }
   }
 

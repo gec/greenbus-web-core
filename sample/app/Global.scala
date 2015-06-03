@@ -20,8 +20,6 @@
 
 import org.totalgrid.msg.Session
 import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
-import io.greenbus.web.websocket._
-import io.greenbus.web.websocket.WebSocketActor.WebSocketServiceProvider
 import io.greenbus.web.config.dal.InitialDB
 import play.api._
 import controllers.Application
@@ -36,6 +34,7 @@ import akka.actor.{Props, ActorContext}
 object ClientPushActorFactory extends WebSocketPushActorFactory{
   import ConnectionStatus._
   import ReefConnectionManager._
+  import io.greenbus.web.websocket._
 
   def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
     // Create a pushChannel that the new actor will use for push
@@ -62,7 +61,9 @@ object Global extends GlobalSettings {
     Logger.info( "Starting reef connection manager " + reefConnectionManager)
     Application.reefConnectionManager = reefConnectionManager
     Application.reefServiceFactory = ReefServiceFactoryDefault
-    Application.myWebSocketServiceProviders = Seq( WebSocketServiceProvider( Subscriptions.messageTypes, SubscriptionServicesActor.props( ReefServiceFactoryDefault)))
+    Application.myWebSocketServiceProviders = Seq(
+      io.greenbus.web.websocket.SubscriptionServicesActor.webSocketServiceProvider( ReefServiceFactoryDefault)
+    )
     Logger.info( "Application started")
 
     /*
