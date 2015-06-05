@@ -56,7 +56,9 @@ object ReefConnectionManager {
   implicit val timeout = Timeout(2 seconds)
 
   case class ChildActorStop( childActor: ActorRef)
-  case class UpdateConnection( connectionStatus: ConnectionStatus, connection: Option[Session])
+  case class Connection( connectionStatus: ConnectionStatus, connection: Option[Session])
+  case class SubscribeToConnection( subscriber: ActorRef)
+  case class UnsubscribeToConnection( subscriber: ActorRef)
 
 
   case class AuthenticationFailure( status: ConnectionStatus)

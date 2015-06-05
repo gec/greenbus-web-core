@@ -1,5 +1,6 @@
 package io.greenbus.web.websocket
 
+import io.greenbus.web.connection.ReefConnectionManager.{SubscribeToConnection, Connection}
 import io.greenbus.web.websocket.WebSocketActor.{ErrorMessage, MessageType, WebSocketServiceProvider}
 import org.specs2.mutable._
 import org.specs2.mock._
@@ -42,14 +43,12 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
 
   val TIMEOUT = FiniteDuration(500, MILLISECONDS)
   val NO_TIME_AT_ALL = FiniteDuration(50, MILLISECONDS) // Must finish way before TIMEOUT
-  val session1 = mock[Session]
-  val session2 = mock[Session]
-  session1.spawn returns session2
 
-  def reefConnectionMock: ReefConnection = {
-    val reefConnection = mock[ReefConnection]
-    reefConnection.session returns session1
-  }
+  val authToken = "someAuthToken"
+  val session = mock[Session]
+  val serviceFactory = mock[ReefServiceFactory]
+
+
 
   class ForwardingActor( forwardReceiver: ActorRef)(implicit system: ActorSystem) extends Actor {
     def receive = {
@@ -80,11 +79,6 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
     "create message routes with two children" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
 
-        val serviceFactory = mock[ReefServiceFactory]
-        val childProbe = TestProbe()
-
-        val authToken = "someAuthToken"
-        val session = mock[Session]
         val out = TestProbe()
         val connectionManager = TestProbe()
         val subscribeToMeasurementsReceiver = TestProbe()
@@ -116,11 +110,6 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
     "send ErrorMessage to out when name field is missing from message" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
 
-        val serviceFactory = mock[ReefServiceFactory]
-        val childProbe = TestProbe()
-
-        val authToken = "someAuthToken"
-        val session = mock[Session]
         val out = TestProbe()
         val connectionManager = TestProbe()
         val subscribeToMeasurementsReceiver = TestProbe()
@@ -145,6 +134,56 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
         ))
         val errorMessage = ErrorMessage( "unknown", jsErrorNameMissing)  // name is unknown
         out.expectMsg( errorMessage)
+      }
+    }
+
+    "subscribe to connection updates from ConnectionManager" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+        val out = TestProbe()
+        val connectionManager = TestProbe()
+        val subscribeToMeasurementsReceiver = TestProbe()
+        val subscribeToPropertiesReceiver = TestProbe()
+
+        val providers = Seq(
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToMeasurements, subscribeToMeasurementsReceiver.ref),
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToProperties, subscribeToPropertiesReceiver.ref)
+        )
+        val underTest = TestActorRef(new WebSocketActor( out.ref, connectionManager.ref, session, providers))
+
+        underTest.underlyingActor.context.children.size must beEqualTo(2)
+
+        val subscribeToConnectionRequest = SubscribeToConnection( underTest)
+
+        connectionManager.expectMsg( subscribeToConnectionRequest)
+        out.expectNoMsg( NO_TIME_AT_ALL)
+      }
+    }
+
+    "send connection updates to children" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+        val out = TestProbe()
+        val connectionManager = TestProbe()
+        val subscribeToMeasurementsReceiver = TestProbe()
+        val subscribeToPropertiesReceiver = TestProbe()
+
+        val providers = Seq(
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToMeasurements, subscribeToMeasurementsReceiver.ref),
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToProperties, subscribeToPropertiesReceiver.ref)
+        )
+        val underTest = TestActorRef(new WebSocketActor( out.ref, connectionManager.ref, session, providers))
+
+        underTest.underlyingActor.context.children.size must beEqualTo(2)
+
+        val subscribeToConnectionRequest = SubscribeToConnection( underTest)
+        connectionManager.expectMsg( subscribeToConnectionRequest)
+
+        val connection = Connection( ConnectionStatus.AMQP_UP, Some( session))
+        underTest ! connection
+        out.expectMsg( Json.toJson( connection.connectionStatus))
+        subscribeToMeasurementsReceiver.expectMsg( connection)
+        subscribeToPropertiesReceiver.expectMsg( connection)
       }
     }
 

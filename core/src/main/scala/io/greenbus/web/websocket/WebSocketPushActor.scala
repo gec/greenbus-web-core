@@ -203,7 +203,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
 
   def receive = {
-    case connection: UpdateConnection =>
+    case connection: Connection =>
       updateConnection( connection)
       if( session.isDefined) {
         Logger.debug( "receive.UpdateConnection session.isDefined context.become( receiveWithConnection)")
@@ -219,7 +219,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
 
   def receiveWithConnection: Receive = {
 
-    case connection: UpdateConnection =>
+    case connection: Connection =>
       updateConnection( connection)
       if( session.isEmpty) {
         Logger.debug( "receiveWithConnection.UpdateConnection session.isEmpty unbecome")
@@ -259,7 +259,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
 
-  def updateConnection( connection: UpdateConnection) = {
+  def updateConnection( connection: Connection) = {
     Logger.info( "WebSocketPushActor receive UpdateConnection " + connection.connectionStatus)
     this.clientStatus = connection.connectionStatus
     this.session = connection.connection

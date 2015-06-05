@@ -3,7 +3,7 @@ package io.greenbus.web.websocket
 import akka.actor._
 import akka.pattern.AskTimeoutException
 import io.greenbus.web.connection.ConnectionStatus._
-import io.greenbus.web.connection.ReefConnectionManager.UpdateConnection
+import io.greenbus.web.connection.ReefConnectionManager.{SubscribeToConnection, UnsubscribeToConnection, Connection}
 import org.totalgrid.msg.Session
 import play.api.libs.json._
 import play.api.Logger
@@ -35,7 +35,6 @@ object WebSocketActor {
   case class Unsubscribe( authToken: String, subscriptionId: String)
   case class UnknownMessage( name: String)
   case class ErrorMessage( error: String, jsError: JsError)
-  case class ConnectionStatusMessage( status: ConnectionStatus)
   case object ConnectionBackUp
 
   implicit val subscriptionMessageFormat = Json.format[SubscriptionMessage]
@@ -130,16 +129,17 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
   override def preStart() {
     Logger.debug( "preStart context.become( receiveWithConnection)")
     context.become( receiveWithConnection)
+    connectionManager ! SubscribeToConnection( self)
     //TODO: register with connectionManager to get session updates.
   }
 
   def receive = {
-    case UpdateConnection( connectionStatus, session) => updateConnection( connectionStatus, session)
+    case connection: Connection => updateConnection( connection)
     case message: AnyRef => Logger.info( "WebSocketActor.receive: Message received while AMQP connection is down. Message: " + message)
   }
 
   def receiveWithConnection: Receive = {
-    case UpdateConnection( connectionStatus, session) => updateConnection( connectionStatus, session)
+    case connection: Connection => updateConnection( connection)
     case message: JsValue =>
       receiveMessage( message, out)
   }
@@ -197,19 +197,23 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
     }
   }
 
-  def updateConnection( connectionStatus: ConnectionStatus, session: Option[Session]) = {
+  def updateConnection( connection: Connection) = {
     Logger.info( "WebSocketActor receive UpdateConnection " + connectionStatus)
-    val oldConnectionStatus = this.connectionStatus
-    this.connectionStatus = connectionStatus
-    this.session = session
+    val oldConnectionStatus = connectionStatus
+    connectionStatus = connection.connectionStatus
+    session = connection.connection
 
-    out ! ConnectionStatusMessage( connectionStatus)
+    context.children.foreach( _ ! connection)
+    out ! Json.toJson( connectionStatus)
 
     if( connectionStatus != AMQP_UP)
       wentDown = true
-    else if( wentDown && connectionStatus == AMQP_UP)
+    else if( wentDown && connectionStatus == AMQP_UP) {
+      connectionManager ! UnsubscribeToConnection( self)
       // We've informed the client browser we're back up. Let the client browser do a full browser refresh.
       context stop self // complete this message, discard message queue, and stop.
+
+    }
   }
 
 }
