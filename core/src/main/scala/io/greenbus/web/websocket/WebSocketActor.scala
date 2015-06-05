@@ -8,20 +8,30 @@ import org.totalgrid.msg.Session
 import play.api.libs.json._
 import play.api.Logger
 
+import scala.reflect.ClassTag
+
 
 object WebSocketActor {
 
 
   abstract class AbstractMessage {
-    def name: String        // subscribe..., unsubscribe
     def authToken: String
   }
-  case class Message( override val name: String, override val authToken: String) extends AbstractMessage
+  case class Message( override val authToken: String) extends AbstractMessage
 
   abstract class AbstractSubscriptionMessage extends AbstractMessage {
     def subscriptionId: String
   }
-  case class SubscriptionMessage( override val name: String, override val authToken: String, override val subscriptionId: String) extends AbstractSubscriptionMessage
+
+  /**
+   * Generic subscription message coming over a WebSocket from a browser client.
+   * A name is added to a standard subscription class so the WebSocketActor can route it.
+   *
+   * @param name
+   * @param authToken
+   * @param subscriptionId
+   */
+  case class SubscriptionMessage( name: String, override val authToken: String, override val subscriptionId: String) extends AbstractSubscriptionMessage
   case class Unsubscribe( authToken: String, subscriptionId: String)
   case class UnknownMessage( name: String)
   case class ErrorMessage( error: String, jsError: JsError)
@@ -50,6 +60,30 @@ object WebSocketActor {
   case class WebSocketServiceProvider( messageTypes: Seq[MessageType], props: Session => ActorRef => Props)
 
   def props( connectionManager: ActorRef, session: Session, webSocketServiceProviders: Seq[WebSocketServiceProvider])(out: ActorRef) = Props(new WebSocketActor( out, connectionManager, session, webSocketServiceProviders))
+
+  /**
+   * Convert a Format to a Format that writes a name field for the case class name. The reads
+   * will ignore a name field unless it is part of the original case class.
+   *
+   * Usage:
+   *
+   * formatWithName( Json.format[SubscribeToMeasurements])
+   *
+   * @param original The original formatter from Json.format[...]
+   * @tparam T
+   */
+  class FormatWithName[T:ClassTag](original: Format[T]) extends Format[T] {
+    def myClassOf[T:ClassTag] = implicitly[ClassTag[T]].runtimeClass.getSimpleName
+
+    //val nameWrites: Writes[T] = (original ~ (__ \ "name").write[String])((t: T) => (t, myClassOf[T]))
+
+    override def reads(json: JsValue): JsResult[T] = original.reads( json)
+
+    override def writes(o: T): JsValue = original.writes( o).as[JsObject] + ("name" -> Json.toJson(myClassOf[T]))
+  }
+  def formatWithName[T:ClassTag]( original: Format[T]) = {
+    new FormatWithName( original)
+  }
 }
 
 /**

@@ -22,30 +22,27 @@ import play.api.libs.functional.syntax._
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 import scala.util.Random
 
 object SubscriptionServicesActor {
   import WebSocketActor._
 
-  case class SubscribeToMeasurements( override val name: String,
-                                      override val authToken: String,
+  case class SubscribeToMeasurements( override val authToken: String,
                                       override val subscriptionId: String,
                                       pointIds: Seq[String]
                                       ) extends AbstractSubscriptionMessage
-  case class SubscribeToMeasurementHistory( override val name: String,
-                                            override val authToken: String,
+  case class SubscribeToMeasurementHistory( override val authToken: String,
                                             override val subscriptionId: String,
                                             pointUuid: String,
                                             timeFrom: Long,
                                             limit: Int
                                             ) extends AbstractSubscriptionMessage
-  case class SubscribeToEndpoints( override val name: String,
-                                   override val authToken: String,
+  case class SubscribeToEndpoints( override val authToken: String,
                                    override val subscriptionId: String,
                                    endpointIds: Seq[String]
                                    ) extends AbstractSubscriptionMessage
-  case class SubscribeToAlarms( override val name: String,
-                                override val authToken: String,
+  case class SubscribeToAlarms( override val authToken: String,
                                 override val subscriptionId: String,
                                 agents: Option[Seq[String]],      // defined in model
                                 alarmStates: Option[Seq[String]], // UNACK_AUDIBLE, UNACK_SILENT, ACKNOWLEDGED, REMOVED
@@ -54,8 +51,7 @@ object SubscriptionServicesActor {
                                 subsystems: Option[Seq[String]],  // defined in model
                                 limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
                                 ) extends AbstractSubscriptionMessage
-  case class SubscribeToEvents( override val name: String,
-                                override val authToken: String,
+  case class SubscribeToEvents( override val authToken: String,
                                 override val subscriptionId: String,
                                 agents: Option[Seq[String]],      // defined in model
                                 eventTypes: Option[Seq[String]],  // defined in model
@@ -63,20 +59,19 @@ object SubscriptionServicesActor {
                                 subsystems: Option[Seq[String]],  // defined in model
                                 limit: Option[Int]                // None, 0: no initial results, just future events & alarms.
                                 ) extends AbstractSubscriptionMessage
-  case class SubscribeToProperties( override val name: String,
-                                    override val authToken: String,
+  case class SubscribeToProperties( override val authToken: String,
                                     override val subscriptionId: String,
                                     entityId: String,
                                     keys: Option[Seq[String]]
                                     ) extends AbstractSubscriptionMessage
 
 
-  implicit val subscribeToMeasurementsFormat = Json.format[SubscribeToMeasurements]
-  implicit val subscribeToMeasurementHistoryFormat = Json.format[SubscribeToMeasurementHistory]
-  implicit val subscribeToEndpointsFormat = Json.format[SubscribeToEndpoints]
-  implicit val subscribeToAlarmsFormat = Json.format[SubscribeToAlarms]
-  implicit val subscribeToEventsFormat = Json.format[SubscribeToEvents]
-  implicit val subscribeToPropertiesFormat = Json.format[SubscribeToProperties]
+  implicit val subscribeToMeasurementsFormat = formatWithName( Json.format[SubscribeToMeasurements])
+  implicit val subscribeToMeasurementHistoryFormat = formatWithName( Json.format[SubscribeToMeasurementHistory])
+  implicit val subscribeToEndpointsFormat = formatWithName( Json.format[SubscribeToEndpoints])
+  implicit val subscribeToAlarmsFormat = formatWithName( Json.format[SubscribeToAlarms])
+  implicit val subscribeToEventsFormat = formatWithName( Json.format[SubscribeToEvents])
+  implicit val subscribeToPropertiesFormat = formatWithName(  Json.format[SubscribeToProperties])
 
   val messageTypes = {
     Seq(
@@ -109,9 +104,9 @@ object SubscriptionServicesActor {
  *
  * @author Flint O'Brien
  */
-class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractSubscriptionServicesActor( out) {
+class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractWebSocketServicesActor( out) {
   import SubscriptionServicesActor._
-  import AbstractSubscriptionServicesActor._
+  import AbstractWebSocketServicesActor._
 
 
   private var session : Option[Session] = Some( initialSession)

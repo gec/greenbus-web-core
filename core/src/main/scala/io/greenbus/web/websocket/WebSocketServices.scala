@@ -43,6 +43,11 @@ trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
   import io.greenbus.web.connection.ConnectionStatus._
   import ValidationTiming._
 
+  /**
+   * WebSocket message requests can be routed to multiple WebSocket service provider libraries.
+   *
+   * @return
+   */
   def webSocketServiceProviders: Seq[WebSocketActor.WebSocketServiceProvider]
 
   /**
@@ -61,6 +66,8 @@ trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
   }
 
   /**
+   * Setup a WebSocket. The connectionManager is responsible for authentication
+   * before replying with WebSocketChannels.
    *
    * @param authToken authToken is passed in the query string because WebSocket spec doesn't allow additional HTTP headers.
    * @return
@@ -73,11 +80,6 @@ trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
       case Left( failure) =>
         Left(Forbidden)
     }
-
-//    Future.successful(request.session.get("user") match {
-//      case None => Left(Forbidden)
-//      case Some(_) => Right(WebSocketActor.props)
-//    })
   }
 
 //  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {

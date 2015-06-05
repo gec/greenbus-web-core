@@ -9,7 +9,7 @@ import org.totalgrid.reef.client.service.proto.Model.ReefUUID
 import play.api.Logger
 import play.api.libs.json.Json
 
-object AbstractSubscriptionServicesActor {
+object AbstractWebSocketServicesActor {
   case class SubscribeFailure( subscriptionId: String, subscribeType: String, subscribeAsString: String, queryAsString: String, throwable: Throwable)
   
   def idToReefUuid( id: String) = ReefUUID.newBuilder().setValue( id).build()
@@ -20,8 +20,8 @@ object AbstractSubscriptionServicesActor {
  *
  * @author Flint O'Brien
  */
-abstract class AbstractSubscriptionServicesActor( out: ActorRef) extends Actor {
-  import AbstractSubscriptionServicesActor._
+abstract class AbstractWebSocketServicesActor( out: ActorRef) extends Actor {
+  import AbstractWebSocketServicesActor._
   
   // Map of client subscriptionId to totalgrid.msg.SubscriptionBindings
   // subscribeToEvents is two subscriptions, so we need a Seq.
