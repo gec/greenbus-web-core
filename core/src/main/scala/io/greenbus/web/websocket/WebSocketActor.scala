@@ -198,7 +198,7 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
   }
 
   def updateConnection( connection: Connection) = {
-    Logger.info( "WebSocketActor receive UpdateConnection " + connectionStatus)
+    Logger.info( s"WebSocketActor receive UpdateConnection old status: $connectionStatus, new status: ${connection.connectionStatus}")
     val oldConnectionStatus = connectionStatus
     connectionStatus = connection.connectionStatus
     session = connection.connection
