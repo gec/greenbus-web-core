@@ -2,9 +2,10 @@ package io.greenbus.web.websocket
 
 import akka.actor.{ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
+import io.greenbus.web.connection.SessionContext
 import io.greenbus.web.websocket.JsonPushFormatters.PushWrites
 import io.greenbus.web.websocket.WebSocketActor.AbstractSubscriptionMessage
-import org.totalgrid.msg.{Subscription, SubscriptionBinding}
+import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding}
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
 import play.api.Logger
 import play.api.libs.json.Json
@@ -20,9 +21,15 @@ object AbstractWebSocketServicesActor {
  *
  * @author Flint O'Brien
  */
-abstract class AbstractWebSocketServicesActor( out: ActorRef) extends Actor {
+abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Session) extends Actor with SessionContext {
   import AbstractWebSocketServicesActor._
-  
+
+
+  private var _session: Option[Session] = Some(initialSession)
+  override def session: Option[Session] = _session
+  override def updateSession(newSession: Option[Session]): Unit = _session = newSession
+
+
   // Map of client subscriptionId to totalgrid.msg.SubscriptionBindings
   // subscribeToEvents is two subscriptions, so we need a Seq.
   //

@@ -387,6 +387,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
 
       newConnection.addConnectionListener { expected =>
         // expected is true if we called connection.disconnect
+        Logger.info( "initializeConnectionToAmqp: Connection to AMQP is down")
         self ! ConnectionDown( expected)
       }
 

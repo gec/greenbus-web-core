@@ -2,6 +2,7 @@ package io.greenbus.web.websocket
 
 import akka.actor.{Cancellable, Props, ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
+import io.greenbus.web.connection.ReefConnectionManager.Connection
 import io.greenbus.web.connection.ReefServiceFactory
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import io.greenbus.web.util.Timer
@@ -104,12 +105,10 @@ object SubscriptionServicesActor {
  *
  * @author Flint O'Brien
  */
-class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractWebSocketServicesActor( out) {
+class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractWebSocketServicesActor( out, initialSession) {
   import SubscriptionServicesActor._
   import AbstractWebSocketServicesActor._
 
-
-  private var session : Option[Session] = Some( initialSession)
 
   // If debugging, debugGenerateMeasurementsForFastSubscription has a scheduler that needs to be cancelled.
   //
@@ -117,6 +116,10 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
 
 
   def receive = {
+
+    case connection: Connection => updateSession( connection.connection)
+
+
     case subscribe: SubscribeToMeasurements =>  subscribeToMeasurements( subscribe)
     case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementHistoryPart1( subscribe)
     case subscribe: SubscribeToAlarms => subscribeToAlarms( subscribe)
