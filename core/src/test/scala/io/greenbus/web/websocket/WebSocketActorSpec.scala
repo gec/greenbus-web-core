@@ -41,7 +41,7 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
   import ReefConnectionManager.ReefConnectionManagerServiceFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
 
-  val TIMEOUT = FiniteDuration(500, MILLISECONDS)
+  val TIMEOUT = FiniteDuration(1000, MILLISECONDS)
   val NO_TIME_AT_ALL = FiniteDuration(50, MILLISECONDS) // Must finish way before TIMEOUT
 
   val authToken = "someAuthToken"
@@ -153,9 +153,9 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
 
         underTest.underlyingActor.context.children.size must beEqualTo(2)
 
-        val subscribeToConnectionRequest = SubscribeToConnection( underTest)
+        val subscribeToConnection = SubscribeToConnection( underTest)
 
-        connectionManager.expectMsg( subscribeToConnectionRequest)
+        connectionManager.expectMsg( subscribeToConnection)
         out.expectNoMsg( NO_TIME_AT_ALL)
       }
     }

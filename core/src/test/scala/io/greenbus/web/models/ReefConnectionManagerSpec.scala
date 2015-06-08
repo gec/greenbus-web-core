@@ -1,5 +1,6 @@
 package io.greenbus.web.models
 
+import org.specs2.mock.mockito.ArgumentCapture
 import org.specs2.mutable._
 import org.specs2.mock._
 import akka.actor.{Actor, Props, ActorSystem}
@@ -36,11 +37,13 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
   import ReefConnectionManager.ReefConnectionManagerServiceFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
 
-  val TIMEOUT = FiniteDuration(500, MILLISECONDS)
+  val TIMEOUT = FiniteDuration(1000, MILLISECONDS)
+  val NO_TIME_AT_ALL = FiniteDuration(50, MILLISECONDS) // Must finish way before TIMEOUT
   val childActorFactory = mock[WebSocketPushActorFactory]
   val session1 = mock[Session]
   val session2 = mock[Session]
   session1.spawn returns session2
+  //var connectionListener: (Boolean) => Unit
 
   def reefConnectionMock: ReefConnection = {
     val reefConnection = mock[ReefConnection]
@@ -101,7 +104,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
       }
     }
 
-    "reply to SessionRequest with ServiceClientFailure " in new AkkaTestkitSpecs2Support {
+    "reply to SessionRequest with ServiceClientFailure" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
         import org.totalgrid.msg.amqp.util.LoadingException
 
@@ -110,6 +113,55 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
         val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
         rcm ! ReefConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsg( new ReefConnectionManager.ServiceClientFailure( ConnectionStatus.CONFIGURATION_FILE_FAILURE))
+      }
+    }
+
+    "manage SubscribeToConnection subscribers" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+        val reefConnection = mock[ReefConnection]
+        reefConnection.session returns session1
+
+        val serviceFactory = serviceFactoryMock( reefConnection)
+        val subscriber = TestProbe()
+        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
+
+        rcm ! ReefConnectionManager.SubscribeToConnection( subscriber.ref)
+        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
+
+        rcm ! ReefConnectionManager.UnsubscribeToConnection( subscriber.ref)
+
+        // AMQP Down
+        val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
+        there was one (reefConnection).addConnectionListener( listenerCapture)
+        val listener = listenerCapture.value
+        listener( false)
+
+        subscriber.expectNoMsg( NO_TIME_AT_ALL)
+      }
+    }
+
+    "notify subscribers when AMWP goes down and when it comes back up." in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+
+        val reefConnection = mock[ReefConnection]
+        reefConnection.session returns session1
+
+        val serviceFactory = serviceFactoryMock( reefConnection)
+        val subscriber = TestProbe()
+        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
+        rcm ! ReefConnectionManager.SubscribeToConnection( subscriber.ref)
+        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
+
+        // AMQP Down
+        val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
+        there was one (reefConnection).addConnectionListener( listenerCapture)
+        val listener = listenerCapture.value
+        listener( false)
+
+        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_DOWN, None))
+        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
       }
     }
   }

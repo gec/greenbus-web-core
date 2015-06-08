@@ -57,6 +57,8 @@ object ReefConnectionManager {
 
   case class ChildActorStop( childActor: ActorRef)
   case class Connection( connectionStatus: ConnectionStatus, connection: Option[Session])
+  case class Connect( reconnect: Boolean, previousAttempts: Int)
+  case class ConnectionDown( expected: Boolean) // expected is true if we called connection.disconnect
   case class SubscribeToConnection( subscriber: ActorRef)
   case class UnsubscribeToConnection( subscriber: ActorRef)
 
@@ -129,13 +131,11 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
   var connectionStatus: ConnectionStatus = INITIALIZING
   var connection: Option[ReefConnection] = None
   var cachedSession: Option[Session] = None
-  //var authTokenToSession = Map.empty[ String, Session]
+  var connectionSubscribers = Set.empty[ ActorRef]
+
 
   override def preStart = {
-    val (status, newConnection, newSession) = initializeConnectionToAmqp( REEF_CONFIG_FILENAME)
-    connectionStatus = status
-    connection = newConnection
-    cachedSession = newSession
+    initializeConnectionToAmqp( REEF_CONFIG_FILENAME, Connect( reconnect = false, previousAttempts = 0))
   }
 
   def receive = {
@@ -143,6 +143,11 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     case LogoutRequest( authToken) => logout( authToken)
     case SessionRequest( authToken, validationTiming) => sessionRequest( authToken, validationTiming)
     case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
+    case SubscribeToConnection( subscriber) => subscribeToConnection( subscriber)
+    case UnsubscribeToConnection( subscriber) => unsubscribeToConnection( subscriber)
+      
+    case message: Connect =>  initializeConnectionToAmqp( REEF_CONFIG_FILENAME, message)
+    case ConnectionDown( expected) => connectionDown( expected)
     case ChildActorStop( childActor) =>
       context.unwatch( childActor)
       context.stop( childActor)
@@ -160,7 +165,6 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
 
           session.get.headers.get( ReefHeaders.tokenHeader()) match {
             case Some( authToken) =>
-              //authTokenToSession += ( authToken -> session.get )
               Logger.debug( "ReefConnectionManager.login( " + userName + ") authToken: " + authToken)
               savedSender ! authToken
             case None =>
@@ -284,7 +288,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
    */
   private def sessionRequest( authToken: String, validationTiming: ValidationTiming): Unit = {
 
-    val timer = new Timer( "ReefConnectionManager.sessionRequest validationTiming: " + validationTiming, Timer.DEBUG)
+    val timer = Timer.debug( "ReefConnectionManager.sessionRequest validationTiming: " + validationTiming)
 
     val future = sessionFromAuthToken( authToken, validationTiming, "sessionRequest")
     val theSender = sender
@@ -319,7 +323,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
    *
    */
   private def webSocketOpen( authToken: String, validationTiming: ValidationTiming): Unit = {
-    val timer = new Timer( "ReefConnectionManager.webSocketOpen validationTiming: " + validationTiming, Timer.DEBUG)
+    val timer = Timer.debug( "ReefConnectionManager.webSocketOpen validationTiming: " + validationTiming)
 
     val future = sessionFromAuthToken( authToken, validationTiming, "webSocketOpen")
     val theSender = sender
@@ -344,9 +348,22 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
 
   }
 
-  private def initializeConnectionToAmqp( configFilePath: String) : (ConnectionStatus, Option[ReefConnection], Option[Session]) = {
+  private def subscribeToConnection( subscriber: ActorRef): Unit = {
+    subscriber ! Connection( connectionStatus, cachedSession)
+    connectionSubscribers = connectionSubscribers + subscriber
+  }
 
-    val timer = new Timer( "initializeConnectionToAmqp", Timer.INFO)
+  private def unsubscribeToConnection( subscriber: ActorRef): Unit = {
+    connectionSubscribers = connectionSubscribers - subscriber
+  }
+
+  private def initializeConnectionToAmqp( configFilePath: String, connectAttempt: Connect) : Unit = {
+    val initialOrReconnect = if ( connectAttempt.reconnect) "reconnect" else "connect"
+    val attemptCount = connectAttempt.previousAttempts + 1
+    Logger.info( s"Attempting to $initialOrReconnect to AMQP. Attempt number $attemptCount")
+
+
+    val timer = Timer.info( "initializeConnectionToAmqp")
     timer.delta( "Loading AMQP config file " + configFilePath)
 
     val settings = try {
@@ -354,19 +371,37 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     } catch {
       case ex: LoadingException => {
         Logger.error( "Error loading reef configuration file '" + configFilePath + "'. Exception: " + ex)
-        return ( CONFIGURATION_FILE_FAILURE, None, None )
+        timer.end( "Error loading reef configuration file '" + configFilePath + "'. Exception: " + ex)
+        connectionStatus = CONFIGURATION_FILE_FAILURE
+        connection = None
+        cachedSession = None
+        // Don't try to reconnect.
+        return
       }
     }
     timer.delta( "AMQP Settings loaded. Getting Reef ReefConnection...")
 
     try {
-      val connection = serviceFactory.reefConnect(settings, QpidBroker, 5000)
+      val newConnection = serviceFactory.reefConnect(settings, QpidBroker, 5000)
       timer.delta( "Got Reef connection. Getting session...")
 
-      val session = connection.session
+      newConnection.addConnectionListener { expected =>
+        // expected is true if we called connection.disconnect
+        self ! ConnectionDown( expected)
+      }
+
+      val session = newConnection.session
       timer.end( "Reef connection.session successful")
-      (AMQP_UP, Some( connection), Some( session))
+
+      // Success!
+      //
+      connectionStatus = AMQP_UP
+      connection = Some( newConnection)
+      cachedSession = Some( session)
+      connectionSubscribers.foreach( _ ! Connection( connectionStatus, cachedSession))
+
     } catch {
+
       case ex: IOException => {
         Logger.error( "Error connecting to AMQP. Exception: " + ex)
         var cause = ex.getCause
@@ -376,18 +411,50 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
           causeCount += 1
           cause = cause.getCause
         }
-        (AMQP_DOWN, None, None)
+        connectionStatus = AMQP_DOWN
+        connection = None
+        cachedSession = None
+        scheduleConnectAttempt( Connect( connectAttempt.reconnect, attemptCount))
       }
+
       case ex: Throwable => {
         Logger.error( "Error connecting to AMQP or Reef. Exception: " + ex)
-        (AMQP_DOWN, None, None)
+        connectionStatus = AMQP_DOWN
+        connection = None
+        cachedSession = None
+        scheduleConnectAttempt( Connect( connectAttempt.reconnect, attemptCount))
       }
     }
   }
 
+  private def scheduleConnectAttempt( connectAttempt: Connect) = {
+    val delay = connectAttempt.previousAttempts match {
+      case x if x < 20 => Duration(3, SECONDS)    // 1 minute
+      case x if x < 100 => Duration(10, SECONDS)  // then 15 minutes
+      case _ => Duration(60, SECONDS)             // then forever
+    }
+    context.system.scheduler.scheduleOnce( delay, self, connectAttempt)
+  }
+
+  private def connectionDown( expected: Boolean) = {
+    if( expected)
+      Logger.info( "Connection to AMQP is down as expected")
+    else
+      Logger.info( "Connection to AMQP is down unexpectedly. Trying to reconnect.")
+
+    val wasUp = connectionStatus == AMQP_UP
+    connectionStatus = AMQP_DOWN
+    connection = None
+    cachedSession = None
+    connectionSubscribers.foreach( _ ! Connection( connectionStatus, cachedSession))
+
+    if( ! expected)
+      initializeConnectionToAmqp( REEF_CONFIG_FILENAME, Connect( wasUp, 0))
+  }
+
   private def loginReefSession( userName: String, password: String) : Future[(ConnectionStatus, Option[Session])] = {
 
-    val timer = new Timer( "loginReefSession", Timer.INFO)
+    val timer = Timer.info( "loginReefSession")
 
     if( connectionStatus != AMQP_UP) {
       timer.end( s"connectionStatus != AMQP_UP, connectionStatus = $connectionStatus")
