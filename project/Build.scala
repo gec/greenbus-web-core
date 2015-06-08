@@ -11,6 +11,7 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "web-core"
+  val appVersion        = "0.3.0-SNAPSHOT"
   val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
@@ -18,7 +19,7 @@ object ApplicationBuild extends Build {
   val msgVersion       = "0.0.1-SNAPSHOT"
 
   lazy val baseSettings = Seq(
-    version            := "0.3.0-SNAPSHOT",
+    version            := appVersion,
     // Need these scala versions or it tries the wrong version
     scalaVersion       := "2.10.4",
     organization       := "io.greenbus.web",
@@ -29,7 +30,8 @@ object ApplicationBuild extends Build {
     resolvers += "scala-tools" at "http://repo.typesafe.com/typesafe/scala-tools-releases-cache",
     credentials += Credentials( Path.userHome / ".ivy2" / ".credentials"),
     resolvers += "totalgrid-snapshot" at totalGridSnapshot,
-    resolvers += "totalgrid-release" at totalGridRelease
+    resolvers += "totalgrid-release" at totalGridRelease,
+    resolvers += Resolver.mavenLocal
   )
 
   lazy val appPublishMavenStyle = true
@@ -64,6 +66,7 @@ object ApplicationBuild extends Build {
       name := appName,
       libraryDependencies += "com.typesafe.play"  %% "play" % playVersion % "provided",
       libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion % "test",
+      // libraryDependencies += "com.typesafe.akka" %% "akka-agent" % "2.3.4",
       libraryDependencies += play.PlayImport.cache,
       libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion withSources(),
       libraryDependencies += "org.totalgrid.msg" % "msg-qpid" % msgVersion,
@@ -93,7 +96,7 @@ object ApplicationBuild extends Build {
       publishTo               <<=(version)(appPublishTo),
       pomExtra                := appPomExtra
     )
-    .dependsOn(core)
+    .dependsOn(core % "test->compile;compile->compile")
 
   lazy val sample = Project("sample", base = file("sample"))
     .enablePlugins(play.PlayScala)
