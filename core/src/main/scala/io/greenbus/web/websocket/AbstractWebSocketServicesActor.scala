@@ -11,7 +11,7 @@ import play.api.Logger
 import play.api.libs.json.Json
 
 object AbstractWebSocketServicesActor {
-  case class SubscribeFailure( subscriptionId: String, subscribeType: String, subscribeAsString: String, queryAsString: String, throwable: Throwable)
+  case class SubscribeFailure( subscriptionId: String, name: String, subscribeAsString: String, query: String, exception: Throwable)
   
   def idToReefUuid( id: String) = ReefUUID.newBuilder().setValue( id).build()
   def idsToReefUuids( ids: Seq[String]) = ids.map( idToReefUuid)
@@ -120,7 +120,7 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
     SubscribeFailure( subscribe.subscriptionId, subscribe.getClass.getSimpleName, subscribe.toString, query, throwable)
   
   protected def subscribeFailure( failure: SubscribeFailure): Unit = {
-    val errorMessage = s"${failure.subscribeAsString} returned ${failure.throwable}"
+    val errorMessage = s"${failure.subscribeAsString} returned ${failure.exception}"
     Logger.error( s"subscribeFailure: $errorMessage")
     subscriptionIdToPendingSubscribeResultsCount -= failure.subscriptionId
     out ! Json.obj("error" -> errorMessage)
