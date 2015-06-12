@@ -3,7 +3,7 @@ package io.greenbus.web.websocket
 import akka.actor.{Cancellable, Props, ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
 import io.greenbus.web.connection.ReefConnectionManager.Connection
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import io.greenbus.web.util.Timer
 import io.greenbus.web.websocket.JsonPushFormatters._
@@ -85,8 +85,12 @@ object SubscriptionServicesActor {
     )
   }
 
-  def props( serviceFactory: ReefServiceFactory)(session: Session)(out: ActorRef) = Props(new SubscriptionServicesActor( out, session, serviceFactory))
-  def webSocketServiceProvider( reefServiceFactory: ReefServiceFactory) = WebSocketServiceProvider( messageTypes, props( reefServiceFactory))
+  def props(session: Session)(out: ActorRef) =
+    Props( new SubscriptionServicesActor( out, session) with EventServiceContextImpl
+                                                        with FrontEndServiceContextImpl
+                                                        with MeasurementServiceContextImpl
+                                                        with ModelServiceContextImpl )
+  def webSocketServiceProvider = WebSocketServiceProvider( messageTypes, props)
 
 
 
@@ -105,7 +109,9 @@ object SubscriptionServicesActor {
  *
  * @author Flint O'Brien
  */
-class SubscriptionServicesActor( out: ActorRef, initialSession : Session, serviceFactory: ReefServiceFactory) extends AbstractWebSocketServicesActor( out, initialSession) {
+class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extends AbstractWebSocketServicesActor( out, initialSession) {
+  this: EventServiceContext with FrontEndServiceContext with ModelServiceContext with MeasurementServiceContext =>
+
   import SubscriptionServicesActor._
   import AbstractWebSocketServicesActor._
 
@@ -149,39 +155,57 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
   }
 
   private def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
-    val service = serviceFactory.measurementService( session.get)
-    Logger.debug( "SubscriptionServicesActor.subscribeToMeasurements " + subscribe.subscriptionId)
+    try {
 
-    val uuids = idsToReefUuids( subscribe.pointIds)
-    addPendingSubscription( subscribe.subscriptionId)
-    val result = service.getCurrentValuesAndSubscribe( uuids)
+      val service = measurementService( subscribe.authToken)
+      Logger.debug( "SubscriptionServicesActor.subscribeToMeasurements " + subscribe.subscriptionId)
 
-    result onSuccess {
-      case (measurements, subscription) =>
-        self ! SubscribeToMeasurementsSuccess( subscribe.subscriptionId, subscription, measurements)
+      val uuids = idsToReefUuids( subscribe.pointIds)
+      addPendingSubscription( subscribe.subscriptionId)
+      val result = service.getCurrentValuesAndSubscribe( uuids)
+
+      result onSuccess {
+        case (measurements, subscription) =>
+          self ! SubscribeToMeasurementsSuccess( subscribe.subscriptionId, subscription, measurements)
+      }
+      result onFailure {
+        case f => self ! makeSubscribeFailure( subscribe,  uuids.mkString(","), f)
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurements ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
-    result onFailure {
-      case f => self ! makeSubscribeFailure( subscribe,  uuids.mkString(","), f)
-    }
+
   }
 
 
   private def subscribeToEndpoints( subscribe: SubscribeToEndpoints) = {
-    val service = serviceFactory.frontEndService( session.get)
-    Logger.debug( "SubscriptionServicesActor.subscribeToEndpoints " + subscribe.subscriptionId)
+    try {
 
-    val uuids = idsToReefUuids( subscribe.endpointIds)
-    val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
-    addPendingSubscription( subscribe.subscriptionId)
-    val result = service.subscribeToEndpointWithComms( query.build)
+      val service = frontEndService( subscribe.authToken)
+      Logger.debug( "SubscriptionServicesActor.subscribeToEndpoints " + subscribe.subscriptionId)
 
-    result onSuccess {
-      case (endointsWithComms, subscription) =>
-        self ! SubscribeToEndpointsSuccess( subscribe.subscriptionId, subscription, endointsWithComms)
+      val uuids = idsToReefUuids( subscribe.endpointIds)
+      val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
+      addPendingSubscription( subscribe.subscriptionId)
+      val result = service.subscribeToEndpointWithComms( query.build)
+
+      result onSuccess {
+        case (endointsWithComms, subscription) =>
+          self ! SubscribeToEndpointsSuccess( subscribe.subscriptionId, subscription, endointsWithComms)
+      }
+      result onFailure {
+        case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToEndpoints ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
-    result onFailure {
-      case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
-    }
+
   }
   // Note: Can't use subscribeSuccess because EndpointWithComms is not a proto. It's a polyfill.
   private def subscribeToEndpointsSuccess( subscriptionId: String,
@@ -204,57 +228,73 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
 
 
   private def subscribeToProperties( subscribe: SubscribeToProperties) = {
-    val service = serviceFactory.modelService( session.get)
-    Logger.debug( "SubscriptionServicesActor.subscribeToProperties " + subscribe.subscriptionId)
+    try {
 
-    val entityId = idToReefUuid(  subscribe.entityId)
-    val query = EntityKeyValueSubscriptionQuery.newBuilder()
+      val service = modelService( subscribe.authToken)
+      Logger.debug( "SubscriptionServicesActor.subscribeToProperties " + subscribe.subscriptionId)
 
-    if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
-      // Got keys. Get only those properties.
-      val entityKeyPairs = subscribe.keys.get.map( key => EntityKeyPair.newBuilder().setUuid( entityId).setKey( key).build())
-      query.addAllKeyPairs( entityKeyPairs)
-    } else {
-      // No keys. Get all properties
-      query.addUuids( entityId)
-    }
+      val entityId = idToReefUuid(  subscribe.entityId)
+      val query = EntityKeyValueSubscriptionQuery.newBuilder()
 
-    addPendingSubscription( subscribe.subscriptionId)
-    val result = service.subscribeToEntityKeyValues( query.build)
+      if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
+        // Got keys. Get only those properties.
+        val entityKeyPairs = subscribe.keys.get.map( key => EntityKeyPair.newBuilder().setUuid( entityId).setKey( key).build())
+        query.addAllKeyPairs( entityKeyPairs)
+      } else {
+        // No keys. Get all properties
+        query.addUuids( entityId)
+      }
 
-    result onSuccess {
-      case (properties, subscription) =>
-        self ! SubscribeToPropertiesSuccess( subscribe.subscriptionId, subscription, properties)
-    }
-    result onFailure {
-      case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+      addPendingSubscription( subscribe.subscriptionId)
+      val result = service.subscribeToEntityKeyValues( query.build)
+
+      result onSuccess {
+        case (properties, subscription) =>
+          self ! SubscribeToPropertiesSuccess( subscribe.subscriptionId, subscription, properties)
+      }
+      result onFailure {
+        case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToProperties ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
   }
 
 
   private def subscribeToMeasurementHistoryPart1( subscribe: SubscribeToMeasurementHistory) = {
-    val timer = new Timer( "subscribeToMeasurementsHistory")
-    val service = serviceFactory.measurementService( session.get)
-    Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
-    val pointReefId = idToReefUuid(  subscribe.pointUuid)
-    timer.delta( "initialized service and uuid")
+    try {
 
-    val points = Seq( pointReefId)
-    // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
-    // we can start the subscription.
-    //
-    addPendingSubscription( subscribe.subscriptionId)
-    val result = service.getCurrentValuesAndSubscribe( points)
-    result onSuccess {
-      case (measurements, subscription) =>
-        timer.delta( "onSuccess 1")
-        Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.subscriptionId + ", measurements.length " + measurements.length)
-        self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, measurements, timer)
-    }
-    result onFailure {
-      case f =>
-        timer.end( "failure")
-        self ! makeSubscribeFailure( subscribe,  points.mkString(","), f)
+      val timer = new Timer( "subscribeToMeasurementsHistory")
+      val service = measurementService( subscribe.authToken)
+      Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
+      val pointReefId = idToReefUuid(  subscribe.pointUuid)
+      timer.delta( "initialized service and uuid")
+
+      val points = Seq( pointReefId)
+      // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
+      // we can start the subscription.
+      //
+      addPendingSubscription( subscribe.subscriptionId)
+      val result = service.getCurrentValuesAndSubscribe( points)
+      result onSuccess {
+        case (measurements, subscription) =>
+          timer.delta( "onSuccess 1")
+          Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.subscriptionId + ", measurements.length " + measurements.length)
+          self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, measurements, timer)
+      }
+      result onFailure {
+        case f =>
+          timer.end( "failure")
+          self ! makeSubscribeFailure( subscribe,  points.mkString(","), f)
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurementsHistory 1 ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
 
   }
@@ -300,66 +340,76 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
                                                    currentMeasurement: PointMeasurementValue,
                                                    timer: Timer) = {
 
-    // What we know:
-    // - The subscription hasn't been canceled yet.
-    // - We have a current measurement
-    //
-    // - We have a valid subscription object, but haven't started it yet.
-    // - We've already removed the pending subscription.
-    //
+    try {
 
-    val currentMeasurementTime = currentMeasurement.getValue.getTime
-    val service = serviceFactory.measurementService( session.get)
+      // What we know:
+      // - The subscription hasn't been canceled yet.
+      // - We have a current measurement
+      //
+      // - We have a valid subscription object, but haven't started it yet.
+      // - We've already removed the pending subscription.
+      //
 
-    if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
+      val currentMeasurementTime = currentMeasurement.getValue.getTime
+      val service = measurementService( subscribe.authToken)
 
-      val query = MeasurementHistoryQuery.newBuilder()
-        .setPointUuid( pointReefId)
-        .setTimeFrom( subscribe.timeFrom)   // exclusive
-        .setTimeTo( currentMeasurementTime) // inclusive
-        .setLimit( subscribe.limit)
-        .setLatest( true) // return latest portion of time window when limit reached.
-        .build
-      // problem with limit reached on messages having the same millisecond.
+      if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
 
-      timer.delta( "Part2 service.getHistory call " + subscribe.subscriptionId)
-      addPendingSubscription( subscribe.subscriptionId)
-      val result = service.getHistory( query)
-      result onSuccess {
-        case pointMeasurements =>
-          timer.delta( "Part2 service.getHistory onSuccess " + subscribe.subscriptionId)
-          self ! SubscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
-      }
-      result onFailure {
-        case f =>
-          self ! makeSubscribeFailure( subscribe,  query.toString, f)
-          timer.end( "Part2 service.getHistory onFailure " + subscribe.subscriptionId)
-      }
-
-    } else {
-
-      timer.delta( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
-
-      if( DebugSimulateLotsOfMeasurements) {
-        val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
-        Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
-        val pointReefId = idToReefUuid(  subscribe.pointUuid)
-        val pmv = PointMeasurementValues.newBuilder()
+        val query = MeasurementHistoryQuery.newBuilder()
           .setPointUuid( pointReefId)
-          .addAllValue( measurements)
-        out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
-        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement.getValue)
-      } else {
-        // Current measurement is older than the time window of measurement history query so
-        // no need to get history.
-        // Just send current point with measurement.
-        registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
-        out ! pointMeasurementPushWrites.writes(subscribe.subscriptionId, currentMeasurement)
-        subscription.start { m =>
-          out ! pointMeasurementNotificationPushWrites.writes(subscribe.subscriptionId, m)
+          .setTimeFrom( subscribe.timeFrom)   // exclusive
+          .setTimeTo( currentMeasurementTime) // inclusive
+          .setLimit( subscribe.limit)
+          .setLatest( true) // return latest portion of time window when limit reached.
+          .build
+        // problem with limit reached on messages having the same millisecond.
+
+        timer.delta( "Part2 service.getHistory call " + subscribe.subscriptionId)
+        addPendingSubscription( subscribe.subscriptionId)
+        val result = service.getHistory( query)
+        result onSuccess {
+          case pointMeasurements =>
+            timer.delta( "Part2 service.getHistory onSuccess " + subscribe.subscriptionId)
+            self ! SubscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
         }
+        result onFailure {
+          case f =>
+            self ! makeSubscribeFailure( subscribe,  query.toString, f)
+            timer.end( "Part2 service.getHistory onFailure " + subscribe.subscriptionId)
+            cancelSubscription( subscribe.subscriptionId)
+        }
+
+      } else {
+
+        timer.delta( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
+
+        if( DebugSimulateLotsOfMeasurements) {
+          val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
+          Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
+          val pointReefId = idToReefUuid(  subscribe.pointUuid)
+          val pmv = PointMeasurementValues.newBuilder()
+            .setPointUuid( pointReefId)
+            .addAllValue( measurements)
+          out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
+          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement.getValue)
+        } else {
+          // Current measurement is older than the time window of measurement history query so
+          // no need to get history.
+          // Just send current point with measurement.
+          registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
+          out ! pointMeasurementPushWrites.writes(subscribe.subscriptionId, currentMeasurement)
+          subscription.start { m =>
+            out ! pointMeasurementNotificationPushWrites.writes(subscribe.subscriptionId, m)
+          }
+        }
+        timer.end( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
       }
-      timer.end( s"Part2 current measurement is before the historical query 'from' time, so no need to query historical measurements - from ${subscribe.timeFrom} to $currentMeasurementTime")
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurementsHistory 2 ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
+        cancelSubscription( subscribe.subscriptionId)
     }
 
   }
@@ -513,27 +563,35 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
    * Toggle: Live vs History
    */
   private def subscribeToAlarms( subscribe: SubscribeToAlarms) = {
-    Logger.debug( "SubscriptionServicesActor.subscribeToAlarms " + subscribe.subscriptionId)
-    val timer = new Timer( "SubscriptionServicesActor.subscribeToAlarms")
-    val service = serviceFactory.eventService( session.get)
-    val eventQuery = makeEventQuery( subscribe).build()
+    try {
 
-    addPendingSubscription( subscribe.subscriptionId)
-    val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
-    val result = service.subscribeToAlarms( alarmQuery)
+      Logger.debug( "SubscriptionServicesActor.subscribeToAlarms " + subscribe.subscriptionId)
+      val timer = new Timer( "SubscriptionServicesActor.subscribeToAlarms")
+      val service = eventService( subscribe.authToken)
+      val eventQuery = makeEventQuery( subscribe).build()
 
-    result onSuccess {
-      case (alarms, subscription) =>
-        // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
-        //  for the initial batch, we don't want any REMOVED alarms.
-        val filteredAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
-        self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
-        timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
-    }
-    result onFailure {
-      case f =>
-        self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
-        timer.end( "failure")
+      addPendingSubscription( subscribe.subscriptionId)
+      val alarmQuery = makeAlarmQuery( subscribe, eventQuery).build()
+      val result = service.subscribeToAlarms( alarmQuery)
+
+      result onSuccess {
+        case (alarms, subscription) =>
+          // if 'activeAlarms', we subscribe to all alarm states so we get the "REMOVED" updates; however,
+          //  for the initial batch, we don't want any REMOVED alarms.
+          val filteredAlarms = alarms.filter( _.getState != Alarm.State.REMOVED)
+          self ! SubscribeToAlarmsSuccess( subscribe.subscriptionId, subscription, filteredAlarms.reverse)
+          timer.end( s"onSuccess filteredAlarms.length=${filteredAlarms.length}")
+      }
+      result onFailure {
+        case f =>
+          self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
+          timer.end( "failure")
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToAlarms ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
   }
 
@@ -549,23 +607,31 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session, servic
    * Toggle: Live vs History
    */
   private def subscribeToEvents( subscribe: SubscribeToEvents) = {
-    Logger.debug( "SubscriptionServicesActor.subscribeToEvents " + subscribe.subscriptionId)
-    val timer = new Timer( "SubscriptionServicesActor.subscribeToEvents")
-    val service = serviceFactory.eventService( session.get)
-    val eventQuery = makeEventQuery( subscribe).build()
+    try {
 
-    addPendingSubscription( subscribe.subscriptionId)
-    val result = service.subscribeToEvents( eventQuery)
+      Logger.debug( "SubscriptionServicesActor.subscribeToEvents " + subscribe.subscriptionId)
+      val timer = new Timer( "SubscriptionServicesActor.subscribeToEvents")
+      val service = eventService( subscribe.authToken)
+      val eventQuery = makeEventQuery( subscribe).build()
 
-    result onSuccess {
-      case (events, subscription) =>
-        timer.end( s"onSuccess events.length=${events.length}")
-        self ! SubscribeToEventsSuccess( subscribe.subscriptionId, subscription, events.reverse)
-    }
-    result onFailure {
-      case f =>
-        self ! makeSubscribeFailure( subscribe,  eventQuery.toString, f)
-        timer.end( "onFailure")
+      addPendingSubscription( subscribe.subscriptionId)
+      val result = service.subscribeToEvents( eventQuery)
+
+      result onSuccess {
+        case (events, subscription) =>
+          timer.end( s"onSuccess events.length=${events.length}")
+          self ! SubscribeToEventsSuccess( subscribe.subscriptionId, subscription, events.reverse)
+      }
+      result onFailure {
+        case f =>
+          self ! makeSubscribeFailure( subscribe,  eventQuery.toString, f)
+          timer.end( "onFailure")
+      }
+
+    } catch {
+      case ex: Throwable =>
+        Logger.error( s"GEC SubscriptionServicesActor.SubscribeToEvents ERROR: $ex")
+        out ! makeSubscribeFailure( subscribe,  "", ex)
     }
   }
 

@@ -62,7 +62,7 @@ object Global extends GlobalSettings {
     Application.reefConnectionManager = reefConnectionManager
     Application.reefServiceFactory = ReefServiceFactoryDefault
     Application.myWebSocketServiceProviders = Seq(
-      io.greenbus.web.websocket.SubscriptionServicesActor.webSocketServiceProvider( ReefServiceFactoryDefault)
+      io.greenbus.web.websocket.SubscriptionServicesActor.webSocketServiceProvider
     )
     Logger.info( "Application started")
 
