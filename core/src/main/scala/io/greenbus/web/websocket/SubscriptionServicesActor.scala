@@ -35,7 +35,7 @@ object SubscriptionServicesActor {
                                       ) extends AbstractSubscriptionMessage
   case class SubscribeToMeasurementHistory( override val authToken: String,
                                             override val subscriptionId: String,
-                                            pointUuid: String,
+                                            pointId: String,
                                             timeFrom: Long,
                                             limit: Int
                                             ) extends AbstractSubscriptionMessage
@@ -270,7 +270,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val timer = new Timer( "subscribeToMeasurementsHistory")
       val service = measurementService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
-      val pointReefId = idToReefUuid(  subscribe.pointUuid)
+      val pointReefId = idToReefUuid(  subscribe.pointId)
       timer.delta( "initialized service and uuid")
 
       val points = Seq( pointReefId)
@@ -386,7 +386,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         if( DebugSimulateLotsOfMeasurements) {
           val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
           Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
-          val pointReefId = idToReefUuid(  subscribe.pointUuid)
+          val pointReefId = idToReefUuid(  subscribe.pointId)
           val pmv = PointMeasurementValues.newBuilder()
             .setPointUuid( pointReefId)
             .addAllValue( measurements)
@@ -428,7 +428,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
         val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
         Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
-        val pointReefId = idToReefUuid(  subscribe.pointUuid)
+        val pointReefId = idToReefUuid(  subscribe.pointId)
         val pmv = PointMeasurementValues.newBuilder()
           .setPointUuid( pointReefId)
           .addAllValue( measurements)
