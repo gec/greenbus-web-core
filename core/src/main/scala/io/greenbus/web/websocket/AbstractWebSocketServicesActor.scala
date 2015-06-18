@@ -2,17 +2,17 @@ package io.greenbus.web.websocket
 
 import akka.actor.{ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
+import io.greenbus.web.connection.ReefConnectionManager.Connection
 import io.greenbus.web.connection.SessionContext
 import io.greenbus.web.websocket.JsonPushFormatters.PushWrites
-import io.greenbus.web.websocket.WebSocketActor.AbstractSubscriptionMessage
+import io.greenbus.web.websocket.WebSocketActor.{SubscriptionExceptionMessage, AbstractSubscriptionMessage}
 import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding}
 import org.totalgrid.reef.client.service.proto.Model.ReefUUID
 import play.api.Logger
 import play.api.libs.json.Json
 
 object AbstractWebSocketServicesActor {
-  case class SubscribeFailure( subscriptionId: String, name: String, subscribeAsString: String, query: String, exception: Throwable)
-  
+
   def idToReefUuid( id: String) = ReefUUID.newBuilder().setValue( id).build()
   def idsToReefUuids( ids: Seq[String]) = ids.map( idToReefUuid)
 }
@@ -23,12 +23,12 @@ object AbstractWebSocketServicesActor {
  */
 abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Session) extends Actor with SessionContext {
   import AbstractWebSocketServicesActor._
+  import io.greenbus.web.websocket.WebSocketActor._
+  import io.greenbus.web.websocket.JsonPushFormatters.pushWrites
 
 
   private var _session: Option[Session] = Some(initialSession)
   override def session: Option[Session] = _session
-  override def updateSession(newSession: Option[Session]): Unit = _session = newSession
-
 
   // Map of client subscriptionId to totalgrid.msg.SubscriptionBindings
   // subscribeToEvents is two subscriptions, so we need a Seq.
@@ -40,6 +40,26 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
   // When the count is 0, we ...
   //
   private var subscriptionIdToPendingSubscribeResultsCount = Map.empty[String, Int]
+
+
+  var receivers: Actor.Receive = Actor.emptyBehavior
+  def receiver(next: Actor.Receive) { receivers = receivers orElse next }
+  def receive = receivers orElse unknownMessageReceiver // Actor.receive definition
+
+  receiver {
+
+    case connection: Connection =>
+      // Parent WebSocketActor already pushed ConnectionStatus to client browser.
+      _session =  connection.connection
+
+    case WebSocketActor.Unsubscribe( authToken, id) => cancelSubscription( id)
+
+    case sem: SubscriptionExceptionMessage => subscriptionException( sem)
+  }
+
+  def unknownMessageReceiver: Receive = {
+    case message: AnyRef => Logger.error( "SubscriptionServicesActor.receive: Unknown message: " + message)
+  }
 
   /**
    * We're keeping count of pending subscriptions. Decrement the count. Remove
@@ -116,16 +136,11 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
     }
   }
 
-  protected def makeSubscribeFailure( subscribe: AbstractSubscriptionMessage, query: String, throwable: Throwable) =
-    SubscribeFailure( subscribe.subscriptionId, subscribe.getClass.getSimpleName, subscribe.toString, query, throwable)
-  
-  protected def subscribeFailure( failure: SubscribeFailure): Unit = {
-    val errorMessage = s"${failure.subscribeAsString} returned ${failure.exception}"
-    Logger.error( s"subscribeFailure: $errorMessage")
-    subscriptionIdToPendingSubscribeResultsCount -= failure.subscriptionId
-    out ! Json.obj("error" -> errorMessage)
+  protected def subscriptionException( sem: SubscriptionExceptionMessage): Unit = {
+    Logger.error( s"AbstractWebSocketServicesActor: $sem")
+    subscriptionIdToPendingSubscribeResultsCount -= sem.subscribe.subscriptionId
+    out ! pushWrites( sem.subscribe.subscriptionId, sem)
   }
-
 
 
   protected def cancelAllSubscriptions = {

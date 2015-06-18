@@ -1,7 +1,8 @@
 package io.greenbus.web.websocket
 
 import io.greenbus.web.connection.ReefConnectionManager.{SubscribeToConnection, Connection}
-import io.greenbus.web.websocket.WebSocketActor.{ErrorMessage, MessageType, WebSocketServiceProvider}
+import io.greenbus.web.models.ExceptionMessages.ExceptionMessage
+import io.greenbus.web.websocket.WebSocketActor.{MessageType, WebSocketServiceProvider}
 import org.specs2.mutable._
 import org.specs2.mock._
 import akka.actor.{ActorRef, Actor, Props, ActorSystem}
@@ -40,11 +41,14 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
 
   import ReefConnectionManager.ReefConnectionManagerServiceFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
+  import io.greenbus.web.websocket.JsonPushFormatters._
+  import io.greenbus.web.models.JsonFormatters._
 
   val TIMEOUT = FiniteDuration(1000, MILLISECONDS)
   val NO_TIME_AT_ALL = FiniteDuration(50, MILLISECONDS) // Must finish way before TIMEOUT
 
   val authToken = "someAuthToken"
+  val subscriptionId = "someSubscriptionId"
   val session = mock[Session]
   val serviceFactory = mock[ReefServiceFactory]
 
@@ -92,8 +96,8 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
 
         underTest.underlyingActor.context.children.size must beEqualTo(2)
 
-        val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", "someSubscriptionId", Seq("somePointId"))
-        val subscribeToProperties = SubscribeToProperties( "someAuthToken", "someSubscriptionId", "someEntityId", None)
+        val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", subscriptionId, Seq("somePointId"))
+        val subscribeToProperties = SubscribeToProperties( "someAuthToken", subscriptionId, "someEntityId", None)
 
         subscribeToMeasurementsFormat.writes( subscribeToMeasurements).toString must beEqualTo( """{"authToken":"someAuthToken","subscriptionId":"someSubscriptionId","pointIds":["somePointId"],"name":"SubscribeToMeasurements"}""")
         subscribeToPropertiesFormat.writes( subscribeToProperties).toString must beEqualTo( """{"authToken":"someAuthToken","subscriptionId":"someSubscriptionId","entityId":"someEntityId","name":"SubscribeToProperties"}""")
@@ -107,7 +111,7 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
       }
     }
 
-    "send ErrorMessage to out when name field is missing from message" in new AkkaTestkitSpecs2Support {
+    "push ExceptionMessage to client browser when message name field is missing" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
 
         val out = TestProbe()
@@ -123,17 +127,77 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
 
         underTest.underlyingActor.context.children.size must beEqualTo(2)
 
-        val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", "someSubscriptionId", Seq("somePointId"))
+        val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", subscriptionId, Seq("somePointId"))
         // Send message without "name" field!
         underTest ! subscribeToMeasurementsFormat.writes( subscribeToMeasurements).as[JsObject] - "name"
 
         subscribeToMeasurementsReceiver.expectNoMsg( NO_TIME_AT_ALL)
 
-        val jsErrorNameMissing = JsError(List(
+        val jsError = JsError(List(
           ((JsPath \ "name"),List(ValidationError("error.path.missing")))
         ))
-        val errorMessage = ErrorMessage( "unknown", jsErrorNameMissing)  // name is unknown
-        out.expectMsg( errorMessage)
+        val exception = ExceptionMessage( "BadRequestException", s"Message 'unknown' is not properly formatted: $jsError")  // name is unknown
+        val pushMessage = pushWrites( subscriptionId, exception)
+        out.expectMsg( pushMessage)
+      }
+    }
+
+    "push ExceptionMessage to client browser when SubscribeToMeasurements message is invalid" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+        val out = TestProbe()
+        val connectionManager = TestProbe()
+        val subscribeToMeasurementsReceiver = TestProbe()
+        val subscribeToPropertiesReceiver = TestProbe()
+
+        val providers = Seq(
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToMeasurements, subscribeToMeasurementsReceiver.ref),
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToProperties, subscribeToPropertiesReceiver.ref)
+        )
+        val underTest = TestActorRef(new WebSocketActor( out.ref, connectionManager.ref, session, providers))
+
+        underTest.underlyingActor.context.children.size must beEqualTo(2)
+
+        val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", subscriptionId, Seq("somePointId"))
+        // Send message without "pointIds" field!
+        underTest ! subscribeToMeasurementsFormat.writes( subscribeToMeasurements).as[JsObject] - "pointIds"
+
+        subscribeToMeasurementsReceiver.expectNoMsg( NO_TIME_AT_ALL)
+
+        val jsError = JsError(List(
+          ((JsPath \ "pointIds"),List(ValidationError("error.path.missing")))
+        ))
+        val exception = ExceptionMessage( "BadRequestException", s"Message 'SubscribeToMeasurements' received with invalid format: $jsError")  // name is unknown
+        val pushMessage = pushWrites( subscriptionId, exception)
+        out.expectMsg( pushMessage)
+      }
+    }
+
+    "push ExceptionMessage to client browser when message route is unknown" in new AkkaTestkitSpecs2Support {
+      within(TIMEOUT) {
+
+        val out = TestProbe()
+        val connectionManager = TestProbe()
+        val subscribeToMeasurementsReceiver = TestProbe()
+        val subscribeToPropertiesReceiver = TestProbe()
+
+        val providers = Seq(
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToMeasurements, subscribeToMeasurementsReceiver.ref),
+          webSocketServiceProviderMock( serviceFactory, messageTypesWithSubscribeToProperties, subscribeToPropertiesReceiver.ref)
+        )
+        val underTest = TestActorRef(new WebSocketActor( out.ref, connectionManager.ref, session, providers))
+
+        underTest.underlyingActor.context.children.size must beEqualTo(2)
+
+        val message = Json.obj( "name" -> "SomeUnknownMessage", "authToken" -> authToken, "subscriptionId" -> subscriptionId)
+        underTest ! message
+
+        subscribeToMeasurementsReceiver.expectNoMsg( NO_TIME_AT_ALL)
+        subscribeToPropertiesReceiver.expectNoMsg( NO_TIME_AT_ALL)
+
+        val exception = ExceptionMessage( "BadRequestException", s"Message 'SomeUnknownMessage' is unknown")  // name is unknown
+        val pushMessage = pushWrites( subscriptionId, exception)
+        out.expectMsg( pushMessage)
       }
     }
 
@@ -179,9 +243,9 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
         val subscribeToConnectionRequest = SubscribeToConnection( underTest)
         connectionManager.expectMsg( subscribeToConnectionRequest)
 
-        val connection = Connection( ConnectionStatus.AMQP_UP, Some( session))
+        val connection = Connection( ConnectionStatus.AMQP_DOWN, None)
         underTest ! connection
-        out.expectMsg( Json.toJson( connection.connectionStatus))
+        out.expectMsg( pushConnectionStatusWrites( connection.connectionStatus))
         subscribeToMeasurementsReceiver.expectMsg( connection)
         subscribeToPropertiesReceiver.expectMsg( connection)
       }

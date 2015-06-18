@@ -7,6 +7,7 @@ import io.greenbus.web.connection._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import io.greenbus.web.util.Timer
 import io.greenbus.web.websocket.JsonPushFormatters._
+import io.greenbus.web.websocket.WebSocketActor.SubscriptionExceptionMessage
 import org.totalgrid.msg.{Subscription, SubscriptionBinding, Session}
 import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
 import org.totalgrid.reef.client.service.proto.Events.{Event, EventNotification, Alarm, AlarmNotification}
@@ -121,10 +122,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
   private var debugScheduleIdsMap = Map.empty[String, Cancellable]
 
 
-  def receive = {
-
-    case connection: Connection => updateSession( connection.connection)
-
+  receiver {
 
     case subscribe: SubscribeToMeasurements =>  subscribeToMeasurements( subscribe)
     case subscribe: SubscribeToMeasurementHistory => subscribeToMeasurementHistoryPart1( subscribe)
@@ -148,11 +146,8 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
     case SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) =>
       subscribeSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
 
-    case failure: SubscribeFailure => subscribeFailure( failure)
-      
-    case WebSocketActor.Unsubscribe( authToken, id) => cancelSubscription( id)
-
   }
+
 
   private def subscribeToMeasurements( subscribe: SubscribeToMeasurements) = {
     try {
@@ -169,13 +164,13 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
           self ! SubscribeToMeasurementsSuccess( subscribe.subscriptionId, subscription, measurements)
       }
       result onFailure {
-        case f => self ! makeSubscribeFailure( subscribe,  uuids.mkString(","), f)
+        case f => self ! SubscriptionExceptionMessage( subscribe, uuids.mkString(","), f)
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurements ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
 
   }
@@ -197,13 +192,13 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
           self ! SubscribeToEndpointsSuccess( subscribe.subscriptionId, subscription, endointsWithComms)
       }
       result onFailure {
-        case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+        case f => self ! SubscriptionExceptionMessage( subscribe, query.toString, f)
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToEndpoints ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
 
   }
@@ -253,13 +248,13 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
           self ! SubscribeToPropertiesSuccess( subscribe.subscriptionId, subscription, properties)
       }
       result onFailure {
-        case f => self ! makeSubscribeFailure( subscribe,  query.toString, f)
+        case f => self ! SubscriptionExceptionMessage( subscribe, query.toString, f)
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToProperties ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
   }
 
@@ -288,13 +283,13 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       result onFailure {
         case f =>
           timer.end( "failure")
-          self ! makeSubscribeFailure( subscribe,  points.mkString(","), f)
+          self ! SubscriptionExceptionMessage( subscribe, points.mkString(","), f)
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurementsHistory 1 ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
 
   }
@@ -374,7 +369,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         }
         result onFailure {
           case f =>
-            self ! makeSubscribeFailure( subscribe,  query.toString, f)
+            self ! SubscriptionExceptionMessage( subscribe, query.toString, f)
             timer.end( "Part2 service.getHistory onFailure " + subscribe.subscriptionId)
             cancelSubscription( subscribe.subscriptionId)
         }
@@ -408,7 +403,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToMeasurementsHistory 2 ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
         cancelSubscription( subscribe.subscriptionId)
     }
 
@@ -584,14 +579,14 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       }
       result onFailure {
         case f =>
-          self ! makeSubscribeFailure( subscribe, alarmQuery.toString, f)
+          self ! SubscriptionExceptionMessage( subscribe, alarmQuery.toString, f)
           timer.end( "failure")
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToAlarms ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
   }
 
@@ -624,14 +619,14 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       }
       result onFailure {
         case f =>
-          self ! makeSubscribeFailure( subscribe,  eventQuery.toString, f)
+          self ! SubscriptionExceptionMessage( subscribe, eventQuery.toString, f)
           timer.end( "onFailure")
       }
 
     } catch {
       case ex: Throwable =>
         Logger.error( s"GEC SubscriptionServicesActor.SubscribeToEvents ERROR: $ex")
-        out ! makeSubscribeFailure( subscribe,  "", ex)
+        self ! SubscriptionExceptionMessage( subscribe, "", ex)
     }
   }
 

@@ -50,6 +50,7 @@ import scala.language.postfixOps
 
 object ReefConnectionManager {
   import ConnectionStatus._
+  import io.greenbus.web.models.JsonFormatters.connectionStatusWrites
 
   val TIMEOUT = 5L * 1000L  // 5 seconds
   val REEF_CONFIG_FILENAME = "reef.cfg"

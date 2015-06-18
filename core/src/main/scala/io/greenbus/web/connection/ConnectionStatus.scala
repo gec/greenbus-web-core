@@ -18,7 +18,6 @@
  */
 package io.greenbus.web.connection
 
-import play.api.libs.json.{JsValue, Json, Writes}
 import play.api.mvc.Results
 
 object ConnectionStatus extends Enumeration {
@@ -42,16 +41,5 @@ object ConnectionStatus extends Enumeration {
     override def compare(that: Value): Int = id - that.id
   }
   protected final def Value(name: String, description: String, reinitializing: Boolean, httpResults: Results.Status): ConnectionStatusVal = new ConnectionStatusVal(name, description, reinitializing, httpResults)
-
-
-  implicit val connectionStatusWrites = new Writes[ConnectionStatus] {
-    def writes( o: ConnectionStatus): JsValue = {
-      Json.obj(
-        "name" -> o.toString,
-        "description" -> o.description,
-        "reinitializing" -> o.reinitializing
-      )
-    }
-  }
 
 }

@@ -8,5 +8,4 @@ import org.totalgrid.msg.Session
  */
 trait SessionContext {
   def session: Option[Session]
-  def updateSession( newSession: Option[Session])
 }

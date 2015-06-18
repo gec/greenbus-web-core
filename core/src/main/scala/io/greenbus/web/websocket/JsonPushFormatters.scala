@@ -18,7 +18,10 @@
  */
 package io.greenbus.web.websocket
 
+import io.greenbus.web.websocket.WebSocketActor.AbstractSubscriptionMessage
 import play.api.libs.json.{Json, JsValue, Writes}
+
+import scala.reflect.ClassTag
 
 /**
  * Json formatters for WebSocket push
@@ -27,6 +30,7 @@ import play.api.libs.json.{Json, JsValue, Writes}
  */
 object JsonPushFormatters {
   import io.greenbus.web.models.JsonFormatters._
+  import io.greenbus.web.connection.ConnectionStatus._
 
   /**
    * For pushing Reef objects to the client browser over a WebSocket.
@@ -43,6 +47,28 @@ object JsonPushFormatters {
         "data" -> writes.writes( o)
       )
     }
+  }
+
+  def myClassOf[T:ClassTag] = implicitly[ClassTag[T]].runtimeClass.getSimpleName
+
+  def pushWrites[T:ClassTag]( subscriptionId: String, o: T)(implicit writes: Writes[T]): JsValue = {
+    Json.obj (
+      "subscriptionId" -> subscriptionId,
+      "type" -> myClassOf[T],
+      "data" -> writes.writes( o)
+    )
+  }
+//  def pushStatusWrites[T:ClassTag]( o: T)(implicit writes: Writes[T]): JsValue = {
+//    Json.obj (
+//      "type" -> myClassOf[T],
+//      "data" -> writes.writes( o)
+//    )
+//  }
+  def pushConnectionStatusWrites( connectionStatus: ConnectionStatus): JsValue = {
+    Json.obj (
+      "type" -> "ConnectionStatus",  // myClassOf[T] was ConnectionStatusVal, so we do this manually.
+      "data" -> connectionStatusWrites.writes( connectionStatus)
+    )
   }
 
   lazy val endpointWithCommsSeqPushWrites = new PushWrites( "endpoints", endpointWithCommsSeqWrites)
@@ -74,4 +100,5 @@ object JsonPushFormatters {
 
   lazy val entityKeyValueSeqPushWrites = new PushWrites( "properties", entityKeyValueSeqWrites)
   lazy val entityKeyValueNotificationPushWrites = new PushWrites( "notification.property", entityKeyValueNotificationWrites)
+
 }

@@ -13,6 +13,7 @@ import scala.reflect.ClassTag
 
 object WebSocketActor {
 
+  val badRequest = "BadRequestException"
 
   abstract class AbstractMessage {
     def authToken: String
@@ -22,6 +23,7 @@ object WebSocketActor {
   abstract class AbstractSubscriptionMessage extends AbstractMessage {
     def subscriptionId: String
   }
+
 
   /**
    * Generic subscription message coming over a WebSocket from a browser client.
@@ -36,6 +38,18 @@ object WebSocketActor {
   case class UnknownMessage( name: String)
   case class ErrorMessage( error: String, jsError: JsError)
   case object ConnectionBackUp
+
+  case class SubscriptionExceptionMessage( subscribe: AbstractSubscriptionMessage, query: String, throwable: Throwable)
+
+  implicit val subscriptionExceptionMessageWrites = new Writes[SubscriptionExceptionMessage] {
+    def writes( o: SubscriptionExceptionMessage): JsValue =
+      Json.obj(
+        "name" -> o.subscribe.getClass.getSimpleName,
+        "subscribe" -> o.subscribe.toString,
+        "query" -> o.query,
+        "exception" -> o.throwable.toString
+      )
+  }
 
   implicit val subscriptionMessageFormat = Json.format[SubscriptionMessage]
 
@@ -91,7 +105,9 @@ object WebSocketActor {
  */
 class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession: Session, serviceProviders: Seq[WebSocketActor.WebSocketServiceProvider]) extends Actor {
   import WebSocketActor._
-  //import io.greenbus.web.connection.ConnectionStatus._
+  import io.greenbus.web.models.ExceptionMessages._
+  import io.greenbus.web.models.JsonFormatters.exceptionMessageWrites
+  import io.greenbus.web.websocket.JsonPushFormatters.{pushWrites,pushConnectionStatusWrites}
 
   Logger.debug( s"WebSocketActor: serviceProviders.length: ${serviceProviders.length}")
 
@@ -113,18 +129,6 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
       factory.messageTypes.map(r => (r.name -> MessageRoute(child, r)))
     }.toMap
 
-
-//  private def makeChildrenAndReturnMessageRoutesAsMap = {
-//    var routes = Map.empty[String, MessageRoute]
-//    serviceProviders.foreach { factory =>
-//      val child = context.actorOf( factory.props(session.get)(out))
-//      context.watch(child) // will receive Terminated(childName)
-//      factory.messageTypes.foreach{ r =>
-//        routes += (r.name -> MessageRoute( child, r))
-//      }
-//
-//    }
-//  }
 
   override def preStart() {
     Logger.debug( "preStart context.become( receiveWithConnection)")
@@ -157,8 +161,12 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
       }
 
     }.recoverTotal { jsError =>
-      Logger.error( s"WebSocketActor: message not properly formatted $jsError")
-      out ! ErrorMessage( parseMessageName(json).getOrElse("unknown"), jsError)
+      val name = parseMessageName(json).getOrElse("unknown")
+      val subscriptionId = parseSubscriptionId( json).getOrElse( "unknown")
+      val ex = ExceptionMessage( badRequest, s"Message '$name' is not properly formatted: $jsError")
+
+      Logger.error( s"WebSocketActor.receiveMessage: Exception $ex")
+      out ! pushWrites( subscriptionId, ex)
     }
   }
 
@@ -180,31 +188,35 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
     messageRoutes.get( message.name) match {
       case Some(route) =>
         if (route.messageType.subscription && message.subscriptionId.isEmpty) {
-          out ! ErrorMessage(s"Message '${message.name}' received without a required subscriptionId", JsError())
+          val em = ExceptionMessage( badRequest, s"Message '${message.name}' received with empty subscriptionId")
+          Logger.error( s"WebSocketActor.routeSubscriptionMessage: Exception $em.")
+          out ! pushWrites( message.subscriptionId, em)
         } else {
           route.messageType.reads( json).map { m =>
             route.receiver ! m
             subscriptionIdsMap += (message.subscriptionId -> route.receiver)
           }.recoverTotal { jsError =>
-            Logger.error( s"WebSocketActor: message '${message.name}' - data value not properly formatted $jsError")
-            out ! ErrorMessage( s"WebSocketActor: message '${message.name}' - data value not properly formatted", jsError)
+            val em = ExceptionMessage( badRequest, s"Message '${message.name}' received with invalid format: $jsError")
+            Logger.error( s"WebSocketActor.routeSubscriptionMessage: Exception $em.")
+            out ! pushWrites( message.subscriptionId, em)
           }
-
         }
       case None =>
-        Logger.error( s"WebSocketActor: No receiver for message name '${message.name}'")
-        out ! UnknownMessage( message.name)
+        val em = ExceptionMessage( badRequest, s"Message '${message.name}' is unknown")
+        Logger.error( s"WebSocketActor.routeSubscriptionMessage: Exception $em. No route for message.")
+        out ! pushWrites( message.subscriptionId, em)
     }
   }
 
   def updateConnection( connection: Connection) = {
+
     Logger.info( s"WebSocketActor receive UpdateConnection old status: $connectionStatus, new status: ${connection.connectionStatus}")
     val oldConnectionStatus = connectionStatus
     connectionStatus = connection.connectionStatus
     session = connection.connection
 
     context.children.foreach( _ ! connection)
-    out ! Json.toJson( connectionStatus)
+    out ! pushConnectionStatusWrites( connectionStatus)
 
     if( connectionStatus != AMQP_UP)
       wentDown = true

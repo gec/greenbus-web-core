@@ -185,7 +185,7 @@ class ApplicationSpec extends Specification with Mockito {
 
         val json = Json.parse( contentAsString(resultAsync))
         val error = (json \ "error")
-        (error \ "name").as[String] mustEqual "AUTHENTICATION_FAILURE"
+        (error \ "status").as[String] mustEqual "AUTHENTICATION_FAILURE"
 
       }
     }

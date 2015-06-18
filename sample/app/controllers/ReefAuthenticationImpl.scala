@@ -32,6 +32,7 @@ import play.api.Logger
 trait ReefAuthenticationImpl extends ReefAuthentication {
   self: Controller =>
   import ConnectionStatus._
+  import io.greenbus.web.models.JsonFormatters.connectionStatusWrites
 
 
   def loginPageContent( request: RequestHeader): Result = {

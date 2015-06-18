@@ -41,6 +41,8 @@ trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
 
   import io.greenbus.web.connection.ConnectionManagerRef._
   import io.greenbus.web.connection.ConnectionStatus._
+  import io.greenbus.web.models.JsonFormatters.connectionStatusWrites
+
   import ValidationTiming._
 
   /**
