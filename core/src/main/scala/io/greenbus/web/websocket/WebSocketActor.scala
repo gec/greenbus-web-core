@@ -35,9 +35,6 @@ object WebSocketActor {
    */
   case class SubscriptionMessage( name: String, override val authToken: String, override val subscriptionId: String) extends AbstractSubscriptionMessage
   case class Unsubscribe( authToken: String, subscriptionId: String)
-  case class UnknownMessage( name: String)
-  case class ErrorMessage( error: String, jsError: JsError)
-  case object ConnectionBackUp
 
   case class SubscriptionExceptionMessage( subscribe: AbstractSubscriptionMessage, query: String, throwable: Throwable)
 
@@ -101,9 +98,15 @@ object WebSocketActor {
 
 /**
  *
+ * @param out ActorRef for messages being pushed to a client browser.
+ * @param connectionManager A connectionManager for getting session object updates.
+ * @param initialSession The initial Greenbus session is always valid or the
+ *                       WebSocket it not created.
+ * @param serviceProviders
+ *
  * @author Flint O'Brien
  */
-class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession: Session, serviceProviders: Seq[WebSocketActor.WebSocketServiceProvider]) extends Actor {
+class WebSocketActor( out: ActorRef, connectionManager: ActorRef, initialSession: Session, serviceProviders: Seq[WebSocketActor.WebSocketServiceProvider]) extends Actor {
   import WebSocketActor._
   import io.greenbus.web.models.ExceptionMessages._
   import io.greenbus.web.models.JsonFormatters.exceptionMessageWrites
@@ -135,6 +138,16 @@ class WebSocketActor(out: ActorRef, connectionManager: ActorRef, initialSession:
     context.become( receiveWithConnection)
     connectionManager ! SubscribeToConnection( self)
     //TODO: register with connectionManager to get session updates.
+  }
+
+  /**
+   * Called when WebSocket is closed. Notify children to cancel their subscriptions.
+   */
+  override def postStop() = {
+    context.children foreach { child ⇒
+      context.unwatch(child)
+      context.stop(child)
+    }
   }
 
   def receive = {

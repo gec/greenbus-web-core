@@ -146,6 +146,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
     case SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) =>
       subscribeSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
 
+    // NOTE: The base class's receiver will handle the default case for unknown messages.
   }
 
 
