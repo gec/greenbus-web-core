@@ -11,10 +11,17 @@ import org.totalgrid.reef.client.service.proto.Model.ReefUUID
 import play.api.Logger
 import play.api.libs.json.Json
 
+import akka.util.Timeout
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+
 object AbstractWebSocketServicesActor {
 
   def idToReefUuid( id: String) = ReefUUID.newBuilder().setValue( id).build()
   def idsToReefUuids( ids: Seq[String]) = ids.map( idToReefUuid)
+
+  implicit val timeout = Timeout( 20 seconds)
 }
 
 /**

@@ -263,7 +263,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
   private def subscribeToMeasurementHistoryPart1( subscribe: SubscribeToMeasurementHistory) = {
     try {
 
-      val timer = new Timer( "subscribeToMeasurementsHistory")
+      val timer = new Timer( "subscribeToMeasurementsHistory", Timer.DEBUG)
       val service = measurementService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
       val pointReefId = idToReefUuid(  subscribe.pointId)

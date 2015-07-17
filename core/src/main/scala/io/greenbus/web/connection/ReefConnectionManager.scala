@@ -383,7 +383,7 @@ class ReefConnectionManager( serviceFactory: ReefConnectionManagerServiceFactory
     timer.delta( "AMQP Settings loaded. Getting Reef ReefConnection...")
 
     try {
-      val newConnection = serviceFactory.reefConnect(settings, QpidBroker, 5000)
+      val newConnection = serviceFactory.reefConnect(settings, QpidBroker, 30000)  // 30 second timeout
       timer.delta( "Got Reef connection. Getting session...")
 
       newConnection.addConnectionListener { expected =>
