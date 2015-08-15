@@ -409,7 +409,7 @@ trait RestServices extends ReefAuthentication {
   }
 
   def queryPointsByTypeForEquipments( modelService: ModelService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], depth: Int, limit: Int) = {
-    Logger.debug( s"getPointsByTypeForEquipmentsQuery begin")
+    Logger.debug( s"queryPointsByTypeForEquipments begin pointTypes: $pointTypes")
 
     val query = EntityRelationshipFlatQuery.newBuilder()
       .addAllStartUuids(equipmentReefUuids)
@@ -417,8 +417,13 @@ trait RestServices extends ReefAuthentication {
       .setDescendantOf(true)
       .setPageSize(limit)
       .setDepthLimit( depth)  // default is infinite
-      .addAllEndTypes( ensureType( "Point", pointTypes))
 
+    if( pointTypes.isEmpty)
+      query.addEndTypes( "Point")
+    else
+      query.addAllEndTypes( pointTypes)
+    val builtQuery = query.build
+    Logger.debug( s"queryPointsByTypeForEquipments modelService.relationshipFlatQuery: ${builtQuery}")
     modelService.relationshipFlatQuery( query.build)
   }
   def queryEdgesForParentsAndChildren( service: ModelService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], depth: Int, limit: Int) = {
