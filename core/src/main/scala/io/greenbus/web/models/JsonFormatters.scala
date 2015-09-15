@@ -384,6 +384,11 @@ object JsonFormatters {
       )
     }
   }
+//  implicit val pointMeasurementNotificationsWrites = new Writes[Seq[MeasurementNotification]] {
+//    def writes( o: Seq[MeasurementNotification]): JsValue = {
+//      Json.toJson( o)
+//    }
+//  }
 
 
   implicit val eventWrites = new Writes[Event] {

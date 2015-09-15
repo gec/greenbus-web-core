@@ -27,7 +27,7 @@ import io.greenbus.web.config.dal.NavigationUrls
 import org.h2.jdbc.JdbcSQLException
 import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
-import org.totalgrid.reef.client.service.proto.Measurements.Measurement
+import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValue, MeasurementNotification, Measurement}
 import org.totalgrid.reef.client.service.proto.ModelRequests._
 import org.totalgrid.reef.client.service.proto.EventRequests.{EventQueryParams, AlarmStateUpdate, AlarmQuery, EventQuery}
 import org.totalgrid.reef.client.service.proto.Events.Alarm
@@ -583,6 +583,75 @@ trait RestServices extends ReefAuthentication {
         }
 
       }
+    }
+  }
+
+  def queryMeasurementsByIds( reefIds: Seq[ReefUUID], measurementService: MeasurementService) = {
+    measurementService.getCurrentValues( reefIds)
+  }
+
+  def getMeasurementsByIds( pids: Seq[String], measurementService: MeasurementService) = {
+    val reefIds = pids.map( ReefUUID.newBuilder().setValue( _).build())
+    measurementService.getCurrentValues( reefIds).map{
+      case Seq() => Ok( JSON_EMPTY_ARRAY)
+      case pointMeasurementValues => Ok( Json.toJson( pointMeasurementValues))
+    }
+  }
+
+  def getMeasurementNotificationsByPointNames( pnames: Seq[String], modelService: ModelService, measurementService: MeasurementService) = {
+    val keySet = EntityKeySet.newBuilder().addAllNames( pnames).build()
+    modelService.getPoints( keySet).flatMap{ points =>
+      val pointIdPointMap = points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
+
+      def getPointName( pointMeasurementValue: PointMeasurementValue): String = {
+        pointIdPointMap.get( pointMeasurementValue.getPointUuid.getValue).map( _.getName).getOrElse( "unknown")
+      }
+
+      val reefIds = points.map( _.getUuid)
+      measurementService.getCurrentValues( reefIds).map{ pointMeasurementValues =>
+        val measurementNotifications = pointMeasurementValues.map { pointMeasurementValue =>
+          MeasurementNotification.newBuilder()
+            .setPointUuid( pointMeasurementValue.getPointUuid)
+            .setValue( pointMeasurementValue.getValue)
+            .setPointName( getPointName( pointMeasurementValue))
+            .build()
+        }
+        Ok( Json.toJson( measurementNotifications))
+      }
+
+    }
+  }
+
+  /**
+   * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
+   * (i.e. entity types). If one or more equipmentIds, return a map of equipmentIds to points array.
+   *
+   * @param modelId Which model to query. A model is a reef connection.
+   * @param pids Optional list of point IDs (if available, both equipmentIds and types are ignored)
+   * @param pnames Optional list of point names (if available, both equipmentIds and types are ignored)
+   * @param equipmentIds Optional list of equipment IDs
+   * @param pointTypes Optional list of types (i.e. entity types)
+   * @param depth If equipment IDs are specified, return points according to descendant depth.
+   * @param limit Limit the number of results.
+   * @return
+   */
+  def getMeasurements( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+    Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
+
+    val modelService = serviceFactory.modelService( session)
+    val measurementService = serviceFactory.measurementService( session)
+
+    if( equipmentIds.isEmpty) {
+      // Return a list of points
+      if( ! pids.isEmpty)
+        getMeasurementsByIds( pids, measurementService)
+      else if( ! pnames.isEmpty) {
+        getMeasurementNotificationsByPointNames( pnames, modelService, measurementService)
+      } else
+        Future.successful( Ok(JSON_EMPTY_OBJECT)) // TODO: measurements for this list of equipment.
+
+    } else {
+      Future.successful( Ok(JSON_EMPTY_OBJECT)) // TODO: measurements for this list of equipment.
     }
   }
 
