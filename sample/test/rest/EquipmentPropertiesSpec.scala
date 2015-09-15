@@ -59,7 +59,8 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
   def routeGet( path: String) = {
     route(
       FakeRequest(GET, path)
-        .withCookies( Cookie(cookieName, authTokenGood))
+//        .withCookies( Cookie(cookieName, authTokenGood))
+        .withHeaders( ("Authorization", authTokenGood))
     )
   }
 

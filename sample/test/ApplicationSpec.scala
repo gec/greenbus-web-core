@@ -159,7 +159,8 @@ class ApplicationSpec extends Specification with Mockito {
 
         val Some( resultAsync) = route(
           FakeRequest(GET, "/entities")
-            .withCookies( Cookie(cookieName, authTokenGood))
+//            .withCookies( Cookie(cookieName, authTokenGood))
+            .withHeaders( ("Authorization", authTokenGood))
         )
 
         status(resultAsync) must equalTo(OK)

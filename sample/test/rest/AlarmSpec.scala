@@ -42,7 +42,8 @@ class AlarmSpec extends Specification with Mockito {
   def routePost( path: String, json: String) = {
     route(
       FakeRequest(POST, path)
-        .withCookies( Cookie(cookieName, authTokenGood))
+//        .withCookies( Cookie(cookieName, authTokenGood))
+        .withHeaders( ("Authorization", authTokenGood))
         .withJsonBody( Json.parse( json))
     )
   }
