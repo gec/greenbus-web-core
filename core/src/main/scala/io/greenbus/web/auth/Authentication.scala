@@ -19,6 +19,7 @@
 package io.greenbus.web.auth
 
 import play.api.mvc._
+import play.api.Logger
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -92,6 +93,7 @@ trait Authentication {
         case _ => None
       }
     }
+    Logger.debug( s"Authentication.getAuthToken from location: $authTokenLocation = '$authToken'")
     authToken
   }
 
@@ -111,10 +113,12 @@ trait Authentication {
             Some((authToken, session))
           case Left( failure) =>
             //timer.end( "None validationTiming: " + validationTiming)
+            Logger.debug( s"Authentication.authenticateRequest from location: $authTokenLocation = '$authToken', but getService failed or was not authorized.")
             None
         }
       case None =>
         //timer.end( "No auth token validationTiming: " + validationTiming)
+        Logger.debug( s"Authentication.authenticateRequest from location: $authTokenLocation = no authToken found")
         Future(None)
     }
   }

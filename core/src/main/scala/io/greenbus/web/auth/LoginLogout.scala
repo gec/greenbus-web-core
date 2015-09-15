@@ -96,7 +96,7 @@ trait LoginLogout extends Authentication {
    */
   def getLoginOrAlreadyLoggedIn = Action.async { implicit request: RequestHeader =>
 
-    authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
+    authenticateRequest( request, AuthTokenLocation.COOKIE, PREVALIDATED).map {
       case Some( ( token, service)) =>
         redirectToIndex( request, token)
       case None =>

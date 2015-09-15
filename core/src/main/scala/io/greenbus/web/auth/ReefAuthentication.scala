@@ -49,7 +49,8 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   type AuthenticationFailure = ReefConnectionManager.AuthenticationFailure
   type ServiceClientFailure = ReefConnectionManager.ServiceClientFailure
   type ServiceClient = msg.Session
-  def authTokenLocation : AuthTokenLocation = AuthTokenLocation.COOKIE
+  def authTokenLocation : AuthTokenLocation = AuthTokenLocation.HEADER
+  def authTokenLocationForPage : AuthTokenLocation = AuthTokenLocation.COOKIE
   def authTokenLocationForLogout : AuthTokenLocation = AuthTokenLocation.HEADER
 
 
@@ -116,14 +117,15 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
 
   /**
    * Authenticate the page request and redirect to login if not authenticated.
-   * Set authToken on reply.
+   * Usually, the authToken is a cookie since it may be a redirect with no request Authorization header.
+   * Set authToken cookie on reply.
    *
    * @param action
    * @return
    */
   def AuthenticatedPageAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
-      authenticateRequest( request, authTokenLocation, PREVALIDATED).map {
+      authenticateRequest( request, authTokenLocationForPage, PREVALIDATED).map {
         case Some( ( authToken, serviceClient)) =>
           Logger.debug( "AuthenticatedPageAction " + request + " authenticateRequest authenticated")
           try {
@@ -146,6 +148,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
    */
   def ReefClientAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
+      Logger.debug( "ReefClientAction " + request + " begin")
       authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
         case Some( ( token, serviceClient)) =>
           Logger.debug( "ReefClientAction " + request + " PROVISIONAL authentication")
@@ -169,6 +172,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   def ReefClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[Result]): Action[AnyContent] = {
     import io.greenbus.web.models.JsonFormatters._
     Action.async { request =>
+      Logger.debug( "ReefClientActionAsync " + request + " begin")
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
           Logger.debug( "ReefClientActionAsync " + request + " PROVISIONAL authentication")
@@ -187,7 +191,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
           }
         case None =>
           // No authToken found or invalid authToken
-          Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
+          Logger.debug( "ReefClientActionAsync " + request + " authenticationFailed (because no authToken or invalid authToken)")
           Future.successful( authenticationFailure( request, ReefConnectionManager.AuthenticationFailure( AUTHENTICATION_FAILURE)) )
       }
     }
