@@ -22,6 +22,7 @@ import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandL
 import org.totalgrid.reef.client.service.proto.Model._
 import io.greenbus.web.connection.ConnectionStatus
 import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
+import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
@@ -516,6 +517,16 @@ object JsonFormatters {
   }
 
 
+  def renderKeyValueByteArray( key: String, value: Array[Byte]): JsValue = {
+    // TODO: Need mime types instead of switching on names.
+    return if( key == "schematic") {
+      val stringValue = new String( value, "UTF-8")
+      Logger.debug( s"renderKeyValueByteArray: schematic = $stringValue")
+      JsString( stringValue)
+    } else
+      Json.parse( value)
+  }
+
   implicit val entityKeyValueWrites = new Writes[EntityKeyValue] {
     def writes( o: EntityKeyValue): JsValue = {
       if( o.getValue.hasBoolValue)
@@ -528,8 +539,8 @@ object JsonFormatters {
         Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getInt32Value)
       else if( o.getValue.hasInt64Value)
         Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getInt64Value)
-      else if( o.getValue.hasByteArrayValue)  // TODO: assume these are JSON for now. In the future, these can also be XML (i.e. schematic), images, etc.
-        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> Json.parse( o.getValue.getByteArrayValue.toByteArray))
+      else if( o.getValue.hasByteArrayValue)
+        Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> renderKeyValueByteArray( o.getKey, o.getValue.getByteArrayValue.toByteArray))
       else if( o.getValue.hasUint32Value)
         Json.obj("entityId" -> o.getUuid.getValue, "key" -> o.getKey, "value" -> o.getValue.getUint32Value)
       else if( o.getValue.hasUint64Value)

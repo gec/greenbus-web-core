@@ -28,7 +28,7 @@ GET           /models/:modelId/equipment/:entityId/descendants        controller
 GET           /models/:modelId/equipment/:entityId/properties         controllers.Application.getEquipmentProperties( modelId: String, entityId: String, keys: List[String], values: Boolean ?= true)
 GET           /models/:modelId/equipment/:entityId/properties/:key      controllers.Application.getEquipmentProperty( modelId: String, entityId: String, key: String)
 
-GET           /models/:modelId/points                                 controllers.Application.getPoints( modelId: String, pids: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
+GET           /models/:modelId/points                                 controllers.Application.getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int ?= 1, limit: Int ?= 200)
 GET           /models/:modelId/points/:pointId                        controllers.Application.getPoint( modelId: String, pointId: String)
 
 POST          /models/:modelId/points/:pointId/override               controllers.Application.postPointOverride( modelId: String, pointId: String)

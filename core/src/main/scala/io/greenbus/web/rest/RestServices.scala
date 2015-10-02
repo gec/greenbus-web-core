@@ -477,6 +477,11 @@ trait RestServices extends ReefAuthentication {
       modelService.getPoints( keys)
   }
 
+  def queryPointsByNames( pnames: Seq[String], modelService: ModelService) = {
+      val keys = EntityKeySet.newBuilder().addAllNames(pnames).build()
+      modelService.getPoints( keys)
+  }
+
   def getPoint( modelId: String, pointId: String) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val reefId = ReefUUID.newBuilder().setValue( pointId).build()
@@ -494,6 +499,13 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
+  def getPointsByNames( pnames: Seq[String], modelService: ModelService) = {
+    queryPointsByNames( pnames, modelService).map{
+      case Seq() => Ok( JSON_EMPTY_ARRAY)
+      case points => Ok( Json.toJson( points))
+    }
+  }
+
   /**
    * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
    * (i.e. entity types). If one or more equipmentIds, return a map of equipmentIds to points array.
@@ -506,7 +518,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit Limit the number of results.
    * @return
    */
-  def getPoints( modelId: String, pids: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     def makeEquipmentIdPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
@@ -537,6 +549,8 @@ trait RestServices extends ReefAuthentication {
       // Return a list of points
       if( ! pids.isEmpty)
         getPointsByIds( pids, modelService)
+      else if( ! pnames.isEmpty)
+        getPointsByNames( pnames, modelService)
       else
         getPointsByType( modelService, pointTypes, limit)
 
