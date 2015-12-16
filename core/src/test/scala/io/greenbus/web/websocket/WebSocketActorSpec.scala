@@ -58,7 +58,7 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
   var children = List.empty[TestProbe]
   def propsMock( serviceFactory: ClientServiceFactory, forwardReceiver: ActorRef)(session: Session)(out: ActorRef)(implicit system: ActorSystem) =
     Props( new ForwardingActor( forwardReceiver))
-  def webSocketServiceProviderMock( reefServiceFactory: ClientServiceFactory, messageTypes: Seq[MessageType], forwardReceiver: ActorRef)(implicit system: ActorSystem) = WebSocketServiceProvider( messageTypes, propsMock( reefServiceFactory, forwardReceiver))
+  def webSocketServiceProviderMock( clientServiceFactory: ClientServiceFactory, messageTypes: Seq[MessageType], forwardReceiver: ActorRef)(implicit system: ActorSystem) = WebSocketServiceProvider( messageTypes, propsMock( clientServiceFactory, forwardReceiver))
 
   val messageTypesWithSubscribeToMeasurements = SubscriptionServicesActor.messageTypes.filter( mType => mType.name == "SubscribeToMeasurements")
   val messageTypesWithSubscribeToProperties = SubscriptionServicesActor.messageTypes.filter( mType => mType.name == "SubscribeToProperties")

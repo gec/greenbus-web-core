@@ -31,7 +31,7 @@ with ImplicitSender
  *
  * @author Flint O'Brien
  */
-class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions with Mockito {
+class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions with Mockito {
   sequential // forces all tests to be run sequentially
 
   import ConnectionManager.ConnectionManagerServicesFactory
@@ -45,11 +45,11 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
   session1.spawn returns session2
   //var connectionListener: (Boolean) => Unit
 
-  def reefConnectionMock: ServiceConnection = {
-    val reefConnection = mock[ServiceConnection]
-    reefConnection.session returns session1
+  def serviceConnectionMock: ServiceConnection = {
+    val serviceConnection = mock[ServiceConnection]
+    serviceConnection.session returns session1
   }
-  def serviceFactoryMock( reefConnection: ServiceConnection): ConnectionManagerServicesFactory = {
+  def serviceFactoryMock( serviceConnection: ServiceConnection): ConnectionManagerServicesFactory = {
     val modelService = mock[ModelService]
     val loginService = mock[LoginService]
 
@@ -57,7 +57,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     serviceFactory.modelService( any[Session]) returns modelService
     serviceFactory.loginService( any[Session]) returns loginService
     serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
-    serviceFactory.reefConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns reefConnection
+    serviceFactory.serviceConnect( any[AmqpSettings], any[AmqpBroker], anyLong) returns serviceConnection
 
   }
 
@@ -75,7 +75,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     }
   }
 
-  "ReefConnectionManagerSpec" should {
+  "ConnectionManagerSpec" should {
 
 
     "reply to valid LoginRequest with authToken" in new AkkaTestkitSpecs2Support {
@@ -85,9 +85,9 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
         val session = mock[Session]
         session.headers returns Map[String,String]( ServiceHeaders.tokenHeader() -> authToken)
 
-        val reefConnection = reefConnectionMock
-        reefConnection.login( anyString, anyString) returns Future.successful( session)
-        val serviceFactory = serviceFactoryMock( reefConnection)
+        val serviceConnection = serviceConnectionMock
+        serviceConnection.login( anyString, anyString) returns Future.successful( session)
+        val serviceFactory = serviceFactoryMock( serviceConnection)
         val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
 
         rcm ! ConnectionManager.LoginRequest( "validUser", "validPassword")
@@ -97,7 +97,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
 
     "reply to SessionRequest with a new session" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
-        val serviceFactory = serviceFactoryMock( reefConnectionMock)
+        val serviceFactory = serviceFactoryMock( serviceConnectionMock)
         val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
         rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsgType[Session] must be( session2)
@@ -108,7 +108,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
       within(TIMEOUT) {
         import io.greenbus.msg.amqp.util.LoadingException
 
-        val serviceFactory = serviceFactoryMock( reefConnectionMock)
+        val serviceFactory = serviceFactoryMock( serviceConnectionMock)
         serviceFactory.amqpSettingsLoad( any[String]) throws new LoadingException( "No such file or directory")
         val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
         rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
@@ -119,10 +119,10 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     "manage SubscribeToConnection subscribers" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
 
-        val reefConnection = mock[ServiceConnection]
-        reefConnection.session returns session1
+        val serviceConnection = mock[ServiceConnection]
+        serviceConnection.session returns session1
 
-        val serviceFactory = serviceFactoryMock( reefConnection)
+        val serviceFactory = serviceFactoryMock( serviceConnection)
         val subscriber = TestProbe()
         val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
 
@@ -133,7 +133,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
 
         // AMQP Down
         val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
-        there was one (reefConnection).addConnectionListener( listenerCapture)
+        there was one (serviceConnection).addConnectionListener( listenerCapture)
         val listener = listenerCapture.value
         listener( false)
 
@@ -145,10 +145,10 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
       within(TIMEOUT) {
 
 
-        val reefConnection = mock[ServiceConnection]
-        reefConnection.session returns session1
+        val serviceConnection = mock[ServiceConnection]
+        serviceConnection.session returns session1
 
-        val serviceFactory = serviceFactoryMock( reefConnection)
+        val serviceFactory = serviceFactoryMock( serviceConnection)
         val subscriber = TestProbe()
         val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
         rcm ! ConnectionManager.SubscribeToConnection( subscriber.ref)
@@ -156,7 +156,7 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
 
         // AMQP Down
         val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
-        there was one (reefConnection).addConnectionListener( listenerCapture)
+        there was one (serviceConnection).addConnectionListener( listenerCapture)
         val listener = listenerCapture.value
         listener( false)
 

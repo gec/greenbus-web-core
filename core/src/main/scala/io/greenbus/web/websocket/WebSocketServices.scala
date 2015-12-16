@@ -29,14 +29,14 @@ import play.api.mvc._
 import play.api.Play.current
 
 import scala.concurrent.ExecutionContext.Implicits._
-import io.greenbus.web.auth.ReefAuthentication
+import io.greenbus.web.auth.ServiceAuthentication
 
 
 /**
  *
  * @author Flint O'Brien
  */
-trait WebSocketServices extends ConnectionManagerRef with ReefAuthentication {
+trait WebSocketServices extends ConnectionManagerRef with ServiceAuthentication {
   self: Controller =>
 
   import io.greenbus.web.connection.ConnectionManagerRef._

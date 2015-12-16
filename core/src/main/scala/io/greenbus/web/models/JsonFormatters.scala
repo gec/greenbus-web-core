@@ -223,7 +223,7 @@ object JsonFormatters {
 //      )
 //  }
 
-  /** Use EndpointWithComms until Reef includes comms with standard Endpoint */
+  /** Use EndpointWithComms until GreenBus includes comms with standard Endpoint */
 //  implicit val endpointWrites = new Writes[Endpoint] {
 //    def writes( o: Endpoint): JsValue =
 //      Json.obj(

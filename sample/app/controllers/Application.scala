@@ -28,7 +28,7 @@ import scala.language.postfixOps
 import akka.actor.ActorRef
 import play.api.libs.json._
 
-object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
+object Application extends Controller with ServiceAuthenticationImpl with RestServices with WebSocketServices {
 
   import models.content.JsonFormatters._
   import models.content.Content._
@@ -66,7 +66,7 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
     Ok(views.html.chart("Coral Sample"))
   }
 
-  def getLayout = ReefClientAction { (request, client) =>
+  def getLayout = ServiceClientAction { (request, client) =>
 
     val columns = List(
       TableColumn( "Name", "name"),

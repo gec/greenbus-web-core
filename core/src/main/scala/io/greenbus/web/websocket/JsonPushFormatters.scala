@@ -33,7 +33,7 @@ object JsonPushFormatters {
   import io.greenbus.web.connection.ConnectionStatus._
 
   /**
-   * For pushing Reef objects to the client browser over a WebSocket.
+   * For pushing objects to the client browser over a WebSocket.
    *
    * @param typeName The type such as: alarm, measurement, etc.
    * @param writes The singleton Writes (i.e. writer) for the object type.

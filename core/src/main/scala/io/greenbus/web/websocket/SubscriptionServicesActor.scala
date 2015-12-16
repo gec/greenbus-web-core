@@ -440,7 +440,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       timer.end( "part2Success")
     } else
       // There was no pending subscription, so it must have already been canceled by
-      // the client before we got this subscribe success message from Reef.
+      // the client before we got this subscribe success message from GreenBus.
       timer.end( "part2Success subscription was already canceled")
 
   }

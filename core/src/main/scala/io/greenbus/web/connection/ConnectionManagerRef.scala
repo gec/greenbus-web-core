@@ -36,8 +36,8 @@ object ConnectionManagerRef {
 trait ConnectionManagerRef {
 
   /**
-   * Return an ActorRef for ReefServiceManagerActor. This is a singleton object
-   * that manages the Reef connection to AMQP.
+   * Return an ActorRef for ConnectionManagerActor. This is a singleton object
+   * that manages the service connection to AMQP.
    */
   def connectionManager : ActorRef
 

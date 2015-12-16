@@ -35,7 +35,7 @@ import io.greenbus.client.service.proto.Model.{Entity, EntityEdge, ModelID, Mode
 import io.greenbus.client.service.proto.Processing.MeasOverride
 import io.greenbus.client.service.proto._
 import io.greenbus.client.service.{ModelService, EventService, MeasurementService}
-import io.greenbus.web.auth.ReefAuthentication
+import io.greenbus.web.auth.ServiceAuthentication
 import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.models.ControlMessages.CommandExecuteRequest
 import io.greenbus.web.models.ExceptionMessages.ExceptionMessage
@@ -61,12 +61,12 @@ object RestServices {
 
 }
 
-trait RestServices extends ReefAuthentication {
+trait RestServices extends ServiceAuthentication {
   self: Controller =>
   import io.greenbus.web.models.JsonFormatters._
 
   /**
-   * Implementors must provide a factory for reef services.
+   * Implementors must provide a factory for client services.
    */
   def serviceFactory: ClientServiceFactory
 
@@ -179,7 +179,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit
    * @return
    */
-  def getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentRoots( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     import io.greenbus.web.models.EntityWithChildren._
 
     Logger.debug( s"getEquipmentRoots begin depth=$depth")
@@ -221,7 +221,7 @@ trait RestServices extends ReefAuthentication {
       }
     }
   }
-  def getEquipmentRootsQueryAllAtOnce( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentRootsQueryAllAtOnce( modelId: String, rootTypes: List[String], childTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     import io.greenbus.web.models.EntityWithChildren._
 
     // Rewrite this:
@@ -296,7 +296,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit
    * @return
    */
-  def getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val modelUUID = ModelUUID.newBuilder().setValue( entityId).build()
     val query = EntityKeySet.newBuilder().addUuids(modelUUID)
@@ -318,7 +318,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit
    * @return
    */
-  def getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentDescendants( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     Logger.debug( s"getEquipmentChildren begin depth=$depth")
 
     val service = serviceFactory.modelService( session)
@@ -346,7 +346,7 @@ trait RestServices extends ReefAuthentication {
    * @param values If true, return keys with values; otherwise, return a sequece of keys only.
    * @return keys with values or just keys
    */
-  def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], values: Boolean) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], values: Boolean) = ServiceClientActionAsync { (request, session) =>
 //    import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue}
 //    import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 
@@ -383,7 +383,7 @@ trait RestServices extends ReefAuthentication {
    * @param key The property to be returned
    * @return The key and value
    */
-  def getEquipmentProperty( modelId: String, entityId: String, key: String) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentProperty( modelId: String, entityId: String, key: String) = ServiceClientActionAsync { (request, session) =>
 //    import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue}
     import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 
@@ -482,7 +482,7 @@ trait RestServices extends ReefAuthentication {
       modelService.getPoints( keys)
   }
 
-  def getPoint( modelId: String, pointId: String) = ReefClientActionAsync { (request, session) =>
+  def getPoint( modelId: String, pointId: String) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val modelId = ModelUUID.newBuilder().setValue( pointId).build()
     queryPointsByIds( Seq(modelId), service).map{
@@ -510,7 +510,7 @@ trait RestServices extends ReefAuthentication {
    * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
    * (i.e. entity types). If one or more equipmentIds, return a map of equipmentIds to points array.
    *
-   * @param modelId Which model to query. A model is a reef connection.
+   * @param modelId Which model to query. A model is a specific AMQP connection to a specific GreenBus model.
    * @param pids Optional list of point IDs (if available, both equipmentIds and types are ignored)
    * @param equipmentIds Optional list of equipment IDs
    * @param pointTypes Optional list of types (i.e. entity types)
@@ -518,7 +518,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit Limit the number of results.
    * @return
    */
-  def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     def makeEquipmentIdPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
@@ -577,7 +577,7 @@ trait RestServices extends ReefAuthentication {
               pointsAsEntitiesWithCorrectType.map( _.getUuid)
           }
 
-          //TODO: Currently re-getting entities as Point. Need new API from Reef to directly get points under equipment.
+          //TODO: Currently re-getting entities as Point. Need new API from GreenBus to directly get points under equipment.
           queryPointsByIds( pointIds, modelService).flatMap { points =>
             t1.delta( "got getPointsByIds")
 
@@ -640,7 +640,7 @@ trait RestServices extends ReefAuthentication {
    * Return one of two structures. If no equipmentIds, return a list of points optionally filtered by types
    * (i.e. entity types). If one or more equipmentIds, return a map of equipmentIds to points array.
    *
-   * @param modelId Which model to query. A model is a reef connection.
+   * @param modelId Which model to query. A model is a specific AMQP connection to a specific GreenBus model.
    * @param pids Optional list of point IDs (if available, both equipmentIds and types are ignored)
    * @param pnames Optional list of point names (if available, both equipmentIds and types are ignored)
    * @param equipmentIds Optional list of equipment IDs
@@ -649,7 +649,7 @@ trait RestServices extends ReefAuthentication {
    * @param limit Limit the number of results.
    * @return
    */
-  def getMeasurements( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
+  def getMeasurements( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     val modelService = serviceFactory.modelService( session)
@@ -669,7 +669,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getPointsCommands( modelId: String)  = ReefClientActionAsync { (request, session) =>
+  def getPointsCommands( modelId: String)  = ServiceClientActionAsync { (request, session) =>
 
 
     request.body.asJson.map { json =>
@@ -678,8 +678,8 @@ trait RestServices extends ReefAuthentication {
 
 
           val query = EntityEdgeQuery.newBuilder()
-          val reefPointIds = pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
-          query.addAllParentUuids( reefPointIds)
+          val modelPointIds = pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
+          query.addAllParentUuids( modelPointIds)
           query
             .addRelationships( "feedback")
             .setDepthLimit( 1)  // just the immediate edge.
@@ -731,7 +731,7 @@ trait RestServices extends ReefAuthentication {
 
 
 
-  def postCommandLock( modelId: String)  = ReefClientActionAsync { (request, session) =>
+  def postCommandLock( modelId: String)  = ServiceClientActionAsync { (request, session) =>
     import io.greenbus.web.models.ControlMessages._
 
     request.body.asJson.map { json =>
@@ -766,7 +766,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def deleteCommandLock( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
+  def deleteCommandLock( modelId: String, id: String)  = ServiceClientActionAsync { (request, session) =>
 
     val cService = serviceFactory.commandService( session)
     val commandLockId = ModelID.newBuilder().setValue( id).build()
@@ -793,7 +793,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def postPointOverride( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+  def postPointOverride( modelId: String, pointId: String)  = ServiceClientActionAsync { (request, session) =>
     import io.greenbus.web.models.OverrideMessages._
 
     request.body.asJson.map { json =>
@@ -848,7 +848,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def postPointNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+  def postPointNis( modelId: String, pointId: String)  = ServiceClientActionAsync { (request, session) =>
 
     val modelID = ModelUUID.newBuilder().setValue(pointId).build()
     val measNis = MeasOverride.newBuilder()
@@ -867,7 +867,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def deletePointOverrideOrNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
+  def deletePointOverrideOrNis( modelId: String, pointId: String)  = ServiceClientActionAsync { (request, session) =>
 
     val modelID = ModelUUID.newBuilder().setValue(pointId).build()
     val service = serviceFactory.processingService(session)
@@ -883,7 +883,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def postCommand( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
+  def postCommand( modelId: String, id: String)  = ServiceClientActionAsync { (request, session) =>
 
     val cService = serviceFactory.commandService( session)
     val commandId = ModelUUID.newBuilder().setValue( id).build()
@@ -910,7 +910,7 @@ trait RestServices extends ReefAuthentication {
     }
 
     cService.issueCommandRequest( commandRequest.build) map { result =>
-      cService.deleteCommandLocks( Seq( commandLockId)) // TODO: Move this auto-delete to Reef.
+      cService.deleteCommandLocks( Seq( commandLockId)) // TODO: Move this auto-delete to GreenBus.
       Ok( Json.toJson( result))
     } recover {
       case ex: LockedException =>
@@ -926,7 +926,7 @@ trait RestServices extends ReefAuthentication {
       case ex: TimeoutException =>
         cService.deleteCommandLocks( Seq( commandLockId))
         Logger.error( s"RestServices.postCommand issueCommandRequest TimeoutException ${ex.getMessage}")
-        GatewayTimeout( Json.toJson( ExceptionMessage( "TimeoutException", "Command execute request timed out waiting for Reef server reply.")))
+        GatewayTimeout( Json.toJson( ExceptionMessage( "TimeoutException", "Command execute request timed out waiting for GreenBus server reply.")))
       case ex: Exception =>
         cService.deleteCommandLocks( Seq( commandLockId))
         Logger.error( s"RestServices.postCommand issueCommandRequest Exception thrown $ex -- Cause: ${ex.getCause}")
@@ -934,7 +934,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getEntities( types: List[String]) = ReefClientActionAsync { (request, session) =>
+  def getEntities( types: List[String]) = ServiceClientActionAsync { (request, session) =>
 
     val service = serviceFactory.modelService( session)
     val query = EntityQuery.newBuilder()
@@ -949,7 +949,7 @@ trait RestServices extends ReefAuthentication {
     service.entityQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
 
-  def getEntity( uuid: String) = ReefClientActionAsync { (request, session) =>
+  def getEntity( uuid: String) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val modelID = ModelUUID.newBuilder().setValue( uuid).build()
     val query = EntityKeySet.newBuilder().addUuids(modelID)
@@ -966,7 +966,7 @@ trait RestServices extends ReefAuthentication {
    * TODO: This is too wide open.
    * @return
    */
-  def getMeasurements = ReefClientActionAsync { (request, session) =>
+  def getMeasurements = ServiceClientActionAsync { (request, session) =>
 
     val service = serviceFactory.modelService( session)
     val pointType = EntityTypeParams.newBuilder().addIncludeTypes( "Point")
@@ -983,7 +983,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getCommands = ReefClientActionAsync { (request, session) =>
+  def getCommands = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val commandType = EntityTypeParams.newBuilder().addIncludeTypes( "Command")
     val query = ModelRequests.EntityQuery.newBuilder()
@@ -1001,7 +1001,7 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getCommand( name: String) = ReefClientActionAsync { (request, session) =>
+  def getCommand( name: String) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
     val keys = EntityKeySet.newBuilder().addNames( name).build()
     service.getCommands( keys).map{
@@ -1039,7 +1039,7 @@ trait RestServices extends ReefAuthentication {
    * @param startAfterId Skip forward to start results after ID.
    * @return
    */
-  def getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ReefClientActionAsync { (request, session) =>
+  def getEvents( modelId: String, ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.eventService( session)
     val query = EventQuery.newBuilder().setPageSize( limit)
 
@@ -1084,7 +1084,7 @@ trait RestServices extends ReefAuthentication {
    * @param startAfterId Skip forward to start results after ID.
    * @return
    */
-  def getAlarms( modelId: String, st: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ReefClientActionAsync { (request, session) =>
+  def getAlarms( modelId: String, st: List[String], ag: List[String], et: List[String], sv: List[Int], sb: List[String], limit: Int, startAfterId: Option[String], latest: Boolean) = ServiceClientActionAsync { (request, session) =>
 
     val service = serviceFactory.eventService( session)
     val query = AlarmQuery.newBuilder()
@@ -1100,7 +1100,7 @@ trait RestServices extends ReefAuthentication {
     service.alarmQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
 
-  def postAlarms( modelId: String) = ReefClientActionAsync { (request, session) =>
+  def postAlarms( modelId: String) = ServiceClientActionAsync { (request, session) =>
   import io.greenbus.web.models.AlarmMessages._
 
     request.body.asJson.map { json =>
@@ -1131,55 +1131,55 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def getEndpoints( modelId: String) = ReefClientActionAsync { (request, session) =>
+  def getEndpoints( modelId: String) = ServiceClientActionAsync { (request, session) =>
     val service = serviceFactory.frontEndService( session)
     val query = EndpointQuery.newBuilder() //.setPageSize(pageSize)
     service.endpointWithCommsQuery( query.build()).map{ result => Ok( Json.toJson(result)) }
   }
 
-  def getEndpointConnections = ReefClientActionAsync { (request, session) =>
+  def getEndpointConnections = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[EndpointService])
 //    Ok( Json.toJson( service.getEndpointConnections().await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_ARRAY)) )
   }
 
-  def getEndpointConnection( name: String) = ReefClientActionAsync { (request, session) =>
+  def getEndpointConnection( name: String) = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[EndpointService])
 //    Ok( Json.toJson( service.getEndpointConnectionByEndpointName( name).await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_OBJECT)) )
   }
 
-  def getApplications = ReefClientActionAsync { (request, session) =>
+  def getApplications = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[ApplicationService])
 //    Ok( Json.toJson( service.getApplications.await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_ARRAY)) )
   }
 
-  def getApplication( name: String) = ReefClientActionAsync { (request, session) =>
+  def getApplication( name: String) = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[ApplicationService])
 //    Ok( Json.toJson( service.getApplicationByName( name).await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_OBJECT)) )
   }
 
-  def getAgents = ReefClientActionAsync { (request, session) =>
+  def getAgents = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[AgentService])
 //    Ok( Json.toJson( service.getAgents.await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_ARRAY)) )
   }
 
-  def getAgent( name: String) = ReefClientActionAsync { (request, session) =>
+  def getAgent( name: String) = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[AgentService])
 //    Ok( Json.toJson( service.getAgentByName( name).await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_OBJECT)) )
   }
 
-  def getPermissionSet( name: String) = ReefClientActionAsync { (request, session) =>
+  def getPermissionSet( name: String) = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[AgentService])
 //    Ok( Json.toJson( service.getPermissionSet( name).await))
     Future.successful( Ok( Json.toJson( JSON_EMPTY_OBJECT)) )
   }
 
-  def getPermissionSets = ReefClientActionAsync { (request, session) =>
+  def getPermissionSets = ServiceClientActionAsync { (request, session) =>
 //    val service = client.getService( classOf[AgentService])
 //    val permissionSets = service.getPermissionSets.await
 //    Ok( Json.toJson( permissionSets.map( permissionSetSummaryWrites.writes)))
@@ -1222,7 +1222,7 @@ trait RestServices extends ReefAuthentication {
    * Get Equipment by types with child Points by types
    */
 /*
-  def getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String]) = ReefClientActionAsync { (request, session) =>
+  def getEquipmentWithPointsByType( eqTypes: List[String], pointTypes: List[String]) = ServiceClientActionAsync { (request, session) =>
     Logger.info( "getEquipmentWithPointsByType( " + eqTypes + ", " + pointTypes + ")")
     val entityService = client.getServicemodelServiceityModelSModelServicereesWithRelationsWithPoints = getEntityTreesForEquipmentWithPointsByType( entityService, eqTypes, pointTypes)
     val equipmentsWithPointEntities = eTreesWithRelationsWithPoints.map( eTree => EquipmentWithPointEntities(eTree, eTree.getRelations(0).getEntitiesList.toList))

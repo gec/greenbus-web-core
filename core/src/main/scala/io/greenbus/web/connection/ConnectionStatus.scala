@@ -32,9 +32,9 @@ object ConnectionStatus extends Enumeration {
 
   // Not strictly Connection Status, but useful request statuses nonetheless.
   val INVALID_REQUEST = Value( "INVALID_REQUEST", "The request from the browser client was invalid.", false, Results.BadRequest)
-  val REEF_FAILURE = Value( "REEF_FAILURE", "HMI server cannot access GreenBus server. Possible causes are the configuration file is in error or GreenBus server is not running.", false, Results.ServiceUnavailable)
+  val SERVICE_FAILURE = Value( "SERVICE_FAILURE", "HMI server cannot access GreenBus server. Possible causes are the configuration file is in error or GreenBus server is not running.", false, Results.ServiceUnavailable)
   val AUTHTOKEN_UNRECOGNIZED = Value( "AUTHTOKEN_UNRECOGNIZED", "AuthToken not recognized by HMI server.", false, Results.Unauthorized)
-  val REQUEST_TIMEOUT = Value( "REEF_REQUEST_TIMEOUT", "HMI server request timed out waiting on reply from GreenBus server. Possible causes are degraded network to GreenBus, AMQP down, or GreenBus server down.", false, Results.ServiceUnavailable)
+  val REQUEST_TIMEOUT = Value( "REQUEST_TIMEOUT", "HMI server request timed out waiting on reply from GreenBus server. Possible causes are degraded network to GreenBus, AMQP down, or GreenBus server down.", false, Results.ServiceUnavailable)
 
   class ConnectionStatusVal(name: String, val description: String, val reinitializing: Boolean, val httpResults: Results.Status) extends Val(nextId, name) with Pushable[ConnectionStatusVal] {
     // This is not required for Scala 2.10

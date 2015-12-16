@@ -1,15 +1,8 @@
 @(title: String)
 
 @main(title, routes.Assets.at("javascripts/chart"), Some(routes.Assets.at("stylesheets/fullpage.css"))) {
-<div class="statusBanner">
-    <div class="statusCenter" ng-controller="ReefStatusControl" ng-show="visible">
-        <div class="statusBlock">
-            <div class="statusBox">
-                <div class=statusText><strong>Not connected. </strong> {{status.description}}</div>
-            </div>
-        </div>
-    </div>
-</div>
+
+<gb-notification ></gb-notification>
 
 <div class="container-fluid" style="margin: 0; padding: 0">
 

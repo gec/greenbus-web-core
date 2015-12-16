@@ -160,8 +160,8 @@ object WebSocketPushActor {
 
 /**
  *
- * The sever side of a WebSocket that can push Reef subscription data to a browser.
- * One ClientPushActor per client browser WebSocket. One ClientPushActor handles multiple Reef subscriptions.
+ * The sever side of a WebSocket that can push subscription data to a browser.
+ * One ClientPushActor per client browser WebSocket. One ClientPushActor handles multiple subscriptions.
  *
  * @author Flint O'Brien
  */
@@ -263,7 +263,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     Logger.info( "WebSocketPushActor receive UpdateConnection " + connection.connectionStatus)
     this.clientStatus = connection.connectionStatus
     this.session = connection.connection
-    // TODO: session is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new reef session.
+    // TODO: session is reset. Need to notify browser that subscriptions are dead or renew subscriptions with new client session.
   }
 
   private def unknownMessage( messageName: String) = {
@@ -350,8 +350,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       case 0 =>
         //Logger.debug( s"subscribeSuccess case 0 subscriptionId: $subscriptionId")
         // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        // the client before we got all of the subscribe success messages from GreenBus.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple GreenBus subscriptions.
         cancelSubscription( subscriptionId)
       case _ =>
         //Logger.debug( s"subscribeSuccess case _ subscriptionId: $subscriptionId, result.length: ${result.length}")
@@ -410,8 +410,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     decrementPendingSubscriptionCount( subscriptionId) match {
       case 0 =>
         // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        // the client before we got all of the subscribe success messages from GreeenBus.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple GreeenBus subscriptions.
         cancelSubscription( subscriptionId)
       case _ =>
         registerSuccessfulSubscription( subscriptionId, subscription)
@@ -462,8 +462,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     decrementPendingSubscriptionCount( subscriptionId) match {
       case 0 =>
         // There was no pending subscription, so it must have already been canceled by
-        // the client before we got all of the subscribe success messages from Reef.
-        // Cancel any subscriptions associated with this subscriptionId. There may be multiple Reef subscriptions.
+        // the client before we got all of the subscribe success messages from GreeenBus.
+        // Cancel any subscriptions associated with this subscriptionId. There may be multiple GreeenBus subscriptions.
         cancelSubscription( subscriptionId)
       case _ =>
         registerSuccessfulSubscription( subscriptionId, subscription)
@@ -514,7 +514,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
       case 0 =>
         // There was no pending subscription, so it must have already been canceled by
-        // the client before we got this subscribe success message from Reef.
+        // the client before we got this subscribe success message from GreeenBus.
       case _ =>
 
         if( measurements.nonEmpty) {
@@ -623,7 +623,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     decrementPendingSubscriptionCount( subscribe.subscriptionId) match {
       case 0 =>
         // There was no pending subscription, so it must have already been canceled by
-        // the client before we got this subscribe success message from Reef.
+        // the client before we got this subscribe success message from GreeenBus.
         timer.end( "part2Success subscription was already canceled")
       case _ =>
 

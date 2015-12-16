@@ -35,7 +35,7 @@ import io.greenbus.client.exception._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 
-trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
+trait ServiceAuthentication extends LoginLogout with ConnectionManagerRef {
   self: Controller =>
 
   import ConnectionManagerRef.timeout
@@ -71,27 +71,27 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   }
 
   def getService( authToken: String, validationTiming: ValidationTiming) : Future[Either[ServiceClientFailure, ServiceClient]] = {
-    val timer = new Timer( "TIMER: ReefAuthentication.getService validationTiming: " + validationTiming)
-    //Logger.debug( "ReefAuthentication.getService begin validationTiming: " + validationTiming)
+    val timer = new Timer( "TIMER: ServiceAuthentication.getService validationTiming: " + validationTiming)
+    //Logger.debug( "ServiceAuthentication.getService begin validationTiming: " + validationTiming)
 
     try {
 
       connectionManager.ask( ConnectionManager.SessionRequest( authToken, validationTiming)).map {
         case session: msg.Session =>
-//          Logger.debug( "ReefAuthentication.getService Right( session)")
+//          Logger.debug( "ServiceAuthentication.getService Right( session)")
           timer.end( "onSuccess  Right( session)")
           Right( session)
         case failure: ServiceClientFailure =>
           timer.end( "onSuccess  ServiceClientFailure " + failure)
           Left( failure)
         case unknownMessage: AnyRef =>
-//          Logger.error( "ReefAuthentication.getService AnyRef unknown message " + unknownMessage)
+//          Logger.error( "ServiceAuthentication.getService AnyRef unknown message " + unknownMessage)
           timer.end( "onSuccess  AnyRef unknown message" + unknownMessage)
-          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.SERVICE_FAILURE))
 
       } recover {
         case ex: AskTimeoutException =>
-          Logger.error( "ReefAuthentication.getService " + ex)
+          Logger.error( "ServiceAuthentication.getService " + ex)
           timer.end( "recover " + ex)
           Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.REQUEST_TIMEOUT))
         case ex: UnauthorizedException =>
@@ -99,10 +99,10 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
           Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.AUTHENTICATION_FAILURE))
         case ex: ServiceException =>
           timer.end( "recover ServiceException " + ex)
-          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.SERVICE_FAILURE))
         case ex: AnyRef =>
           timer.end( "recover Unknonwn Exception " + ex)
-          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.REEF_FAILURE))
+          Left( ConnectionManager.ServiceClientFailure( ConnectionStatus.SERVICE_FAILURE))
       }
 
     } catch {
@@ -131,8 +131,8 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
               .withCookies( Cookie(authTokenName, authToken, authTokenCookieMaxAge, httpOnly = false))
           } catch {
             case ex: UnauthorizedException => redirectToLogin( request, ConnectionManager.AuthenticationFailure(AUTHENTICATION_FAILURE))
-            case ex: ServiceException => redirectToLogin( request, ConnectionManager.AuthenticationFailure(REEF_FAILURE))
-            case ex: InternalServiceException => redirectToLogin( request, ConnectionManager.AuthenticationFailure(REEF_FAILURE))
+            case ex: ServiceException => redirectToLogin( request, ConnectionManager.AuthenticationFailure(SERVICE_FAILURE))
+            case ex: InternalServiceException => redirectToLogin( request, ConnectionManager.AuthenticationFailure(SERVICE_FAILURE))
           }
         case None =>
           // No authToken found or invalid authToken
@@ -145,22 +145,22 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   /**
    * Action for Ajax request.
    */
-  def ReefClientAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
+  def ServiceClientAction( action: (Request[AnyContent], ServiceClient) => Result): Action[AnyContent] = {
     Action.async { request =>
-      Logger.debug( "ReefClientAction " + request + " begin")
+      Logger.debug( "ServiceClientAction " + request + " begin")
       authenticateRequest( request, authTokenLocation, PROVISIONAL).map {
         case Some( ( token, serviceClient)) =>
-          Logger.debug( "ReefClientAction " + request + " PROVISIONAL authentication")
+          Logger.debug( "ServiceClientAction " + request + " PROVISIONAL authentication")
           try {
             action( request, serviceClient)
           } catch {
             case ex: UnauthorizedException => authenticationFailure( request, ConnectionManager.AuthenticationFailure( AUTHENTICATION_FAILURE))
-            case ex: ServiceException => authenticationFailure( request, ConnectionManager.AuthenticationFailure( REEF_FAILURE))
-            case ex: InternalServiceException => authenticationFailure( request, ConnectionManager.AuthenticationFailure( REEF_FAILURE))
+            case ex: ServiceException => authenticationFailure( request, ConnectionManager.AuthenticationFailure( SERVICE_FAILURE))
+            case ex: InternalServiceException => authenticationFailure( request, ConnectionManager.AuthenticationFailure( SERVICE_FAILURE))
           }
         case None =>
           // No authToken found or invalid authToken
-          Logger.debug( "ReefClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
+          Logger.debug( "ServiceClientAction " + request + " authenticationFailed (because no authToken or invalid authToken)")
           authenticationFailure( request, ConnectionManager.AuthenticationFailure( AUTHENTICATION_FAILURE))
       }
     }
@@ -169,13 +169,13 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
   /**
    * Action for Ajax request.
    */
-  def ReefClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[Result]): Action[AnyContent] = {
+  def ServiceClientActionAsync( action: (Request[AnyContent], ServiceClient) => Future[Result]): Action[AnyContent] = {
     import io.greenbus.web.models.JsonFormatters._
     Action.async { request =>
-      Logger.debug( "ReefClientActionAsync " + request + " begin")
+      Logger.debug( "ServiceClientActionAsync " + request + " begin")
       authenticateRequest( request, authTokenLocation, PROVISIONAL).flatMap {
         case Some( ( token, serviceClient)) =>
-          Logger.debug( "ReefClientActionAsync " + request + " PROVISIONAL authentication")
+          Logger.debug( "ServiceClientActionAsync " + request + " PROVISIONAL authentication")
           action( request, serviceClient) map { result =>
             result
           } recover {
@@ -191,7 +191,7 @@ trait ReefAuthentication extends LoginLogout with ConnectionManagerRef {
           }
         case None =>
           // No authToken found or invalid authToken
-          Logger.debug( "ReefClientActionAsync " + request + " authenticationFailed (because no authToken or invalid authToken)")
+          Logger.debug( "ServiceClientActionAsync " + request + " authenticationFailed (because no authToken or invalid authToken)")
           Future.successful( authenticationFailure( request, ConnectionManager.AuthenticationFailure( AUTHENTICATION_FAILURE)) )
       }
     }

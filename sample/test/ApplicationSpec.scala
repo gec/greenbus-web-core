@@ -45,7 +45,6 @@ import io.greenbus.client.service.proto.Model.{ModelUUID, Entity}
 object GlobalMock extends GlobalSettings {
 
   var serviceConnectionManager : ActorRef = null
-  //lazy val serviceConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "serviceConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)

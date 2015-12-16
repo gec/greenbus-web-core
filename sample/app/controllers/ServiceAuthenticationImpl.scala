@@ -18,7 +18,7 @@
  */
 package controllers
 
-import io.greenbus.web.auth.ReefAuthentication
+import io.greenbus.web.auth.ServiceAuthentication
 import io.greenbus.web.connection.ConnectionStatus
 import play.api.mvc._
 import play.api.libs.json._
@@ -29,14 +29,14 @@ import play.api.Logger
  *
  * @author Flint O'Brien
  */
-trait ReefAuthenticationImpl extends ReefAuthentication {
+trait ServiceAuthenticationImpl extends ServiceAuthentication {
   self: Controller =>
   import ConnectionStatus._
   import io.greenbus.web.models.JsonFormatters.connectionStatusWrites
 
 
   def loginPageContent( request: RequestHeader): Result = {
-    Logger.debug( "ReefAuthenticationImpl.loginPageContent")
+    Logger.debug( "ServiceAuthenticationImpl.loginPageContent")
     Ok( views.html.login( "loginPageContent"))
   }
 

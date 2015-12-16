@@ -7,7 +7,7 @@ import play.api.libs.json._
  *
  * NavigationItem - Menu item that, when clicked, will bring up the specified view/component (ex: ops dashboard)
  * NavigationItemToPage - Menu item that, when clicked, will go to a new page (i.e. new Angular App)
- * NavigationItemSource - Menu item representing a list of Reef entities. On the client, the item is replaced by
+ * NavigationItemSource - Menu item representing a query for a list of entities. On the client, the item is replaced by
  *                        a list of entities.
  *
  * @author Flint O'Brien
@@ -59,7 +59,7 @@ object Navigation {
   case class NavigationItem( label: String, state: String, selected: Boolean = false, children: List[NavigationElement] = List()) extends NavigationElement
 
   /**
-   * Menu item representing a list of Reef entities. On the client, the item is replaced by
+   * Menu item representing a query for a list entities. On the client, the item is replaced by
    * a list of entities. If this item has children defined, The children are replicated for each entity.
    *
    * @param label Visible label

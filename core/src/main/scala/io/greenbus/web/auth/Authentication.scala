@@ -27,7 +27,7 @@ import scala.language.postfixOps
 
 
 /**
- * General authentication. This does not know about Reef -- that's for an implementation.
+ * General authentication. This does not know about GreenBus -- that's for an implementation.
  *
  * GET /login -- getLoginOrAlreadyLoggedIn
  *    valid authentication - redirectToIndex
