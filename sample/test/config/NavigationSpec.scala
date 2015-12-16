@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.actor.{Props, ActorRef}
 import io.greenbus.web.config.dal.{InitialDB, NavigationUrls}
-import io.greenbus.web.mocks.ReefConnectionManagerMock
+import io.greenbus.web.mocks.ServiceConnectionManagerMock
 
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
@@ -35,7 +35,7 @@ class NavigationSpec extends Specification with Mockito {
           val Some(navigationElements) = NavigationUrls.findNavigationElementsByUrl("/apps/operator/menus/top")
 
           navigationElements.length must equalTo(2)
-          val item = navigationElements(0).asInstanceOf[NavigationItemToPage]
+          val item = navigationElements.head.asInstanceOf[NavigationItemToPage]
           item.label must equalTo( "GreenBus")
         }
       }
@@ -46,14 +46,14 @@ class NavigationSpec extends Specification with Mockito {
 
   object GlobalMockWithDB extends GlobalSettings {
 
-    var reefConnectionManager : ActorRef = null
-    //lazy val reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
+    var serviceConnectionManager : ActorRef = null
+    //lazy val serviceConnectionManager = Akka.system.actorOf(Props[ServiceConnectionManagerMock], "ServiceConnectionManager")
 
     override def onStart(app: Application) {
       super.onStart(app)
 
-      reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
-      Application.reefConnectionManager = reefConnectionManager
+      serviceConnectionManager = Akka.system.actorOf(Props[ServiceConnectionManagerMock], "serviceConnectionManager")
+      Application.serviceConnectionManager = serviceConnectionManager
 
       InitialDB.init()
     }

@@ -1,24 +1,24 @@
 package io.greenbus.web.reefpolyfill
 
-import org.totalgrid.reef.client.service
-import org.totalgrid.reef.client.service.proto.ModelRequests._
-import org.totalgrid.reef.client.service.proto.Model.{Point, Endpoint, EndpointNotification}
+import io.greenbus.client.service
+import io.greenbus.client.service.proto.ModelRequests._
+import io.greenbus.client.service.proto.Model.{Point, Endpoint, EndpointNotification}
 import scala.concurrent.Future
 import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits._
-import org.totalgrid.reef.client.service.proto.FrontEnd._
-import org.totalgrid.reef.client.service.proto.FrontEndRequests._
-import org.totalgrid.msg.Subscription
-import org.totalgrid.reef.client.service.proto.Model.{Entity, ReefUUID}
-import org.totalgrid.msg
+import io.greenbus.client.service.proto.FrontEnd._
+import io.greenbus.client.service.proto.FrontEndRequests._
+import io.greenbus.msg.Subscription
+import io.greenbus.client.service.proto.Model.{Entity, ModelUUID}
+import io.greenbus.msg
 import play.api.Logger
-import org.totalgrid.reef.client.service.ModelService
-import org.totalgrid.reef.client.proto.Envelope.SubscriptionEventType
+import io.greenbus.client.service.ModelService
+import io.greenbus.client.proto.Envelope.SubscriptionEventType
 
 object FrontEndServicePF{
 
   case class EndpointCommStatus( status: FrontEndConnectionStatus.Status, lastHeartbeat: Long)
-  case class EndpointWithComms( id: ReefUUID,
+  case class EndpointWithComms( id: ModelUUID,
                                 name: String,
                                 protocol: Option[String],
                                 enabled: Option[Boolean],
@@ -156,7 +156,7 @@ trait FrontEndServicePF {
     }
   }
 
-  trait Subscription2[A] extends scala.AnyRef with org.totalgrid.msg.SubscriptionBinding {
+  trait Subscription2[A] extends scala.AnyRef with io.greenbus.msg.SubscriptionBinding {
     def start(handler : scala.Function1[A, scala.Unit]) : scala.Unit
   }
 

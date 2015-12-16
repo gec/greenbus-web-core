@@ -2,13 +2,13 @@ package test.rest
 
 import java.io.File
 
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.mocks.EventServiceMock
 import io.greenbus.web.reefpolyfill.FrontEndService
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
-import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service._
+import io.greenbus.msg.Session
+import io.greenbus.client.service._
 import play.api.mvc.Cookie
 import play.api.test.{FakeRequest, FakeApplication}
 import play.api.test.Helpers._
@@ -27,7 +27,7 @@ class AlarmSpec extends Specification with Mockito {
   val cookieName = "coralAuthToken"
   val authTokenGood = "goodAuthToken"
 
-  object ReefServiceFactorMock extends ReefServiceFactory {
+  object ClientServiceFactorMock extends ClientServiceFactory {
     import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
     override def commandService(session: Session): CommandService = throw new NotImplementedException
@@ -53,7 +53,7 @@ class AlarmSpec extends Specification with Mockito {
     "update alarm state" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
+        Application.aServiceFactory = ClientServiceFactorMock
 
         val Some( result) = routePost("/models/1/alarms", """{ "state": "ACKNOWLEDGED", "ids": [ "id1"] }""")
         status(result) must equalTo(OK)
@@ -69,7 +69,7 @@ class AlarmSpec extends Specification with Mockito {
     "return error when alarm update has no state" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
+        Application.aServiceFactory = ClientServiceFactorMock
 
         val Some( result) = routePost("/models/1/alarms", """{ "ids": [ "id1"] }""")
         status(result) must equalTo(BAD_REQUEST)
@@ -82,7 +82,7 @@ class AlarmSpec extends Specification with Mockito {
     "return error when alarm update has no ids" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
+        Application.aServiceFactory = ClientServiceFactorMock
 
         val Some( result) = routePost("/models/1/alarms", """{ "state": "ACKNOWLEDGED" }""")
         status(result) must equalTo(BAD_REQUEST)

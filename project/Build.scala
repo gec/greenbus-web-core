@@ -11,12 +11,10 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "web-core"
-  val appVersion        = "0.3.0-SNAPSHOT"
+  val appVersion        = "3.0.0.M4-SNAPSHOT"
   val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
-  val reefVersion       = "0.6.0.M4-SNAPSHOT"
-  val msgVersion       = "0.0.1-SNAPSHOT"
 
   lazy val baseSettings = Seq(
     version            := appVersion,
@@ -68,8 +66,8 @@ object ApplicationBuild extends Build {
       libraryDependencies += "com.typesafe.play" %% "play-test" % playVersion % "test",
       // libraryDependencies += "com.typesafe.akka" %% "akka-agent" % "2.3.4",
       libraryDependencies += play.PlayImport.cache,
-      libraryDependencies += "org.totalgrid.reef" % "reef-client" % reefVersion withSources(),
-      libraryDependencies += "org.totalgrid.msg" % "msg-qpid" % msgVersion,
+      libraryDependencies += "io.greenbus" % "greenbus-client" % "3.0.0.M4-SNAPSHOT" withSources(),
+      libraryDependencies += "io.greenbus.msg" % "greenbus-msg-qpid" % "1.0.0-SNAPSHOT",
       libraryDependencies += "org.mockito" % "mockito-all" % "1.9.5" % "test",
       libraryDependencies += "com.typesafe.akka" %% "akka-testkit" % playVersion % "test",
       libraryDependencies += "com.typesafe.slick" %% "slick" % "2.1.0",

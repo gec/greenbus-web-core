@@ -21,10 +21,10 @@ package io.greenbus.web.models
 import io.greenbus.web.auth.ValidationTiming
 import io.greenbus.web.connection.ConnectionStatus
 import io.greenbus.web.models._
-import org.totalgrid.reef.client.service.proto.Commands.{CommandLock,CommandRequest}
-import org.totalgrid.reef.client.service.proto.Events.Alarm
-import org.totalgrid.reef.client.service.proto.Measurements.Measurement
-import org.totalgrid.reef.client.service.proto.Model.ReefID
+import io.greenbus.client.service.proto.Commands.{CommandLock,CommandRequest}
+import io.greenbus.client.service.proto.Events.Alarm
+import io.greenbus.client.service.proto.Measurements.Measurement
+import io.greenbus.client.service.proto.Model.ModelID
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 

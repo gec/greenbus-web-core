@@ -1,10 +1,10 @@
 package io.greenbus.web.mocks
 
-import org.totalgrid.msg.{Subscription, Session}
+import io.greenbus.msg.{Subscription, Session}
 import play.api.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
-import org.totalgrid.reef.client.service.ModelService
+import io.greenbus.client.service.ModelService
 
 object SessionMock {
   val session = new SessionMock

@@ -18,19 +18,19 @@
  */
 package io.greenbus.web.models
 
-import org.totalgrid.reef.client.service.proto.Commands.{CommandResult, CommandLock}
-import org.totalgrid.reef.client.service.proto.Model._
+import io.greenbus.client.service.proto.Commands.{CommandResult, CommandLock}
+import io.greenbus.client.service.proto.Model._
 import io.greenbus.web.connection.ConnectionStatus
-import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
+import io.greenbus.client.service.proto.Processing.MeasOverride
 import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
 import scala.collection.JavaConversions._
-import org.totalgrid.reef.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
-import org.totalgrid.reef.client.service.proto.Measurements._
-import org.totalgrid.reef.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
-import org.totalgrid.reef.client.service.proto.FrontEnd._
+import io.greenbus.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
+import io.greenbus.client.service.proto.Measurements._
+import io.greenbus.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
+import io.greenbus.client.service.proto.FrontEnd._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF._
 
 /**
@@ -300,7 +300,6 @@ object JsonFormatters {
         //"pointUuid" -> o.getPointUuid.getValue,
         "value" -> measValue.toString,
         "type" -> o.getType.toString,
-        "unit" -> o.getUnit,
         "time" -> o.getTime,
         "validity" -> o.getQuality.getValidity.name,
         "shortQuality" -> shortQuality(o),

@@ -27,9 +27,9 @@ import io.greenbus.web.models._
  *
  * @author Flint O'Brien
  */
-class ReefConnectionManagerMock extends Actor {
+class ServiceConnectionManagerMock extends Actor {
   import ConnectionStatus._
-  import io.greenbus.web.connection.ReefConnectionManager._
+  import io.greenbus.web.connection.ConnectionManager._
 
   val authToken1 = "authToken1"
 
@@ -50,7 +50,7 @@ class ReefConnectionManagerMock extends Actor {
         sender ! ServiceClientFailure( AUTHENTICATION_FAILURE)
 
 
-    case unknownMessage: AnyRef => Logger.error( "ReefConnectionManagerMock.receive: Unknown message " + unknownMessage)
+    case unknownMessage: AnyRef => Logger.error( "ServiceConnectionManagerMock.receive: Unknown message " + unknownMessage)
   }
 
 }

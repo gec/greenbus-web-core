@@ -1,10 +1,10 @@
 package io.greenbus.web.mocks
 
-import org.totalgrid.msg.Subscription
-import org.totalgrid.reef.client.service.EventService
-import org.totalgrid.reef.client.service.proto.EventRequests._
-import org.totalgrid.reef.client.service.proto.Events._
-import org.totalgrid.reef.client.service.proto.Model.ReefID
+import io.greenbus.msg.Subscription
+import io.greenbus.client.service.EventService
+import io.greenbus.client.service.proto.EventRequests._
+import io.greenbus.client.service.proto.Events._
+import io.greenbus.client.service.proto.Model.ModelID
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 
@@ -19,14 +19,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object EventServiceMock {
   val service = new EventServiceMock
 
-  val id1: ReefID = ReefID.newBuilder.setValue( "id1" ).build()
-  val event1: Event = makeEvent( id1, 1, true)
+  val id1: ModelID = ModelID.newBuilder.setValue( "id1" ).build()
+  val event1: Event = makeEvent( id1, 1, alarm = true)
   val alarm1: Alarm = makeAlarm( id1, 1, Alarm.State.UNACK_AUDIBLE)
 
   def makeEvent( id: String, severity: Int, alarm: Boolean): Event = {
-    makeEvent( ReefID.newBuilder.setValue( id ).build(), severity, alarm)
+    makeEvent( ModelID.newBuilder.setValue( id ).build(), severity, alarm)
   }
-  def makeEvent( id: ReefID, severity: Int, alarm: Boolean): Event = {
+  def makeEvent( id: ModelID, severity: Int, alarm: Boolean): Event = {
     Event.newBuilder
       .setId( id)
       .setAgentName( "agent")
@@ -36,13 +36,13 @@ object EventServiceMock {
       .build()
   }
   def makeAlarm( id: String, severity: Int, state: Alarm.State): Alarm = {
-    makeAlarm( ReefID.newBuilder.setValue( id ).build(), severity, state)
+    makeAlarm( ModelID.newBuilder.setValue( id ).build(), severity, state)
   }
-  def makeAlarm( id: ReefID, severity: Int, state: Alarm.State): Alarm = {
+  def makeAlarm( id: ModelID, severity: Int, state: Alarm.State): Alarm = {
     Alarm.newBuilder
       .setId( id)
       .setState( state)
-      .setEvent( makeEvent( id, severity, true))
+      .setEvent( makeEvent( id, severity, alarm = true))
       .build()
   }
 }
@@ -51,7 +51,7 @@ object EventServiceMock {
 class EventServiceMock extends EventService {
   import EventServiceMock._
 
-  override def getEvents(eventId: Seq[ReefID]): Future[Seq[Event]] = throw new NotImplementedException
+  override def getEvents(eventId: Seq[ModelID]): Future[Seq[Event]] = throw new NotImplementedException
 
   override def postEvents(request: Seq[EventTemplate]): Future[Seq[Event]] = throw new NotImplementedException
 
@@ -77,7 +77,7 @@ class EventServiceMock extends EventService {
 
   override def putEventConfigs(request: Seq[EventConfigTemplate], headers: Map[String, String]): Future[Seq[EventConfig]] = throw new NotImplementedException
 
-  override def getEvents(eventId: Seq[ReefID], headers: Map[String, String]): Future[Seq[Event]] = throw new NotImplementedException
+  override def getEvents(eventId: Seq[ModelID], headers: Map[String, String]): Future[Seq[Event]] = throw new NotImplementedException
 
   override def getEventConfigs(eventType: Seq[String]): Future[Seq[EventConfig]] = throw new NotImplementedException
 

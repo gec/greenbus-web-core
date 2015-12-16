@@ -18,21 +18,15 @@
  */
 package controllers
 
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.rest.RestServices
 import io.greenbus.web.websocket.WebSocketActor.WebSocketServiceProvider
 import io.greenbus.web.websocket.WebSocketServices
 import play.api._
 import play.api.mvc._
-//import akka.util.Timeout
-//import scala.concurrent.duration._
 import scala.language.postfixOps
 import akka.actor.ActorRef
 import play.api.libs.json._
-//import play.api.libs.functional.syntax._
-//import models.content._
-//import play.api.libs.json.JsArray
-//import scala.Some
 
 object Application extends Controller with ReefAuthenticationImpl with RestServices with WebSocketServices {
 
@@ -42,11 +36,11 @@ object Application extends Controller with ReefAuthenticationImpl with RestServi
 
   //implicit val timeout = Timeout(2 seconds)
 
-  // reefConnectionManager is assigned by Global. Ugly, but can't ask Gloabal _object_ because we need mocked Global during testing.
-  var reefConnectionManager: ActorRef = _
-  def connectionManager: ActorRef = reefConnectionManager
-  var reefServiceFactory: ReefServiceFactory = _
-  def serviceFactory: ReefServiceFactory = reefServiceFactory
+  // serviceConnectionManager is assigned by Global. Ugly, but can't ask Gloabal _object_ because we need mocked Global during testing.
+  var serviceConnectionManager: ActorRef = _
+  def connectionManager: ActorRef = serviceConnectionManager
+  var aServiceFactory: ClientServiceFactory = _
+  def serviceFactory: ClientServiceFactory = aServiceFactory
   var myWebSocketServiceProviders: Seq[WebSocketServiceProvider] = _
   override def webSocketServiceProviders: Seq[WebSocketServiceProvider] = myWebSocketServiceProviders
 

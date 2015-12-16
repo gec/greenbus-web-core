@@ -3,15 +3,15 @@ package rest
 import java.io.File
 
 import controllers.Application
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.mocks.{ModelServiceMock, EventServiceMock}
 import io.greenbus.web.reefpolyfill.FrontEndService
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
-import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service._
-import org.totalgrid.reef.client.service.proto.Model.{StoredValue, EntityKeyValue, ReefUUID}
-import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeyPair
+import io.greenbus.msg.Session
+import io.greenbus.client.service._
+import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue, ModelUUID}
+import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 import play.api.libs.json._
 import play.api.mvc.Cookie
 import play.api.test.Helpers._
@@ -35,7 +35,7 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
   val key1 = "key1"
   val value1 = "value1"
   val entityId = "1"
-  val entityUuid = ReefUUID.newBuilder().setValue( entityId).build()
+  val entityUuid = ModelUUID.newBuilder().setValue( entityId).build()
   val keyPair1 = EntityKeyPair.newBuilder()
     .setUuid( entityUuid)
     .setKey(key1)
@@ -44,7 +44,7 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
   val storedValue1 = StoredValue.newBuilder().setStringValue(value1).build()
   val keyValue1 = EntityKeyValue.newBuilder().setKey( key1).setValue( storedValue1).build()
 
-  object ReefServiceFactorMock extends ReefServiceFactory {
+  object ClientServiceFactorMock extends ClientServiceFactory {
     import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
     override def commandService(session: Session): CommandService = throw new NotImplementedException
@@ -69,8 +69,8 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
     "get all properties" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
-        mockModelService.getEntityKeys( any[Seq[ReefUUID]]) returns Future.successful( keyPairs)
+        Application.aServiceFactory = ClientServiceFactorMock
+        mockModelService.getEntityKeys( any[Seq[ModelUUID]]) returns Future.successful( keyPairs)
         mockModelService.getEntityKeyValues( keyPairs) returns Future.successful( Seq( keyValue1))
 
         val Some( result) = routeGet("/models/1/equipment/1/properties")
@@ -87,8 +87,8 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
     "get all properties without values" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
-        mockModelService.getEntityKeys( any[Seq[ReefUUID]]) returns Future.successful( keyPairs)
+        Application.aServiceFactory = ClientServiceFactorMock
+        mockModelService.getEntityKeys( any[Seq[ModelUUID]]) returns Future.successful( keyPairs)
 
         val Some( result) = routeGet("/models/1/equipment/1/properties?values=false")
         status(result) must equalTo(OK)
@@ -103,8 +103,8 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
     "get all properties for the specified list of keys" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
-        mockModelService.getEntityKeys( any[Seq[ReefUUID]]) returns Future.successful( keyPairs)
+        Application.aServiceFactory = ClientServiceFactorMock
+        mockModelService.getEntityKeys( any[Seq[ModelUUID]]) returns Future.successful( keyPairs)
         mockModelService.getEntityKeyValues( keyPairs) returns Future.successful( Seq( keyValue1))
 
         val Some( result) = routeGet("/models/1/equipment/1/properties?keys=key1")
@@ -121,7 +121,7 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
     "get one property" in {
       running( new FakeApplication( path = new File("sample"), withGlobal = globalMock)) {
 
-        Application.reefServiceFactory = ReefServiceFactorMock
+        Application.aServiceFactory = ClientServiceFactorMock
         mockModelService.getEntityKeyValues( keyPairs) returns Future.successful( Seq( keyValue1))
 
         val Some( result) = routeGet("/models/1/equipment/1/properties/key1")

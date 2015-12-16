@@ -22,26 +22,24 @@ package io.greenbus.web.rest
 
 import java.util.concurrent.TimeoutException
 
-import io.greenbus.web.config.Navigation.NavigationHeader
 import io.greenbus.web.config.dal.NavigationUrls
 import org.h2.jdbc.JdbcSQLException
-import org.totalgrid.reef.client.exception.{BadRequestException, ForbiddenException, LockedException}
-import org.totalgrid.reef.client.service.proto.Commands.{CommandLock, CommandRequest}
-import org.totalgrid.reef.client.service.proto.Measurements.{PointMeasurementValue, MeasurementNotification, Measurement}
-import org.totalgrid.reef.client.service.proto.ModelRequests._
-import org.totalgrid.reef.client.service.proto.EventRequests.{EventQueryParams, AlarmStateUpdate, AlarmQuery, EventQuery}
-import org.totalgrid.reef.client.service.proto.Events.Alarm
-import org.totalgrid.reef.client.service.proto.Model.Point
-import org.totalgrid.reef.client.service.proto.Model.{Entity, EntityEdge, ReefID, ReefUUID}
-import org.totalgrid.reef.client.service.proto.Processing.MeasOverride
-import org.totalgrid.reef.client.service.proto._
-import org.totalgrid.reef.client.service.{ModelService, EventService, MeasurementService}
+import io.greenbus.client.exception.{BadRequestException, ForbiddenException, LockedException}
+import io.greenbus.client.service.proto.Commands.{CommandLock, CommandRequest}
+import io.greenbus.client.service.proto.Measurements.{PointMeasurementValue, MeasurementNotification, Measurement}
+import io.greenbus.client.service.proto.ModelRequests._
+import io.greenbus.client.service.proto.EventRequests.{EventQueryParams, AlarmStateUpdate, AlarmQuery, EventQuery}
+import io.greenbus.client.service.proto.Events.Alarm
+import io.greenbus.client.service.proto.Model.Point
+import io.greenbus.client.service.proto.Model.{Entity, EntityEdge, ModelID, ModelUUID}
+import io.greenbus.client.service.proto.Processing.MeasOverride
+import io.greenbus.client.service.proto._
+import io.greenbus.client.service.{ModelService, EventService, MeasurementService}
 import io.greenbus.web.auth.ReefAuthentication
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.models.ControlMessages.CommandExecuteRequest
 import io.greenbus.web.models.ExceptionMessages.ExceptionMessage
 import io.greenbus.web.models.EntityWithChildren
-import io.greenbus.web.reefpolyfill.FrontEndService
 import io.greenbus.web.util.Timer
 import play.api.Logger
 import play.api.libs.json._
@@ -70,7 +68,7 @@ trait RestServices extends ReefAuthentication {
   /**
    * Implementors must provide a factory for reef services.
    */
-  def serviceFactory: ReefServiceFactory
+  def serviceFactory: ClientServiceFactory
 
   val timeout = 5000.milliseconds
   val JSON_EMPTY_ARRAY = Json.toJson( Seq[JsValue]())
@@ -83,9 +81,9 @@ trait RestServices extends ReefAuthentication {
       types
   }
 
-  def getEntitiesByReefUuid( service: ModelService, reefUuids: Seq[ReefUUID]) = {
+  def getEntitiesByModelUuid( service: ModelService, modelUUIDs: Seq[ModelUUID]) = {
     val keyset = EntityKeySet.newBuilder()
-      .addAllUuids( reefUuids)
+      .addAllUuids( modelUUIDs)
     service.get( keyset.build())
   }
 
@@ -99,8 +97,8 @@ trait RestServices extends ReefAuthentication {
 
   }
 
-  def entityEdgesToParentChildrenMap( edges: Seq[EntityEdge]): Map[ReefUUID,List[ReefUUID]] = {
-    edges.foldLeft( Map[ReefUUID,List[ReefUUID]]()) { (map, edge) =>
+  def entityEdgesToParentChildrenMap( edges: Seq[EntityEdge]): Map[ModelUUID,List[ModelUUID]] = {
+    edges.foldLeft( Map[ModelUUID,List[ModelUUID]]()) { (map, edge) =>
       val pointId = edge.getParent
       val commandId = edge.getChild
       map.get( pointId) match {
@@ -114,13 +112,13 @@ trait RestServices extends ReefAuthentication {
   def getChildTreeBreadthFirst( service: ModelService, rootEntitiesWithChildren: Seq[EntityWithChildren], parentEntitiesWithChildrenMap: Map[String,EntityWithChildren], currentDepth: Int, maxDepth: Int): Future[Seq[EntityWithChildren]] = {
     Logger.debug( s"getChildTreeBreadthFirst begin currentDepth/maxDepth $currentDepth / $maxDepth")
 
-    def makeChildReefUuidToParentMap( edges: Seq[EntityEdge]) = {
-      edges.foldLeft(Map[ReefUUID, EntityWithChildren]()) { (map, edge) =>
+    def makeChildModelUuidToParentMap( edges: Seq[EntityEdge]) = {
+      edges.foldLeft(Map[ModelUUID, EntityWithChildren]()) { (map, edge) =>
         parentEntitiesWithChildrenMap.get( edge.getParent.getValue) match {
           case Some( parent) =>
             map + (edge.getChild -> parent )
           case None =>
-            Logger.error( s"getChildTreeBreadthFirst.toChildReefUuidToParentMap Internal error parentEntitiesWithChildrenMap.get( parentUuid = ${edge.getParent.getValue}) should not return none")
+            Logger.error( s"getChildTreeBreadthFirst.toChildModelUUIDToParentMap Internal error parentEntitiesWithChildrenMap.get( parentUuid = ${edge.getParent.getValue}) should not return none")
             map
         }
       }
@@ -134,18 +132,18 @@ trait RestServices extends ReefAuthentication {
       .setPageSize( Int.MaxValue)
 
     service.edgeQuery( query.build).flatMap{ edges =>
-      val childReefUuidToParentMap = makeChildReefUuidToParentMap( edges)
-      val childReefUuids = edges.map( _.getChild)
+      val childModelUuidToParentMap = makeChildModelUuidToParentMap( edges)
+      val childModelUuids = edges.map( _.getChild)
 
-      getEntitiesByReefUuid( service, childReefUuids).flatMap{ children =>
+      getEntitiesByModelUuid( service, childModelUuids).flatMap{ children =>
 
         val justEquipmentChildren = children.filter( c => c.getTypesList.contains( "Equipment"))  // TODO: need a query filtered by types.
         val childrenAsEntityWithChildren = justEquipmentChildren.map{ new EntityWithChildren( _) }
-        Logger.debug( s"getEntitiesByReefUuid currentDepth=$currentDepth children.length=${children.length}, justEquipmentChildren.length=${justEquipmentChildren.length}")
+        Logger.debug( s"getEntitiesByModelUUID currentDepth=$currentDepth children.length=${children.length}, justEquipmentChildren.length=${justEquipmentChildren.length}")
 
         Logger.debug( "================= childrenAsEntityWithChildren begin")
         childrenAsEntityWithChildren.foreach{ child =>
-          childReefUuidToParentMap.get( child.entity.getUuid) match {
+          childModelUuidToParentMap.get( child.entity.getUuid) match {
             case Some( parent) =>
               Logger.debug( s"parent.addChild ${parent.entity.getName} addChild ${child.entity.getName}")
               parent.addChild( child)
@@ -300,8 +298,8 @@ trait RestServices extends ReefAuthentication {
    */
   def getEquipment( modelId: String, entityId: String, childTypes: List[String], depth: Int, limit: Int) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
-    val query = EntityKeySet.newBuilder().addUuids(reefUuid)
+    val modelUUID = ModelUUID.newBuilder().setValue( entityId).build()
+    val query = EntityKeySet.newBuilder().addUuids(modelUUID)
 
     service.get( query.build).map{ result =>
       if( result.nonEmpty)
@@ -324,13 +322,14 @@ trait RestServices extends ReefAuthentication {
     Logger.debug( s"getEquipmentChildren begin depth=$depth")
 
     val service = serviceFactory.modelService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+    val modelUUID = ModelUUID.newBuilder().setValue( entityId).build()
+    val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
     val query = EntityRelationshipFlatQuery.newBuilder()
-      .addStartUuids(reefUuid)
+      .addStartUuids(modelUUID)
       .setRelationship("owns")
       .setDescendantOf(true)
       .addAllEndTypes( childTypes)
-      .setPageSize( limit)
+      .setPagingParams( pagingParams)
       .setDepthLimit( if( depth > 0) depth else Int.MaxValue )
 
     service.relationshipFlatQuery( query.build).map{ result =>
@@ -348,13 +347,13 @@ trait RestServices extends ReefAuthentication {
    * @return keys with values or just keys
    */
   def getEquipmentProperties( modelId: String, entityId: String, keys: List[String], values: Boolean) = ReefClientActionAsync { (request, session) =>
-//    import org.totalgrid.reef.client.service.proto.Model.{StoredValue, EntityKeyValue}
-//    import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeyPair
+//    import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue}
+//    import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 
     val service = serviceFactory.modelService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+    val modelUuid = ModelUUID.newBuilder().setValue( entityId).build()
 
-    val future = service.getEntityKeys( Seq( reefUuid))
+    val future = service.getEntityKeys( Seq( modelUuid))
     future flatMap { entityKeyPairs =>
       if( entityKeyPairs.nonEmpty) {
         if( values) {
@@ -385,14 +384,14 @@ trait RestServices extends ReefAuthentication {
    * @return The key and value
    */
   def getEquipmentProperty( modelId: String, entityId: String, key: String) = ReefClientActionAsync { (request, session) =>
-//    import org.totalgrid.reef.client.service.proto.Model.{StoredValue, EntityKeyValue}
-    import org.totalgrid.reef.client.service.proto.ModelRequests.EntityKeyPair
+//    import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue}
+    import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 
     val service = serviceFactory.modelService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( entityId).build()
+    val modelUuid = ModelUUID.newBuilder().setValue( entityId).build()
     val entityKeyPair = EntityKeyPair.newBuilder()
       .setKey( key)
-      .setUuid( reefUuid)
+      .setUuid( modelUuid)
       .build()
 
     val future = service.getEntityKeyValues( Seq( entityKeyPair))
@@ -408,14 +407,15 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def queryPointsByTypeForEquipments( modelService: ModelService, equipmentReefUuids: Seq[ReefUUID], pointTypes: List[String], depth: Int, limit: Int) = {
+  def queryPointsByTypeForEquipments( modelService: ModelService, equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int) = {
     Logger.debug( s"queryPointsByTypeForEquipments begin pointTypes: $pointTypes")
 
+    val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
     val query = EntityRelationshipFlatQuery.newBuilder()
-      .addAllStartUuids(equipmentReefUuids)
+      .addAllStartUuids(equipmentModelUUIDs)
       .setRelationship("owns")
       .setDescendantOf(true)
-      .setPageSize(limit)
+      .setPagingParams( pagingParams)
       .setDepthLimit( depth)  // default is infinite
 
     if( pointTypes.isEmpty)
@@ -426,10 +426,10 @@ trait RestServices extends ReefAuthentication {
     Logger.debug( s"queryPointsByTypeForEquipments modelService.relationshipFlatQuery: ${builtQuery}")
     modelService.relationshipFlatQuery( query.build)
   }
-  def queryEdgesForParentsAndChildren( service: ModelService, parentReefUuids: Seq[ReefUUID], childReefUuids: Seq[ReefUUID], depth: Int, limit: Int) = {
+  def queryEdgesForParentsAndChildren( service: ModelService, parentModelUUIDs: Seq[ModelUUID], childModelUUIDs: Seq[ModelUUID], depth: Int, limit: Int) = {
     val query = EntityEdgeQuery.newBuilder()
-      .addAllParentUuids( parentReefUuids)
-      .addAllChildUuids( childReefUuids)
+      .addAllParentUuids( parentModelUUIDs)
+      .addAllChildUuids( childModelUUIDs)
       .addRelationships("owns")
       .setPageSize(limit)
       .setDepthLimit( depth)  // default is infinite
@@ -465,14 +465,14 @@ trait RestServices extends ReefAuthentication {
     modelService.entityQuery( query.build).flatMap {
       case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
       case pointEnts =>
-        val reefUuids = pointEnts.map(_.getUuid)
-        val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
+        val modelUuids = pointEnts.map(_.getUuid)
+        val keys = EntityKeySet.newBuilder().addAllUuids( modelUuids).build()
 
         modelService.getPoints( keys).map{ result => Ok( Json.toJson( result)) }
     }
   }
 
-  def queryPointsByIds( pointIds: Seq[ReefUUID], modelService: ModelService) = {
+  def queryPointsByIds( pointIds: Seq[ModelUUID], modelService: ModelService) = {
       val keys = EntityKeySet.newBuilder().addAllUuids(pointIds).build()
       modelService.getPoints( keys)
   }
@@ -484,16 +484,16 @@ trait RestServices extends ReefAuthentication {
 
   def getPoint( modelId: String, pointId: String) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
-    val reefId = ReefUUID.newBuilder().setValue( pointId).build()
-    queryPointsByIds( Seq(reefId), service).map{
+    val modelId = ModelUUID.newBuilder().setValue( pointId).build()
+    queryPointsByIds( Seq(modelId), service).map{
       case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a point object
       case points => Ok( Json.toJson( points(0)))
     }
   }
 
   def getPointsByIds( pids: Seq[String], modelService: ModelService) = {
-    val reefIds = pids.map( ReefUUID.newBuilder().setValue( _).build())
-    queryPointsByIds( reefIds, modelService).map{
+    val modelIds = pids.map( ModelUUID.newBuilder().setValue( _).build())
+    queryPointsByIds( modelIds, modelService).map{
       case Seq() => Ok( JSON_EMPTY_ARRAY)
       case points => Ok( Json.toJson( points))
     }
@@ -557,8 +557,8 @@ trait RestServices extends ReefAuthentication {
     } else {
 
       val t1 = new Timer( "getPointsByTypeForEquipmentsQuery |||||||||||||||||||||||||")
-      val equipmentReefUuids = equipmentIds.map( ReefUUID.newBuilder().setValue( _).build())
-      queryPointsByTypeForEquipments( modelService, equipmentReefUuids, pointTypes, depth, limit).flatMap { pointsAsEntities =>
+      val equipmentModelUUIDs = equipmentIds.map( ModelUUID.newBuilder().setValue( _).build())
+      queryPointsByTypeForEquipments( modelService, equipmentModelUUIDs, pointTypes, depth, limit).flatMap { pointsAsEntities =>
 
         if( pointsAsEntities.isEmpty) {
           t1.end( "return early because there are no points under this list of equipment")
@@ -587,7 +587,7 @@ trait RestServices extends ReefAuthentication {
               t1.end( "return early because it's just on equipment")
               Future.successful( Ok( Json.toJson(equipmentIdToPointsMap)))
             } else {
-              queryEdgesForParentsAndChildren( modelService, equipmentReefUuids, pointIds, depth, limit).map { edges =>
+              queryEdgesForParentsAndChildren( modelService, equipmentModelUUIDs, pointIds, depth, limit).map { edges =>
                 t1.end( "got getEdgesForParentsAndChildrenQuery")
                 val equipmentIdToPointsMap = makeEquipmentIdPointsMap( edges, points)
                 Ok( Json.toJson(equipmentIdToPointsMap))
@@ -600,13 +600,13 @@ trait RestServices extends ReefAuthentication {
     }
   }
 
-  def queryMeasurementsByIds( reefIds: Seq[ReefUUID], measurementService: MeasurementService) = {
-    measurementService.getCurrentValues( reefIds)
+  def queryMeasurementsByIds( modelIDs: Seq[ModelUUID], measurementService: MeasurementService) = {
+    measurementService.getCurrentValues( modelIDs)
   }
 
   def getMeasurementsByIds( pids: Seq[String], measurementService: MeasurementService) = {
-    val reefIds = pids.map( ReefUUID.newBuilder().setValue( _).build())
-    measurementService.getCurrentValues( reefIds).map{
+    val modelIDs = pids.map( ModelUUID.newBuilder().setValue( _).build())
+    measurementService.getCurrentValues( modelIDs).map{
       case Seq() => Ok( JSON_EMPTY_ARRAY)
       case pointMeasurementValues => Ok( Json.toJson( pointMeasurementValues))
     }
@@ -621,8 +621,8 @@ trait RestServices extends ReefAuthentication {
         pointIdPointMap.get( pointMeasurementValue.getPointUuid.getValue).map( _.getName).getOrElse( "unknown")
       }
 
-      val reefIds = points.map( _.getUuid)
-      measurementService.getCurrentValues( reefIds).map{ pointMeasurementValues =>
+      val modelIDs = points.map( _.getUuid)
+      measurementService.getCurrentValues( modelIDs).map{ pointMeasurementValues =>
         val measurementNotifications = pointMeasurementValues.map { pointMeasurementValue =>
           MeasurementNotification.newBuilder()
             .setPointUuid( pointMeasurementValue.getPointUuid)
@@ -678,7 +678,7 @@ trait RestServices extends ReefAuthentication {
 
 
           val query = EntityEdgeQuery.newBuilder()
-          val reefPointIds = pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+          val reefPointIds = pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
           query.addAllParentUuids( reefPointIds)
           query
             .addRelationships( "feedback")
@@ -696,7 +696,7 @@ trait RestServices extends ReefAuthentication {
               val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
 
               modelService.getCommands( keySet) map {  commands =>
-                val commandIdCommandMap = commands.foldLeft( Map[ReefUUID, Model.Command]()) { (map, c) => map + (c.getUuid -> c) }
+                val commandIdCommandMap = commands.foldLeft( Map[ModelUUID, Model.Command]()) { (map, c) => map + (c.getUuid -> c) }
                 //        val commandIdCommandMap = commands.map{ c => (c.getUuid -> c) }.toMap
 
 
@@ -738,14 +738,14 @@ trait RestServices extends ReefAuthentication {
       json.validate(commandLockRequestReads).map {
         case commandLockRequest =>
           val cService = serviceFactory.commandService(session)
-          val reefIds = commandLockRequest.commandIds.map(id => ReefUUID.newBuilder().setValue(id).build())
+          val modelIDs = commandLockRequest.commandIds.map(id => ModelUUID.newBuilder().setValue(id).build())
 
           val future = commandLockRequest.accessMode match {
             case CommandLock.AccessMode.ALLOWED =>
-              val lockForSelect = CommandRequests.CommandSelect.newBuilder.addAllCommandUuids(reefIds).build
+              val lockForSelect = CommandRequests.CommandSelect.newBuilder.addAllCommandUuids(modelIDs).build
               cService.selectCommands(lockForSelect)
             case CommandLock.AccessMode.BLOCKED =>
-              val lockForBlock = CommandRequests.CommandBlock.newBuilder.addAllCommandUuids(reefIds).build
+              val lockForBlock = CommandRequests.CommandBlock.newBuilder.addAllCommandUuids(modelIDs).build
               cService.blockCommands(lockForBlock)
           }
 
@@ -769,7 +769,7 @@ trait RestServices extends ReefAuthentication {
   def deleteCommandLock( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
 
     val cService = serviceFactory.commandService( session)
-    val commandLockId = ReefID.newBuilder().setValue( id).build()
+    val commandLockId = ModelID.newBuilder().setValue( id).build()
     cService.deleteCommandLocks( Seq( commandLockId)).map { result =>
       if( result.size == 1)
         Ok( Json.toJson( result(0)))
@@ -811,9 +811,9 @@ trait RestServices extends ReefAuthentication {
             }
             meas.setTime( System.currentTimeMillis)
 
-            val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+            val modelID = ModelUUID.newBuilder().setValue(pointId).build()
             val measOverride = MeasOverride.newBuilder()
-              .setPointUuid(reefId)
+              .setPointUuid(modelID)
               .setMeasurement( meas.build())
 
             val service = serviceFactory.processingService(session)
@@ -850,9 +850,9 @@ trait RestServices extends ReefAuthentication {
 
   def postPointNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
 
-    val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+    val modelID = ModelUUID.newBuilder().setValue(pointId).build()
     val measNis = MeasOverride.newBuilder()
-      .setPointUuid(reefId)
+      .setPointUuid(modelID)
 
     val service = serviceFactory.processingService(session)
     val future = service.putOverrides( Seq(measNis.build))
@@ -869,9 +869,9 @@ trait RestServices extends ReefAuthentication {
 
   def deletePointOverrideOrNis( modelId: String, pointId: String)  = ReefClientActionAsync { (request, session) =>
 
-    val reefId = ReefUUID.newBuilder().setValue(pointId).build()
+    val modelID = ModelUUID.newBuilder().setValue(pointId).build()
     val service = serviceFactory.processingService(session)
-    val future = service.deleteOverrides( Seq(reefId))
+    val future = service.deleteOverrides( Seq(modelID))
 
     future map { measOverrides =>
       Ok(Json.toJson(measOverrides))
@@ -886,14 +886,14 @@ trait RestServices extends ReefAuthentication {
   def postCommand( modelId: String, id: String)  = ReefClientActionAsync { (request, session) =>
 
     val cService = serviceFactory.commandService( session)
-    val commandId = ReefUUID.newBuilder().setValue( id).build()
+    val commandId = ModelUUID.newBuilder().setValue( id).build()
 
     val commandRequest = Commands.CommandRequest.newBuilder()
       .setCommandUuid( commandId)
 
     // Could be setpoint or control.
     val commandExecuteRequest = getCommandExecuteRequest( request)
-    val commandLockId = ReefID.newBuilder().setValue( commandExecuteRequest.commandLockId).build()
+    val commandLockId = ModelID.newBuilder().setValue( commandExecuteRequest.commandLockId).build()
 
     commandExecuteRequest.setpoint map {
       case setpoint =>
@@ -951,8 +951,8 @@ trait RestServices extends ReefAuthentication {
 
   def getEntity( uuid: String) = ReefClientActionAsync { (request, session) =>
     val service = serviceFactory.modelService( session)
-    val reefUuid = ReefUUID.newBuilder().setValue( uuid).build()
-    val query = EntityKeySet.newBuilder().addUuids(reefUuid)
+    val modelID = ModelUUID.newBuilder().setValue( uuid).build()
+    val query = EntityKeySet.newBuilder().addUuids(modelID)
 
     service.get( query.build).map{ result =>
       if( result.nonEmpty)
@@ -978,8 +978,8 @@ trait RestServices extends ReefAuthentication {
       case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY))
       case pointEnts =>
         val measService = MeasurementService.client( session)
-        val reefUuids = pointEnts.map(_.getUuid)
-        measService.getCurrentValues( reefUuids).map{ result => Ok( Json.toJson( result.toList)) }
+        val modelIDs = pointEnts.map(_.getUuid)
+        measService.getCurrentValues( modelIDs).map{ result => Ok( Json.toJson( result.toList)) }
     }
   }
 
@@ -994,8 +994,8 @@ trait RestServices extends ReefAuthentication {
       case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY))
       case pointEnts =>
         val frontEndService = serviceFactory.frontEndService( session)
-        val reefUuids = pointEnts.map(_.getUuid)
-        val keys = EntityKeySet.newBuilder().addAllUuids( reefUuids).build()
+        val modelIDs = pointEnts.map(_.getUuid)
+        val keys = EntityKeySet.newBuilder().addAllUuids( modelIDs).build()
 
         service.getCommands( keys).map{ result => Ok( Json.toJson( result)) }
     }
@@ -1047,7 +1047,7 @@ trait RestServices extends ReefAuthentication {
       query.setQueryParams( makeEventQueryParams( ag, et, sv, sb, latest))
 
     if( startAfterId.isDefined)
-      query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
+      query.setLastId( ModelID.newBuilder().setValue( startAfterId.get).build())
 
     val builtQuery = query.build
     Logger.debug( s"getEvents EventQuery: ${builtQuery}")
@@ -1095,7 +1095,7 @@ trait RestServices extends ReefAuthentication {
       query.setEventQueryParams( makeEventQueryParams( ag, et, sv, sb, latest))
 
     if( startAfterId.isDefined)
-      query.setLastId( ReefID.newBuilder().setValue( startAfterId.get).build())
+      query.setLastId( ModelID.newBuilder().setValue( startAfterId.get).build())
 
     service.alarmQuery( query.build).map{ result => Ok( Json.toJson(result)) }
   }
@@ -1109,7 +1109,7 @@ trait RestServices extends ReefAuthentication {
           val service = serviceFactory.eventService(session)
           val updates = alarmUpdateRequest.ids.map { id =>
             AlarmStateUpdate.newBuilder()
-              .setAlarmId( ReefID.newBuilder().setValue(id).build())
+              .setAlarmId( ModelID.newBuilder().setValue(id).build())
               .setAlarmState( alarmUpdateRequest.state)
               .build()
           }
@@ -1227,7 +1227,7 @@ trait RestServices extends ReefAuthentication {
     val entityService = client.getServicemodelServiceityModelSModelServicereesWithRelationsWithPoints = getEntityTreesForEquipmentWithPointsByType( entityService, eqTypes, pointTypes)
     val equipmentsWithPointEntities = eTreesWithRelationsWithPoints.map( eTree => EquipmentWithPointEntities(eTree, eTree.getRelations(0).getEntitiesList.toList))
 
-    //    val pointUuidToPointAndEquipment : Map[ReefUUID,(Entity,Entity)] =
+    //    val pointUuidToPointAndEquipment : Map[ModelUUID,(Entity,Entity)] =
     //      for( equipmentWithPoints <- equipmentWithPoints;
     //           equipment <- equipmentWithPoints.equipment;
     //           pointEntity <- equipmentWithPoints.pointEntities) yield (pointEntity.getUuid -> (pointEntity, equipment))
@@ -1236,7 +1236,7 @@ trait RestServices extends ReefAuthentication {
 
     val pointService = client.getService( classOf[PointService])
     val points = pointService.getPointsByUuids( pointUuids).await
-    val pointUuidToPointMap: Map[ReefUUID,Point] = points.map( point => (point.getUuid, point)).toMap
+    val pointUuidToPointMap: Map[ModelUUID,Point] = points.map( point => (point.getUuid, point)).toMap
 
     val equipmentsWithPoints = equipmentsWithPointEntities.map( pieceOfEqWithPointEntities => makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities, pointUuidToPointMap))
 
@@ -1265,13 +1265,13 @@ trait RestServices extends ReefAuthentication {
     service.searchForEntities( entityQuery.build).await
   }
 */
-//  private def makePoint( pointEntity: Entity, pointUuidToPointMap: Map[ReefUUID,Point]) = {
+//  private def makePoint( pointEntity: Entity, pointUuidToPointMap: Map[ModelUUID,Point]) = {
 //    val point = pointUuidToPointMap.get( pointEntity.getUuid).getOrElse( throw new Exception( "Point not found from entity query, point.name: " + pointEntity.getName))
 //    val types = pointEntity.getTypesList.toList
 //    Point( point, types)
 //  }
 
-//  private def makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ReefUUID,Point]): EquipmentWithPointsWithTypes = {
+//  private def makeEquipmentWithPointsWithTypes( pieceOfEqWithPointEntities: EquipmentWithPointEntities, pointUuidToPointMap: Map[ModelUUID,Point]): EquipmentWithPointsWithTypes = {
 //
 //    val pointEntities = pieceOfEqWithPointEntities.pointEntities
 //    val pointsWithTypes = pointEntities.map( pointEntity => makePoint( pointEntity, pointUuidToPointMap))

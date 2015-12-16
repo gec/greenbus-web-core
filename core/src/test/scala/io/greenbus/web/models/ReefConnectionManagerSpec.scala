@@ -5,16 +5,16 @@ import org.specs2.mutable._
 import org.specs2.mock._
 import akka.actor.{Actor, Props, ActorSystem}
 import io.greenbus.web.auth.ValidationTiming
-import io.greenbus.web.connection.{ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
+import io.greenbus.web.connection.{ConnectionStatus, WebSocketPushActorFactory, ConnectionManager}
 import scala.concurrent.duration._
 import akka.testkit.{TestProbe, ImplicitSender, TestKit, TestActorRef}
 
 import org.specs2.time.NoTimeConversions
 import play.api.test.PlaySpecification
-import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service.{LoginService, ModelService}
-import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
-import org.totalgrid.reef.client.{ReefHeaders, ReefConnection}
+import io.greenbus.msg.Session
+import io.greenbus.client.service.{LoginService, ModelService}
+import io.greenbus.msg.amqp.{AmqpBroker, AmqpSettings}
+import io.greenbus.client.{ServiceHeaders, ServiceConnection}
 import scala.concurrent.Future
 
 /* A tiny class that can be used as a Specs2 'context'. */
@@ -34,7 +34,7 @@ with ImplicitSender
 class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions with Mockito {
   sequential // forces all tests to be run sequentially
 
-  import ReefConnectionManager.ReefConnectionManagerServiceFactory
+  import ConnectionManager.ConnectionManagerServicesFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
 
   val TIMEOUT = FiniteDuration(1000, MILLISECONDS)
@@ -45,15 +45,15 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
   session1.spawn returns session2
   //var connectionListener: (Boolean) => Unit
 
-  def reefConnectionMock: ReefConnection = {
-    val reefConnection = mock[ReefConnection]
+  def reefConnectionMock: ServiceConnection = {
+    val reefConnection = mock[ServiceConnection]
     reefConnection.session returns session1
   }
-  def serviceFactoryMock( reefConnection: ReefConnection): ReefConnectionManagerServiceFactory = {
+  def serviceFactoryMock( reefConnection: ServiceConnection): ConnectionManagerServicesFactory = {
     val modelService = mock[ModelService]
     val loginService = mock[LoginService]
 
-    val serviceFactory = mock[ReefConnectionManagerServiceFactory]
+    val serviceFactory = mock[ConnectionManagerServicesFactory]
     serviceFactory.modelService( any[Session]) returns modelService
     serviceFactory.loginService( any[Session]) returns loginService
     serviceFactory.amqpSettingsLoad( any[String]) returns mock[AmqpSettings]
@@ -83,14 +83,14 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
 
         val authToken = "someAuthToken"
         val session = mock[Session]
-        session.headers returns Map[String,String]( ReefHeaders.tokenHeader() -> authToken)
+        session.headers returns Map[String,String]( ServiceHeaders.tokenHeader() -> authToken)
 
         val reefConnection = reefConnectionMock
         reefConnection.login( anyString, anyString) returns Future.successful( session)
         val serviceFactory = serviceFactoryMock( reefConnection)
-        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
 
-        rcm ! ReefConnectionManager.LoginRequest( "validUser", "validPassword")
+        rcm ! ConnectionManager.LoginRequest( "validUser", "validPassword")
         expectMsg( authToken)
       }
     }
@@ -98,38 +98,38 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
     "reply to SessionRequest with a new session" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
         val serviceFactory = serviceFactoryMock( reefConnectionMock)
-        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
-        rcm ! ReefConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsgType[Session] must be( session2)
       }
     }
 
     "reply to SessionRequest with ServiceClientFailure" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
-        import org.totalgrid.msg.amqp.util.LoadingException
+        import io.greenbus.msg.amqp.util.LoadingException
 
         val serviceFactory = serviceFactoryMock( reefConnectionMock)
         serviceFactory.amqpSettingsLoad( any[String]) throws new LoadingException( "No such file or directory")
-        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
-        rcm ! ReefConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
-        expectMsg( new ReefConnectionManager.ServiceClientFailure( ConnectionStatus.CONFIGURATION_FILE_FAILURE))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
+        expectMsg( new ConnectionManager.ServiceClientFailure( ConnectionStatus.CONFIGURATION_FILE_FAILURE))
       }
     }
 
     "manage SubscribeToConnection subscribers" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
 
-        val reefConnection = mock[ReefConnection]
+        val reefConnection = mock[ServiceConnection]
         reefConnection.session returns session1
 
         val serviceFactory = serviceFactoryMock( reefConnection)
         val subscriber = TestProbe()
-        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
 
-        rcm ! ReefConnectionManager.SubscribeToConnection( subscriber.ref)
-        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
+        rcm ! ConnectionManager.SubscribeToConnection( subscriber.ref)
+        subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
 
-        rcm ! ReefConnectionManager.UnsubscribeToConnection( subscriber.ref)
+        rcm ! ConnectionManager.UnsubscribeToConnection( subscriber.ref)
 
         // AMQP Down
         val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
@@ -145,14 +145,14 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
       within(TIMEOUT) {
 
 
-        val reefConnection = mock[ReefConnection]
+        val reefConnection = mock[ServiceConnection]
         reefConnection.session returns session1
 
         val serviceFactory = serviceFactoryMock( reefConnection)
         val subscriber = TestProbe()
-        val rcm = TestActorRef(new ReefConnectionManager( serviceFactory, childActorFactory))
-        rcm ! ReefConnectionManager.SubscribeToConnection( subscriber.ref)
-        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        rcm ! ConnectionManager.SubscribeToConnection( subscriber.ref)
+        subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
 
         // AMQP Down
         val listenerCapture = new ArgumentCapture[(Boolean)=>Unit]
@@ -160,8 +160,8 @@ class ReefConnectionManagerSpec extends PlaySpecification with NoTimeConversions
         val listener = listenerCapture.value
         listener( false)
 
-        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_DOWN, None))
-        subscriber.expectMsg( ReefConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
+        subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_DOWN, None))
+        subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
       }
     }
   }

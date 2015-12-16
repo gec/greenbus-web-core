@@ -1,6 +1,6 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.msg.Session
+import io.greenbus.msg.Session
 
 /**
  *

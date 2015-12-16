@@ -2,12 +2,12 @@ package io.greenbus.web.websocket
 
 import akka.actor.{ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
-import io.greenbus.web.connection.ReefConnectionManager.Connection
+import io.greenbus.client.service.proto.Model.ModelUUID
+import io.greenbus.web.connection.ConnectionManager.Connection
 import io.greenbus.web.connection.SessionContext
 import io.greenbus.web.websocket.JsonPushFormatters.PushWrites
 import io.greenbus.web.websocket.WebSocketActor.{SubscriptionExceptionMessage, AbstractSubscriptionMessage}
-import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding}
-import org.totalgrid.reef.client.service.proto.Model.ReefUUID
+import io.greenbus.msg.{Session, Subscription, SubscriptionBinding}
 import play.api.Logger
 import play.api.libs.json.Json
 
@@ -18,8 +18,8 @@ import scala.language.postfixOps
 
 object AbstractWebSocketServicesActor {
 
-  def idToReefUuid( id: String) = ReefUUID.newBuilder().setValue( id).build()
-  def idsToReefUuids( ids: Seq[String]) = ids.map( idToReefUuid)
+  def idToModelUUID( id: String) = ModelUUID.newBuilder().setValue( id).build()
+  def idsToModelUUIDs( ids: Seq[String]) = ids.map( idToModelUUID)
 
   implicit val timeout = Timeout( 20 seconds)
 }

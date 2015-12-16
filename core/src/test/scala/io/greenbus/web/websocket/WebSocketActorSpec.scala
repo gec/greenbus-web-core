@@ -1,26 +1,21 @@
 package io.greenbus.web.websocket
 
-import io.greenbus.web.connection.ReefConnectionManager.{SubscribeToConnection, Connection}
+import io.greenbus.web.connection.ConnectionManager.{SubscribeToConnection, Connection}
 import io.greenbus.web.models.ExceptionMessages.ExceptionMessage
 import io.greenbus.web.websocket.WebSocketActor.{MessageType, WebSocketServiceProvider}
 import org.specs2.mutable._
 import org.specs2.mock._
 import akka.actor.{ActorRef, Actor, Props, ActorSystem}
 import io.greenbus.web.auth.ValidationTiming
-import io.greenbus.web.connection.{ReefServiceFactory, ConnectionStatus, ReefConnectionManager}
+import io.greenbus.web.connection.{ClientServiceFactory, ConnectionStatus, ConnectionManager}
 import play.api.data.validation.ValidationError
 import play.api.libs.json.{JsPath, JsError, Json, JsObject}
-import scala.collection.mutable
 import scala.concurrent.duration._
 import akka.testkit.{TestProbe, ImplicitSender, TestKit, TestActorRef, TestActors}
 
 import org.specs2.time.NoTimeConversions
 import play.api.test.PlaySpecification
-import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service.{LoginService, ModelService}
-import org.totalgrid.msg.amqp.{AmqpBroker, AmqpSettings}
-import org.totalgrid.reef.client.{ReefHeaders, ReefConnection}
-import scala.concurrent.Future
+import io.greenbus.msg.Session
 
 /* A tiny class that can be used as a Specs2 'context'. */
 abstract class AkkaTestkitSpecs2Support extends TestKit(ActorSystem("testSystem"))
@@ -39,7 +34,7 @@ with ImplicitSender
 class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with Mockito {
   sequential // forces all tests to be run sequentially
 
-  import ReefConnectionManager.ReefConnectionManagerServiceFactory
+  import ConnectionManager.ConnectionManagerServicesFactory
   import ValidationTiming.{PREVALIDATED,PROVISIONAL}
   import io.greenbus.web.websocket.JsonPushFormatters._
   import io.greenbus.web.models.JsonFormatters._
@@ -50,7 +45,7 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
   val authToken = "someAuthToken"
   val subscriptionId = "someSubscriptionId"
   val session = mock[Session]
-  val serviceFactory = mock[ReefServiceFactory]
+  val serviceFactory = mock[ClientServiceFactory]
 
 
 
@@ -61,9 +56,9 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
   }
 
   var children = List.empty[TestProbe]
-  def propsMock( serviceFactory: ReefServiceFactory, forwardReceiver: ActorRef)(session: Session)(out: ActorRef)(implicit system: ActorSystem) =
+  def propsMock( serviceFactory: ClientServiceFactory, forwardReceiver: ActorRef)(session: Session)(out: ActorRef)(implicit system: ActorSystem) =
     Props( new ForwardingActor( forwardReceiver))
-  def webSocketServiceProviderMock( reefServiceFactory: ReefServiceFactory, messageTypes: Seq[MessageType], forwardReceiver: ActorRef)(implicit system: ActorSystem) = WebSocketServiceProvider( messageTypes, propsMock( reefServiceFactory, forwardReceiver))
+  def webSocketServiceProviderMock( reefServiceFactory: ClientServiceFactory, messageTypes: Seq[MessageType], forwardReceiver: ActorRef)(implicit system: ActorSystem) = WebSocketServiceProvider( messageTypes, propsMock( reefServiceFactory, forwardReceiver))
 
   val messageTypesWithSubscribeToMeasurements = SubscriptionServicesActor.messageTypes.filter( mType => mType.name == "SubscribeToMeasurements")
   val messageTypesWithSubscribeToProperties = SubscriptionServicesActor.messageTypes.filter( mType => mType.name == "SubscribeToProperties")

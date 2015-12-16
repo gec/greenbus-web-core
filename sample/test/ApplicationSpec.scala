@@ -19,7 +19,7 @@
 package test
 
 import org.specs2.mutable._
-import io.greenbus.web.connection.ReefServiceFactory
+import io.greenbus.web.connection.ClientServiceFactory
 
 import play.api._
 import play.api.mvc._
@@ -34,24 +34,24 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorRef, Props}
-import io.greenbus.web.mocks.ReefConnectionManagerMock
+import io.greenbus.web.mocks.ServiceConnectionManagerMock
 import controllers.Application
-import org.totalgrid.msg
+import io.greenbus.msg
 import org.specs2.mock.Mockito
-import org.totalgrid.reef.client.service.ModelService
-import org.totalgrid.reef.client.service.proto.ModelRequests
-import org.totalgrid.reef.client.service.proto.Model.{ReefUUID, Entity}
+import io.greenbus.client.service.ModelService
+import io.greenbus.client.service.proto.ModelRequests
+import io.greenbus.client.service.proto.Model.{ModelUUID, Entity}
 
 object GlobalMock extends GlobalSettings {
 
-  var reefConnectionManager : ActorRef = null
-  //lazy val reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
+  var serviceConnectionManager : ActorRef = null
+  //lazy val serviceConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "serviceConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)
 
-    reefConnectionManager = Akka.system.actorOf(Props[ReefConnectionManagerMock], "ReefConnectionManager")
-    Application.reefConnectionManager = reefConnectionManager
+    serviceConnectionManager = Akka.system.actorOf(Props[ServiceConnectionManagerMock], "serviceConnectionManager")
+    Application.serviceConnectionManager = serviceConnectionManager
 
   }
 }
@@ -70,7 +70,7 @@ class ApplicationSpec extends Specification with Mockito {
 
   lazy val globalMock = Some(GlobalMock)
 
-  def makeUuid( uuid: String) = ReefUUID.newBuilder.setValue( uuid ).build();
+  def makeUuid( uuid: String) = ModelUUID.newBuilder.setValue( uuid ).build();
 
   def makeEntity( uuid: String, name: String) = {
     Entity.newBuilder
@@ -152,10 +152,10 @@ class ApplicationSpec extends Specification with Mockito {
         modelService.entityQuery( any[ModelRequests.EntityQuery]) returns Future.successful( entities)
         //modelService.get( any[ModelRequests.EntityKeySet]) returns
 
-        val serviceFactory = mock[ReefServiceFactory]
+        val serviceFactory = mock[ClientServiceFactory]
         serviceFactory.modelService( any[msg.Session]) returns modelService
 
-        Application.reefServiceFactory = serviceFactory
+        Application.aServiceFactory = serviceFactory
 
         val Some( resultAsync) = route(
           FakeRequest(GET, "/entities")

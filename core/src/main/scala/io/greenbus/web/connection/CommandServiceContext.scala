@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service.CommandService
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service.CommandService
 
 /**
  * Mixin trait for accessing a CommandService.
@@ -27,7 +27,7 @@ trait CommandServiceContextImpl extends CommandServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         CommandService.client( newSession)
       case None =>
         throw new SessionUnavailableException( "CommandService is unavailable because session is unavailable.")

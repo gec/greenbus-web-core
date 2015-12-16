@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service
 import io.greenbus.web.reefpolyfill.FrontEndService
 
 /**
@@ -28,7 +28,7 @@ trait FrontEndServiceContextImpl extends FrontEndServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         new FrontEndService( service.FrontEndService.client( newSession), service.ModelService.client( newSession))
       case None =>
         throw new SessionUnavailableException( "FrontEndService is unavailable because session is unavailable.")

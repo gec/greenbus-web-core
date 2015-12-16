@@ -22,16 +22,16 @@ import akka.actor._
 import akka.util.Timeout
 import com.google.protobuf.GeneratedMessage
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
-import org.totalgrid.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
-import org.totalgrid.reef.client.service.proto.ModelRequests.{EntityKeyPair, EntityKeyValueSubscriptionQuery, EndpointSubscriptionQuery}
-import org.totalgrid.reef.client.service.{EventService, MeasurementService}
-import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
-import org.totalgrid.reef.client.service.proto.Events.{Alarm,AlarmNotification, Event, EventNotification}
-import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
-import org.totalgrid.reef.client.service.proto.Measurements
-import org.totalgrid.reef.client.service.proto.Measurements.{Measurement, MeasurementNotification, PointMeasurementValue, PointMeasurementValues}
-import org.totalgrid.reef.client.service.proto.Model.{EntityKeyValue, EntityKeyValueNotification, ReefUUID}
-import io.greenbus.web.connection.{ReefServiceFactory, ReefConnectionManager}
+import io.greenbus.msg.{Session, Subscription, SubscriptionBinding, SubscriptionResult}
+import io.greenbus.client.service.proto.ModelRequests.{EntityKeyPair, EntityKeyValueSubscriptionQuery, EndpointSubscriptionQuery}
+import io.greenbus.client.service.{EventService, MeasurementService}
+import io.greenbus.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
+import io.greenbus.client.service.proto.Events.{Alarm,AlarmNotification, Event, EventNotification}
+import io.greenbus.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
+import io.greenbus.client.service.proto.Measurements
+import io.greenbus.client.service.proto.Measurements.{Measurement, MeasurementNotification, PointMeasurementValue, PointMeasurementValues}
+import io.greenbus.client.service.proto.Model.{EntityKeyValue, EntityKeyValueNotification, ModelUUID}
+import io.greenbus.web.connection.{ClientServiceFactory, ConnectionManager}
 import io.greenbus.web.connection.ConnectionStatus._
 import io.greenbus.web.util.Timer
 import play.api._
@@ -122,7 +122,7 @@ object WebSocketPushActor {
   case class SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) extends SubscribeResult
   case class SubscribeToEventsSuccess( subscriptionId: String, subscription: Subscription[EventNotification], result: Seq[Event]) extends SubscribeResult
   case class SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) extends SubscribeResult
-  case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
+  case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointModelID: ModelUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
   case class SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], result: PointMeasurementValues, timer: Timer) extends SubscribeResult
   case class SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) extends SubscribeResult
   case class SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) extends SubscribeResult
@@ -165,9 +165,9 @@ object WebSocketPushActor {
  *
  * @author Flint O'Brien
  */
-class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession : Session, aPushChannel: Concurrent.Channel[JsValue], serviceFactory: ReefServiceFactory) extends Actor  {
+class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession : Session, aPushChannel: Concurrent.Channel[JsValue], serviceFactory: ClientServiceFactory) extends Actor  {
 
-  import ReefConnectionManager._
+  import ConnectionManager._
   import WebSocketPushActor._
   import JsonPushFormatters._
 
@@ -240,8 +240,8 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       subscribeSuccess( subscriptionId, subscription, result, eventSeqPushWrites, eventNotificationPushWrites)
     case SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) =>
       subscribeSuccess( subscriptionId, subscription, result, pointMeasurementsPushWrites, pointMeasurementNotificationPushWrites)
-    case SubscribeToMeasurementHistoryPart1Success(subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) =>
-      subscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, result, timer)
+    case SubscribeToMeasurementHistoryPart1Success(subscribe: SubscribeToMeasurementHistory, pointModelID: ModelUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) =>
+      subscribeToMeasurementHistoryPart1Success( subscribe, pointModelID, subscription, result, timer)
     case SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], pointMeasurements: PointMeasurementValues, timer: Timer) =>
       subscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
     case SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) =>
@@ -370,7 +370,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val service = serviceFactory.measurementService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurements " + subscribe.subscriptionId)
 
-    val uuids = subscribe.pointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+    val uuids = subscribe.pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
     setPendingSubscriptionCount( subscribe.subscriptionId, 1)
     val result = service.getCurrentValuesAndSubscribe( uuids)
 
@@ -387,7 +387,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val service = serviceFactory.frontEndService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToEndpoints " + subscribe.subscriptionId)
 
-    val uuids = subscribe.endpointIds.map( id => ReefUUID.newBuilder().setValue( id).build())
+    val uuids = subscribe.endpointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
     val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
     setPendingSubscriptionCount( subscribe.subscriptionId, 1)
     val result = service.subscribeToEndpointWithComms( query.build)
@@ -429,7 +429,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val service = serviceFactory.modelService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToProperties " + subscribe.subscriptionId)
 
-    val entityId = ReefUUID.newBuilder().setValue( subscribe.entityId).build()
+    val entityId = ModelUUID.newBuilder().setValue( subscribe.entityId).build()
     val query = EntityKeyValueSubscriptionQuery.newBuilder()
 
     if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
@@ -481,10 +481,10 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     val timer = new Timer( "subscribeToMeasurementsHistory")
     val service = serviceFactory.measurementService( session.get)
     Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
-    val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+    val pointModelID = ModelUUID.newBuilder().setValue( subscribe.pointUuid).build()
     timer.delta( "initialized service and uuid")
 
-    val points = Seq( pointReefId)
+    val points = Seq( pointModelID)
     // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
     // we can start the subscription.
     //
@@ -494,7 +494,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       case (measurements, subscription) =>
         timer.delta( "onSuccess 1")
         Logger.debug( "WebSocketPushActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.subscriptionId + ", measurements.length " + measurements.length)
-        self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, measurements, timer)
+        self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointModelID, subscription, measurements, timer)
     }
     result onFailure {
       case f =>
@@ -505,7 +505,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   private def subscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory,
-                                                          pointReefId: ReefUUID,
+                                                          pointModelID: ModelUUID,
                                                           subscription: Subscription[MeasurementNotification],
                                                           measurements: Seq[PointMeasurementValue],
                                                           timer: Timer) = {
@@ -518,7 +518,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       case _ =>
 
         if( measurements.nonEmpty) {
-          subscribeToMeasurementsHistoryPart2( subscribe, pointReefId, subscription, measurements.head, timer)
+          subscribeToMeasurementsHistoryPart2( subscribe, pointModelID, subscription, measurements.head, timer)
         }
         else {
           registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
@@ -539,13 +539,13 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
    * In part two, we're going to get the history for the point, then start the subscription.
    *
    * @param subscribe
-   * @param pointReefId
+   * @param pointModelID
    * @param subscription
    * @param currentMeasurement
    * @param timer
    */
   private def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
-                                                   pointReefId: ReefUUID,
+                                                   pointModelID: ModelUUID,
                                                    subscription: Subscription[MeasurementNotification],
                                                    currentMeasurement: PointMeasurementValue,
                                                    timer: Timer) = {
@@ -564,7 +564,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
     if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
 
       val query = MeasurementHistoryQuery.newBuilder()
-        .setPointUuid( pointReefId)
+        .setPointUuid( pointModelID)
         .setTimeFrom( subscribe.timeFrom)   // exclusive
         .setTimeTo( currentMeasurementTime) // inclusive
         .setLimit( subscribe.limit)
@@ -593,12 +593,12 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       if( DebugSimulateLotsOfMeasurements) {
         val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
         Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
-        val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+        val pointModelID = ModelUUID.newBuilder().setValue( subscribe.pointUuid).build()
         val pmv = PointMeasurementValues.newBuilder()
-          .setPointUuid( pointReefId)
+          .setPointUuid( pointModelID)
           .addAllValue( measurements)
         pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build()))
-        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement.getValue)
+        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointModelID, currentMeasurement.getValue)
       } else {
         // Current measurement is older than the time window of measurement history query so
         // no need to get history.
@@ -634,12 +634,12 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
           val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
           val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
           Logger.debug( s"WebSocketPushActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
-          val pointReefId = ReefUUID.newBuilder().setValue( subscribe.pointUuid).build()
+          val pointModelID = ModelUUID.newBuilder().setValue( subscribe.pointUuid).build()
           val pmv = PointMeasurementValues.newBuilder()
-            .setPointUuid( pointReefId)
+            .setPointUuid( pointModelID)
             .addAllValue( measurements)
           pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build()))
-          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement)
+          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointModelID, currentMeasurement)
         } else {
           registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
           pushChannel.push( pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pointMeasurements))
@@ -678,7 +678,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
   }
 
   private def debugGenerateMeasurementsForFastSubscription(subscribeId: String,
-                                              pointReefId: ReefUUID,
+                                              pointModelID: ModelUUID,
                                               currentMeasurement: Measurement) = {
     import play.api.Play.current
     import play.api.libs.concurrent.Akka
@@ -695,7 +695,7 @@ class WebSocketPushActor( initialClientStatus: ConnectionStatus, initialSession 
       val meas = debugGenerateMeasurement( value, time)
 
       val measNotify = MeasurementNotification.newBuilder()
-        .setPointUuid( pointReefId)
+        .setPointUuid( pointModelID)
         .setValue( meas)
         .setPointName( "--")
         .build()

@@ -18,8 +18,8 @@
  */
 // No package. Just the root context. It's what play wants.
 
-import org.totalgrid.msg.Session
-import io.greenbus.web.connection.{ReefServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ReefConnectionManager}
+import io.greenbus.msg.Session
+import io.greenbus.web.connection.{ClientServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ConnectionManager}
 import io.greenbus.web.config.dal.InitialDB
 import play.api._
 import controllers.Application
@@ -33,13 +33,13 @@ import akka.actor.{Props, ActorContext}
 
 object ClientPushActorFactory extends WebSocketPushActorFactory{
   import ConnectionStatus._
-  import ReefConnectionManager._
+  import ConnectionManager._
   import io.greenbus.web.websocket._
 
   def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
     // Create a pushChannel that the new actor will use for push
     val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
-    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel, ReefServiceFactoryDefault)) /*, name = actorName*/) // Getting two with the same name
+    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel, ClientServiceFactoryDefault)) /*, name = actorName*/) // Getting two with the same name
     val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
     WebSocketChannels( iteratee, enumerator)
   }
@@ -50,17 +50,17 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
  * @author Flint O'Brien
  */
 object Global extends GlobalSettings {
-  import ReefConnectionManager.ReefConnectionManagerServiceFactorySingleton
+  import ConnectionManager.DefaultConnectionManagerServicesFactory
 
-  lazy val reefConnectionManager = Akka.system.actorOf(Props( new ReefConnectionManager( ReefConnectionManagerServiceFactorySingleton, ClientPushActorFactory)), "ReefConnectionManager")
+  lazy val serviceConnectionManager = Akka.system.actorOf(Props( new ConnectionManager( DefaultConnectionManagerServicesFactory, ClientPushActorFactory)), "serviceConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)
 
     Logger.info( "Application starting...")
-    Logger.info( "Starting reef connection manager " + reefConnectionManager)
-    Application.reefConnectionManager = reefConnectionManager
-    Application.reefServiceFactory = ReefServiceFactoryDefault
+    Logger.info( "Starting service connection manager " + serviceConnectionManager)
+    Application.serviceConnectionManager = serviceConnectionManager
+    Application.aServiceFactory = ClientServiceFactoryDefault
     Application.myWebSocketServiceProviders = Seq(
       io.greenbus.web.websocket.SubscriptionServicesActor.webSocketServiceProvider
     )
@@ -69,7 +69,7 @@ object Global extends GlobalSettings {
     /*
     play.api.Play.mode(app) match {
       case play.api.Mode.Test => // do not schedule anything for Test
-      case _ => Logger.info( "Starting reef connection manager " + reefConnectionManager)
+      case _ => Logger.info( "Starting service connection manager " + serviceConnectionManager)
     }
     */
 

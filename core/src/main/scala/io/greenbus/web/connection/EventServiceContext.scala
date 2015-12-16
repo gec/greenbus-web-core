@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service.EventService
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service.EventService
 
 /**
  * Mixin trait for accessing a EventService.
@@ -27,7 +27,7 @@ trait EventServiceContextImpl extends EventServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         EventService.client( newSession)
       case None =>
         throw new SessionUnavailableException( "EventService is unavailable because session is unavailable.")

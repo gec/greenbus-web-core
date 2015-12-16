@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service.LoginService
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service.LoginService
 
 /**
  * Mixin trait for accessing a LoginService.
@@ -27,7 +27,7 @@ trait LoginServiceContextImpl extends LoginServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         LoginService.client( newSession)
       case None =>
         throw new SessionUnavailableException( "LoginService is unavailable because session is unavailable.")

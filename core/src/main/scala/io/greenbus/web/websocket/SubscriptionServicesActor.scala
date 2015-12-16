@@ -2,20 +2,20 @@ package io.greenbus.web.websocket
 
 import akka.actor.{Cancellable, Props, ActorRef, Actor}
 import com.google.protobuf.GeneratedMessage
-import io.greenbus.web.connection.ReefConnectionManager.Connection
+import io.greenbus.web.connection.ConnectionManager.Connection
 import io.greenbus.web.connection._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF.{EndpointWithComms, EndpointWithCommsNotification}
 import io.greenbus.web.util.Timer
 import io.greenbus.web.websocket.JsonPushFormatters._
 import io.greenbus.web.websocket.WebSocketActor.SubscriptionExceptionMessage
-import org.totalgrid.msg.{Subscription, SubscriptionBinding, Session}
-import org.totalgrid.reef.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
-import org.totalgrid.reef.client.service.proto.Events.{Event, EventNotification, Alarm, AlarmNotification}
-import org.totalgrid.reef.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
-import org.totalgrid.reef.client.service.proto.Measurements
-import org.totalgrid.reef.client.service.proto.Measurements.{Measurement, PointMeasurementValues, PointMeasurementValue, MeasurementNotification}
-import org.totalgrid.reef.client.service.proto.Model.{EntityKeyValue, EntityKeyValueNotification, ReefUUID}
-import org.totalgrid.reef.client.service.proto.ModelRequests.{EntityKeyPair, EntityKeyValueSubscriptionQuery, EndpointSubscriptionQuery}
+import io.greenbus.msg.{Subscription, SubscriptionBinding, Session}
+import io.greenbus.client.service.proto.EventRequests.{AlarmSubscriptionQuery, EventSubscriptionQuery}
+import io.greenbus.client.service.proto.Events.{Event, EventNotification, Alarm, AlarmNotification}
+import io.greenbus.client.service.proto.MeasurementRequests.MeasurementHistoryQuery
+import io.greenbus.client.service.proto.Measurements
+import io.greenbus.client.service.proto.Measurements.{Measurement, PointMeasurementValues, PointMeasurementValue, MeasurementNotification}
+import io.greenbus.client.service.proto.Model.{EntityKeyValue, EntityKeyValueNotification, ModelUUID}
+import io.greenbus.client.service.proto.ModelRequests.{EntityKeyPair, EntityKeyValueSubscriptionQuery, EndpointSubscriptionQuery}
 import play.api.libs.json._
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits._
@@ -99,7 +99,7 @@ object SubscriptionServicesActor {
   case class SubscribeToAlarmsSuccess( subscriptionId: String, subscription: Subscription[AlarmNotification], result: Seq[Alarm]) extends SubscribeResult
   case class SubscribeToEventsSuccess( subscriptionId: String, subscription: Subscription[EventNotification], result: Seq[Event]) extends SubscribeResult
   case class SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) extends SubscribeResult
-  case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
+  case class SubscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory, pointModelID: ModelUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) extends SubscribeResult
   case class SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], result: PointMeasurementValues, timer: Timer) extends SubscribeResult
   case class SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) extends SubscribeResult
   case class SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) extends SubscribeResult
@@ -137,8 +137,8 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       subscribeSuccess( subscriptionId, subscription, result, eventSeqPushWrites, eventNotificationPushWrites)
     case SubscribeToMeasurementsSuccess( subscriptionId: String, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue]) =>
       subscribeSuccess( subscriptionId, subscription, result, pointMeasurementsPushWrites, pointMeasurementNotificationPushWrites)
-    case SubscribeToMeasurementHistoryPart1Success(subscribe: SubscribeToMeasurementHistory, pointReefId: ReefUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) =>
-      subscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, result, timer)
+    case SubscribeToMeasurementHistoryPart1Success(subscribe: SubscribeToMeasurementHistory, pointModelID: ModelUUID, subscription: Subscription[MeasurementNotification], result: Seq[PointMeasurementValue], timer: Timer) =>
+      subscribeToMeasurementHistoryPart1Success( subscribe, pointModelID, subscription, result, timer)
     case SubscribeToMeasurementHistoryPart2Success( subscribe: SubscribeToMeasurementHistory, subscription: Subscription[MeasurementNotification], pointMeasurements: PointMeasurementValues, timer: Timer) =>
       subscribeToMeasurementHistoryPart2Success( subscribe, subscription, pointMeasurements, timer)
     case SubscribeToEndpointsSuccess( subscriptionId: String, subscription: Subscription[EndpointWithCommsNotification], result: Seq[EndpointWithComms]) =>
@@ -156,7 +156,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val service = measurementService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToMeasurements " + subscribe.subscriptionId)
 
-      val uuids = idsToReefUuids( subscribe.pointIds)
+      val uuids = idsToModelUUIDs( subscribe.pointIds)
       addPendingSubscription( subscribe.subscriptionId)
       val result = service.getCurrentValuesAndSubscribe( uuids)
 
@@ -183,7 +183,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val service = frontEndService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToEndpoints " + subscribe.subscriptionId)
 
-      val uuids = idsToReefUuids( subscribe.endpointIds)
+      val uuids = idsToModelUUIDs( subscribe.endpointIds)
       val query = EndpointSubscriptionQuery.newBuilder().addAllUuids( uuids)
       addPendingSubscription( subscribe.subscriptionId)
       val result = service.subscribeToEndpointWithComms( query.build)
@@ -229,7 +229,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val service = modelService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToProperties " + subscribe.subscriptionId)
 
-      val entityId = idToReefUuid(  subscribe.entityId)
+      val entityId = idToModelUUID(  subscribe.entityId)
       val query = EntityKeyValueSubscriptionQuery.newBuilder()
 
       if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
@@ -266,10 +266,10 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val timer = new Timer( "subscribeToMeasurementsHistory", Timer.DEBUG)
       val service = measurementService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory " + subscribe.subscriptionId)
-      val pointReefId = idToReefUuid(  subscribe.pointId)
+      val pointModelID = idToModelUUID(  subscribe.pointId)
       timer.delta( "initialized service and uuid")
 
-      val points = Seq( pointReefId)
+      val points = Seq( pointModelID)
       // We only have one point we're subscribing to. getCurrentValuesAndSubscribe will return one measurement and
       // we can start the subscription.
       //
@@ -279,7 +279,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         case (measurements, subscription) =>
           timer.delta( "onSuccess 1")
           Logger.debug( "SubscriptionServicesActor.subscribeToMeasurementsHistory.onSuccess " + subscribe.subscriptionId + ", measurements.length " + measurements.length)
-          self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointReefId, subscription, measurements, timer)
+          self ! SubscribeToMeasurementHistoryPart1Success( subscribe, pointModelID, subscription, measurements, timer)
       }
       result onFailure {
         case f =>
@@ -296,7 +296,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
   }
 
   private def subscribeToMeasurementHistoryPart1Success( subscribe: SubscribeToMeasurementHistory,
-                                                         pointReefId: ReefUUID,
+                                                         pointModelID: ModelUUID,
                                                          subscription: Subscription[MeasurementNotification],
                                                          measurements: Seq[PointMeasurementValue],
                                                          timer: Timer) = {
@@ -304,7 +304,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
 
     if( pendingSubscription( subscribe.subscriptionId)) {
       if( measurements.nonEmpty) {
-        subscribeToMeasurementsHistoryPart2( subscribe, pointReefId, subscription, measurements.head, timer)
+        subscribeToMeasurementsHistoryPart2( subscribe, pointModelID, subscription, measurements.head, timer)
       }
       else {
         registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
@@ -325,13 +325,13 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
    * In part two, we're going to get the history for the point, then start the subscription.
    *
    * @param subscribe
-   * @param pointReefId
+   * @param pointModelID
    * @param subscription
    * @param currentMeasurement
    * @param timer
    */
   private def subscribeToMeasurementsHistoryPart2( subscribe: SubscribeToMeasurementHistory,
-                                                   pointReefId: ReefUUID,
+                                                   pointModelID: ModelUUID,
                                                    subscription: Subscription[MeasurementNotification],
                                                    currentMeasurement: PointMeasurementValue,
                                                    timer: Timer) = {
@@ -352,7 +352,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       if( thereCouldBeHistoricalMeasurementsInQueryTimeWindow( currentMeasurementTime, subscribe.timeFrom)) {
 
         val query = MeasurementHistoryQuery.newBuilder()
-          .setPointUuid( pointReefId)
+          .setPointUuid( pointModelID)
           .setTimeFrom( subscribe.timeFrom)   // exclusive
           .setTimeTo( currentMeasurementTime) // inclusive
           .setLimit( subscribe.limit)
@@ -382,12 +382,12 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         if( DebugSimulateLotsOfMeasurements) {
           val measurements = debugGenerateMeasurementsBefore( currentMeasurement.getValue, 4000)
           Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess < 4000, measurements.length = ${measurements.length}")
-          val pointReefId = idToReefUuid(  subscribe.pointId)
+          val pointModelID = idToModelUUID(  subscribe.pointId)
           val pmv = PointMeasurementValues.newBuilder()
-            .setPointUuid( pointReefId)
+            .setPointUuid( pointModelID)
             .addAllValue( measurements)
           out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
-          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement.getValue)
+          debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointModelID, currentMeasurement.getValue)
         } else {
           // Current measurement is older than the time window of measurement history query so
           // no need to get history.
@@ -424,12 +424,12 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
         val currentMeasurement = pointMeasurements.getValue(0) // TODO: was using currentMeasurement. Hopefully, this is the correct end of the array.
         val measurements = debugGenerateMeasurementsBefore( currentMeasurement, subscribe.limit)
         Logger.debug( s"SubscriptionServicesActor.subscribeToMeasurementsHistoryPart2.getHistory.onSuccess, measurements.length = ${measurements.length}")
-        val pointReefId = idToReefUuid(  subscribe.pointId)
+        val pointModelID = idToModelUUID(  subscribe.pointId)
         val pmv = PointMeasurementValues.newBuilder()
-          .setPointUuid( pointReefId)
+          .setPointUuid( pointModelID)
           .addAllValue( measurements)
         out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pmv.build())
-        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointReefId, currentMeasurement)
+        debugGenerateMeasurementsForFastSubscription( subscribe.subscriptionId, pointModelID, currentMeasurement)
       } else {
         registerSuccessfulSubscription( subscribe.subscriptionId, subscription)
         out ! pointWithMeasurementsPushWrites.writes( subscribe.subscriptionId, pointMeasurements)
@@ -472,7 +472,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
   }
 
   private def debugGenerateMeasurementsForFastSubscription(subscribeId: String,
-                                                           pointReefId: ReefUUID,
+                                                           pointModelID: ModelUUID,
                                                            currentMeasurement: Measurement) = {
     import play.api.Play.current
     import play.api.libs.concurrent.Akka
@@ -489,7 +489,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val meas = debugGenerateMeasurement( value, time)
 
       val measNotify = MeasurementNotification.newBuilder()
-        .setPointUuid( pointReefId)
+        .setPointUuid( pointModelID)
         .setValue( meas)
         .setPointName( "--")
         .build()

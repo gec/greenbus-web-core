@@ -18,8 +18,8 @@
  */
 package io.greenbus.web.models
 
-import org.totalgrid.reef.client.service.proto.Model.Entity
-import org.totalgrid.reef.client.service.proto.Model.Point
+import io.greenbus.client.service.proto.Model.Entity
+import io.greenbus.client.service.proto.Model.Point
 
 /**
  *

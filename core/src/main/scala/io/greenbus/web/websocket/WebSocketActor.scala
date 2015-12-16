@@ -3,8 +3,8 @@ package io.greenbus.web.websocket
 import akka.actor._
 import akka.pattern.AskTimeoutException
 import io.greenbus.web.connection.ConnectionStatus._
-import io.greenbus.web.connection.ReefConnectionManager.{SubscribeToConnection, UnsubscribeToConnection, Connection}
-import org.totalgrid.msg.Session
+import io.greenbus.web.connection.ConnectionManager.{SubscribeToConnection, UnsubscribeToConnection, Connection}
+import io.greenbus.msg.Session
 import play.api.libs.json._
 import play.api.Logger
 

@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service.ModelService
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service.ModelService
 
 /**
  * Mixin trait for accessing a ModelService.
@@ -27,7 +27,7 @@ trait ModelServiceContextImpl extends ModelServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         ModelService.client( newSession)
       case None =>
         throw new SessionUnavailableException( "ModelService is unavailable because session is unavailable.")

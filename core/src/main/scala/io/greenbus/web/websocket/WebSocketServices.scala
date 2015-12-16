@@ -21,7 +21,7 @@ package io.greenbus.web.websocket
 import akka.pattern.ask
 import io.greenbus.web.auth.ValidationTiming
 import io.greenbus.web.connection.ConnectionManagerRef
-import io.greenbus.web.connection.ReefConnectionManager._
+import io.greenbus.web.connection.ConnectionManager._
 import io.greenbus.web.models._
 import play.api._
 import play.api.libs.json._

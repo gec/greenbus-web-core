@@ -1,15 +1,15 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.msg.Session
-import org.totalgrid.reef.client.service
-import org.totalgrid.reef.client.service._
+import io.greenbus.msg.Session
+import io.greenbus.client.service
+import io.greenbus.client.service._
 import io.greenbus.web.reefpolyfill.FrontEndService
 
 /**
  *
  * @author Flint O'Brien
  */
-trait ReefServiceFactory {
+trait ClientServiceFactory {
   def commandService( session: Session): CommandService
   def modelService( session: Session): ModelService
   def eventService( session: Session): EventService
@@ -19,7 +19,7 @@ trait ReefServiceFactory {
   def processingService( session: Session): ProcessingService
 }
 
-trait ReefServiceFactoryImpl extends ReefServiceFactory {
+trait ClientServiceFactoryImpl extends ClientServiceFactory {
   def commandService( session: Session): CommandService = CommandService.client( session)
   def modelService( session: Session): ModelService = ModelService.client( session)
   def eventService( session: Session): EventService = EventService.client( session)
@@ -30,4 +30,4 @@ trait ReefServiceFactoryImpl extends ReefServiceFactory {
   def processingService( session: Session): ProcessingService = ProcessingService.client( session)
 }
 
-object ReefServiceFactoryDefault extends ReefServiceFactoryImpl
+object ClientServiceFactoryDefault extends ClientServiceFactoryImpl

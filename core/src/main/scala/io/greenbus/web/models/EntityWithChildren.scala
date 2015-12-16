@@ -1,6 +1,6 @@
 package io.greenbus.web.models
 
-import org.totalgrid.reef.client.service.proto.Model.Entity
+import io.greenbus.client.service.proto.Model.Entity
 import play.api.libs.json.{Json, JsValue, Writes}
 import scala.collection.mutable.ListBuffer
 

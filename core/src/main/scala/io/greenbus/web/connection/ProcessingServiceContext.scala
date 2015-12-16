@@ -1,7 +1,7 @@
 package io.greenbus.web.connection
 
-import org.totalgrid.reef.client.ReefHeaders
-import org.totalgrid.reef.client.service.ProcessingService
+import io.greenbus.client.ServiceHeaders
+import io.greenbus.client.service.ProcessingService
 
 /**
  * Mixin trait for accessing a ProcessingService.
@@ -27,7 +27,7 @@ trait ProcessingServiceContextImpl extends ProcessingServiceContext {
     session match {
       case Some(s) =>
         val newSession = s.spawn
-        newSession.addHeader( ReefHeaders.tokenHeader, authToken)
+        newSession.addHeader( ServiceHeaders.tokenHeader, authToken)
         ProcessingService.client( newSession)
       case None =>
         throw new SessionUnavailableException( "ProcessingService is unavailable because session is unavailable.")
