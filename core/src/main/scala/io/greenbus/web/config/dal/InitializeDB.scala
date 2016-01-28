@@ -26,8 +26,8 @@ object InitialDB {
   lazy val appOperatorMenuTop = List[NavigationElement](
     NavigationItemToPage( "GreenBus", "applications", "#/",
       children = List[NavigationElement](
-        NavigationItemToPage( "Operator", "operator", "/apps/operator/#/"),
-        NavigationItemToPage( "Admin",    "admin",    "/apps/admin/#/")
+        NavigationItemToPage( "Operator", "operator", "/apps/operator/#/")//,
+//        NavigationItemToPage( "Admin",    "admin",    "/apps/admin/#/")
       )
     ),
     NavigationItemToPage( "", "session", "",
