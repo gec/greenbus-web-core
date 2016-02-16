@@ -18,6 +18,7 @@
  */
 package io.greenbus.web.models
 
+import com.fasterxml.jackson.core.JsonParseException
 import io.greenbus.client.service.proto.Commands.{CommandResult, CommandLock}
 import io.greenbus.client.service.proto.Model._
 import io.greenbus.web.connection.ConnectionStatus
@@ -522,8 +523,18 @@ object JsonFormatters {
       val stringValue = new String( value, "UTF-8")
       Logger.debug( s"renderKeyValueByteArray: schematic = $stringValue")
       JsString( stringValue)
-    } else
-      Json.parse( value)
+    } else {
+      try {
+        Json.parse( value)
+      } catch {
+        case ex: JsonParseException =>
+          Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. JsonParseException: $ex")
+          JsNumber( value.length)
+        case ex: Exception =>
+          Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. Exception: $ex")
+          JsNumber( value.length)
+      }
+    }
   }
 
   implicit val entityKeyValueWrites = new Writes[EntityKeyValue] {
