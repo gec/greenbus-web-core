@@ -39,6 +39,13 @@ class JsonFormattersSpec extends PlaySpecification with NoTimeConversions with M
       jsValue.asInstanceOf[JsString].value mustEqual jsonString
     }
 
+    "renderKeyValueByteArray handles zeros in binary converted to string" in {
+      val bytes = Array[Byte](192.toByte, 0.toByte, 0.toByte, 0.toByte, 1.toByte)
+
+      val jsValue = renderKeyValueByteArray( "json", bytes)
+      jsValue.asInstanceOf[JsString].value mustEqual new String( bytes, UTF_8)
+    }
+
     "renderKeyValueByteArray fails gracefully with null" in {
       val jsValue = renderKeyValueByteArray( "json", null)
       jsValue.asInstanceOf[JsString].value mustEqual "null"
