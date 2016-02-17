@@ -517,6 +517,11 @@ object JsonFormatters {
   }
 
 
+  def renderBinaryAsString( value: Array[Byte]): JsString = {
+    val stringValue = if( value != null) new String( value, "UTF-8") else "null"
+    JsString( stringValue)
+  }
+
   def renderKeyValueByteArray( key: String, value: Array[Byte]): JsValue = {
     // TODO: Need mime types instead of switching on names.
     return if( key == "schematic") {
@@ -528,12 +533,10 @@ object JsonFormatters {
       } catch {
         case ex: JsonParseException =>
           Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. JsonParseException: $ex")
-          val stringValue = if( value != null) new String( value, "UTF-8") else "null"
-          JsString( stringValue)
+          renderBinaryAsString( value)
         case ex: Exception =>
           Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. Exception: $ex")
-          val stringValue = if( value != null) new String( value, "UTF-8") else "null"
-          JsString( stringValue)
+          renderBinaryAsString( value)
       }
     }
   }
