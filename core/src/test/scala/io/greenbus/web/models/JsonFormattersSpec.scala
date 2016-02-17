@@ -36,7 +36,12 @@ class JsonFormattersSpec extends PlaySpecification with NoTimeConversions with M
       val jsonString = "{\"some.key\": some invalid json}"
 
       val jsValue = renderKeyValueByteArray( "json", jsonString.getBytes( UTF_8))
-      jsValue.asInstanceOf[JsNumber].value mustEqual jsonString.length
+      jsValue.asInstanceOf[JsString].value mustEqual jsonString
+    }
+
+    "renderKeyValueByteArray fails gracefully with null" in {
+      val jsValue = renderKeyValueByteArray( "json", null)
+      jsValue.asInstanceOf[JsString].value mustEqual "null"
     }
 
   }

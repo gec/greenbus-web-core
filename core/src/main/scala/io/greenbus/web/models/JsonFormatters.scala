@@ -521,7 +521,6 @@ object JsonFormatters {
     // TODO: Need mime types instead of switching on names.
     return if( key == "schematic") {
       val stringValue = new String( value, "UTF-8")
-      Logger.debug( s"renderKeyValueByteArray: schematic = $stringValue")
       JsString( stringValue)
     } else {
       try {
@@ -529,10 +528,12 @@ object JsonFormatters {
       } catch {
         case ex: JsonParseException =>
           Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. JsonParseException: $ex")
-          JsNumber( value.length)
+          val stringValue = if( value != null) new String( value, "UTF-8") else "null"
+          JsString( stringValue)
         case ex: Exception =>
           Logger.warn( s"renderKeyValueByteArray: value of '$key' is not valid JSON. Length is ${value.length} bytes. Exception: $ex")
-          JsNumber( value.length)
+          val stringValue = if( value != null) new String( value, "UTF-8") else "null"
+          JsString( stringValue)
       }
     }
   }
