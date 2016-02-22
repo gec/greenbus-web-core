@@ -3,6 +3,16 @@ package io.greenbus.web.util
 import play.api.libs.json._
 import scala.language.implicitConversions
 
+/**
+ *
+ * Solves the "no unapply fuction" for Enumeration with Json.format
+ *
+ * ===Example:===
+ *
+ * import io.greenbus.web.util.EnumUtils
+ *
+ * implicit val someEnumerationFormat = EnumUtils.enumFormat(SomeEnumeration)
+ */
 object EnumUtils {
   def enumReads[E <: Enumeration](enum: E): Reads[E#Value] = new Reads[E#Value] {
     def reads(json: JsValue): JsResult[E#Value] = json match {

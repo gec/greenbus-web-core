@@ -18,11 +18,8 @@
  */
 package io.greenbus.web.websocket
 
-import akka.pattern.ask
 import io.greenbus.web.auth.ValidationTiming
 import io.greenbus.web.connection.ConnectionManagerRef
-import io.greenbus.web.connection.ConnectionManager._
-import io.greenbus.web.models._
 import play.api._
 import play.api.libs.json._
 import play.api.mvc._
@@ -33,41 +30,38 @@ import io.greenbus.web.auth.ServiceAuthentication
 
 
 /**
+ * Trait for providing WebSocket services. The implementation
+ * specifies which services by overriding webSocketServiceProviders.
  *
+ * ==Play Framework==
+ *
+ * Attach trait to Application object and override
+ * webSocketServiceProviders to provide actual services.
+ *
+ * ===Example Usage===
+ *
+ * {{{
+ * val myWebSocketServiceProviders = Seq(
+ *   io.greenbus.web.websocket.SubscriptionServicesActor.webSocketServiceProvider
+ * )
+ * override def webSocketServiceProviders = myWebSocketServiceProviders
+ * }}}
  * @author Flint O'Brien
  */
 trait WebSocketServices extends ConnectionManagerRef with ServiceAuthentication {
   self: Controller =>
 
-  import io.greenbus.web.connection.ConnectionManagerRef._
-  import io.greenbus.web.connection.ConnectionStatus._
-  import io.greenbus.web.models.JsonFormatters.connectionStatusWrites
-
-  import ValidationTiming._
-
   /**
    * WebSocket message requests can be routed to multiple WebSocket service provider libraries.
    *
-   * @return
+   * Play Framework: override def in object Application
+   *
    */
   def webSocketServiceProviders: Seq[WebSocketActor.WebSocketServiceProvider]
 
   /**
-   * Setup a WebSocket. The connectionManager is responsible for authentication
-   * before replying with WebSocketChannels.
-   */
-  def getWebSocketOld( authToken: String) = WebSocket.tryAccept[JsValue] { request  =>
-    (connectionManager ? WebSocketOpen( authToken, PREVALIDATED)).map {
-      case WebSocketChannels( iteratee, enumerator) =>
-        Logger.debug( "getWebSocket WebSocketChannels returned from WebSocketOpen")
-        Right( (iteratee, enumerator))
-      case WebSocketError( status) =>
-        Logger.debug( "getWebSocket WebSocketChannels returned WebSocketError " + status)
-        Left( ServiceUnavailable( Json.obj("error" -> status)))
-    }
-  }
-
-  /**
+   * HTTP GET /websocket routes here
+   *
    * Setup a WebSocket. The connectionManager is responsible for authentication
    * before replying with WebSocketChannels.
    *
@@ -83,19 +77,5 @@ trait WebSocketServices extends ConnectionManagerRef with ServiceAuthentication 
         Left(Forbidden)
     }
   }
-
-//  private def errorResult( status: ConnectionStatus): (Iteratee[JsValue,Unit], Enumerator[JsValue]) = {
-//    // Connection error
-//    Logger.error( "getWebSocket.webSocketResultError ERROR: " + status)
-//
-//    // A finished Iteratee sending EOF
-//    val iteratee = Done[JsValue,Unit]((),Input.EOF)
-//
-//    // Send an error and close the socket
-//    val enumerator =  Enumerator[JsValue](Json.obj("error" -> status)).andThen(Enumerator.enumInput(Input.EOF))
-//
-//    (iteratee,enumerator)
-//  }
-
 
 }
