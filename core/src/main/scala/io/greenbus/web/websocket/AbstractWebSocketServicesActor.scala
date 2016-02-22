@@ -9,7 +9,6 @@ import io.greenbus.web.websocket.JsonPushFormatters.PushWrites
 import io.greenbus.web.websocket.WebSocketActor.{SubscriptionExceptionMessage, AbstractSubscriptionMessage}
 import io.greenbus.msg.{Session, Subscription, SubscriptionBinding}
 import play.api.Logger
-import play.api.libs.json.Json
 
 import akka.util.Timeout
 import scala.concurrent.duration._
@@ -89,13 +88,6 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
   def receiver(next: Actor.Receive) { receivers = receivers orElse next }
   def receive = receivers orElse unknownMessageReceiver // Actor.receive definition
 
-  /**
-   * Called when WebSocket is closed. Cancel all subscriptions.
-   */
-  override def postStop() = {
-    cancelAllSubscriptions
-  }
-
   receiver {
 
     case connection: Connection =>
@@ -108,11 +100,11 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
   }
 
   def unknownMessageReceiver: Receive = {
-    case message: AnyRef => Logger.error( "SubscriptionServicesActor.receive: Unknown message: " + message)
+    case message: AnyRef => Logger.error( "AbstractWebSocketServicesActor.receive: Unknown message: " + message)
   }
 
   /**
-   * We're keeping count of pending subscriptions. Decrement the count. Remove
+   * We're keeping count of pending subscriptions. Increment the count. Remove
    * @param subscriptionId
    * @param count
    */
@@ -140,8 +132,8 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
 //  }
 
   /**
-   * Return true is there still is a pending subscription. Decrement the count so
-   * the subscription is not longer pending.
+   * Return true if there still is a pending subscription. Decrement the count so
+   * the subscription is no longer pending.
    * 
    * @param subscriptionId
    * @return True if the subscription is still pending
@@ -194,7 +186,7 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
 
 
   protected def cancelAllSubscriptions = {
-    Logger.info( "SubscriptionServicesActor.cancelAllSubscriptions: Cancelling " + subscriptionIdsMap.size + " subscriptions.")
+    Logger.info( "AbstractWebSocketServicesActor.cancelAllSubscriptions: Cancelling " + subscriptionIdsMap.size + " subscriptions.")
     subscriptionIdsMap.foreach{ case (subscriptionName, subscriptions) =>
       subscriptions.foreach{ case subscription =>  subscription.cancel}
     }
@@ -202,9 +194,9 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
   }
 
   protected def cancelSubscription( id: String) = {
-    Logger.info( "SubscriptionServicesActor cancelSubscription " + id)
+    Logger.info( "AbstractWebSocketServicesActor cancelSubscription " + id)
     subscriptionIdsMap.get(id) foreach { subscriptions =>
-      Logger.info( "SubscriptionServicesActor canceling subscription " + id)
+      Logger.info( "AbstractWebSocketServicesActor canceling subscription " + id)
       subscriptions.foreach( _.cancel)
       subscriptionIdsMap -= id
     }
@@ -212,4 +204,16 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
   }
 
 
+  /**
+   * Called when WebSocket is closed. Cancel all subscriptions.
+   */
+  override def postStop() = {
+    Logger.info( "AbstractWebSocketServicesActor.postStop")
+    cancelAllSubscriptions
+  }
+
+  override def preRestart( reason: Throwable, message: Option[Any] ): Unit = {
+    Logger.warn( s"AbstractWebSocketServicesActor.preRestart: Message: ${message.getOrElse("")}, Reason: ${reason.getMessage}")
+    super.preRestart( reason, message )
+  }
 }

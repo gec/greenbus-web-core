@@ -107,6 +107,7 @@ object SubscriptionServicesActor {
 }
 
 /**
+ * Default WebSocket services providing core subscriptions.
  *
  * @author Flint O'Brien
  */
@@ -145,8 +146,7 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       subscribeToEndpointsSuccess( subscriptionId, subscription, result, endpointWithCommsSeqPushWrites, endpointWithCommsNotificationPushWrites)
     case SubscribeToPropertiesSuccess( subscriptionId: String, subscription: Subscription[EntityKeyValueNotification], result: Seq[EntityKeyValue]) =>
       subscribeSuccess( subscriptionId, subscription, result, entityKeyValueSeqPushWrites, entityKeyValueNotificationPushWrites)
-
-    // NOTE: The base class's receiver will handle the default case for unknown messages.
+    // case _ => The base class's receiver will handle the default case for unknown messages.
   }
 
 
