@@ -11,6 +11,7 @@ import io.greenbus.msg.{Session, Subscription, SubscriptionBinding}
 import play.api.Logger
 
 import akka.util.Timeout
+import play.api.libs.json.{JsString, JsNull, Json}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -170,10 +171,40 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
       registerSuccessfulSubscription( subscriptionId, subscription)
 
       // Push immediate subscription result.
-      out ! pushResults.writes( subscriptionId, result)
-      subscription.start { m =>
-        //Logger.debug( s"subscribeSuccess subscriptionId: $subscriptionId message: $m")
-        out ! pushMessage.writes( subscriptionId, m)
+      try {
+        out ! pushResults.writes( subscriptionId, result)
+      } catch {
+        case ex: Throwable =>
+          out ! Json.obj (
+            "subscriptionId" -> subscriptionId,
+            "type" -> pushResults.messageType,
+            "data" -> JsNull,
+            "error" -> s"Exception writing subscription results: $ex"
+          )
+      }
+      try {
+        subscription.start { m =>
+          try {
+            //Logger.debug( s"subscribeSuccess subscriptionId: $subscriptionId message: $m")
+            out ! pushMessage.writes( subscriptionId, m)
+          } catch {
+            case ex: Throwable =>
+              out ! Json.obj (
+                "subscriptionId" -> subscriptionId,
+                "type" -> pushResults.messageType,
+                "data" -> JsNull,
+                "error" -> s"Exception writing subscription notification: $ex"
+              )
+          }
+        }
+      } catch {
+        case ex: Throwable =>
+          out ! Json.obj (
+            "subscriptionId" -> subscriptionId,
+            "type" -> pushResults.messageType,
+            "data" -> JsNull,
+            "error" -> s"Exception starting subscription notifications: $ex"
+          )
       }
     }
   }
@@ -212,8 +243,18 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
     cancelAllSubscriptions
   }
 
+  /**
+    * Called before postStop.
+    * @param reason
+    * @param message
+    */
   override def preRestart( reason: Throwable, message: Option[Any] ): Unit = {
     Logger.warn( s"AbstractWebSocketServicesActor.preRestart: Message: ${message.getOrElse("")}, Reason: ${reason.getMessage}")
+    val details = if( message.isDefined) s" (${message.get})" else ""
+    val ex = new AllSubscriptionsCancelledMessage( s"Subscription service for this client is restarting$details.", reason)
+    out ! pushWrites( "", ex)
     super.preRestart( reason, message )
   }
+
+
 }

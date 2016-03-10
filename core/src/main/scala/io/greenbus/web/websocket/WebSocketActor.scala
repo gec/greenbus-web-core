@@ -38,12 +38,27 @@ object WebSocketActor {
 
   case class SubscriptionExceptionMessage( subscribe: AbstractSubscriptionMessage, query: String, throwable: Throwable)
 
+  /**
+    * Tell browser client that all subscriptions have been cancelled.
+    * @param error
+    * @param throwable
+    */
+  case class AllSubscriptionsCancelledMessage( error: String, throwable: Throwable)
+
   implicit val subscriptionExceptionMessageWrites = new Writes[SubscriptionExceptionMessage] {
     def writes( o: SubscriptionExceptionMessage): JsValue =
       Json.obj(
         "name" -> o.subscribe.getClass.getSimpleName,
         "subscribe" -> o.subscribe.toString,
         "query" -> o.query,
+        "exception" -> o.throwable.toString
+      )
+  }
+
+  implicit val allSubscriptionsCancelledMessageWrites = new Writes[AllSubscriptionsCancelledMessage] {
+    def writes( o: AllSubscriptionsCancelledMessage): JsValue =
+      Json.obj(
+        "error" -> o.error,
         "exception" -> o.throwable.toString
       )
   }

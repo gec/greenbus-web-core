@@ -35,15 +35,15 @@ object JsonPushFormatters {
   /**
    * For pushing objects to the client browser over a WebSocket.
    *
-   * @param typeName The type such as: alarm, measurement, etc.
+   * @param messageType The message type such as: alarm, measurement, etc.
    * @param writes The singleton Writes (i.e. writer) for the object type.
    * @tparam T The type being written.
    */
-  class PushWrites[T]( typeName: String, writes: Writes[T]) {
+  class PushWrites[T]( val messageType: String, writes: Writes[T]) {
     def writes( subscriptionId: String, o: T): JsValue = {
       Json.obj (
         "subscriptionId" -> subscriptionId,
-        "type" -> typeName,
+        "type" -> messageType,
         "data" -> writes.writes( o)
       )
     }
@@ -58,12 +58,7 @@ object JsonPushFormatters {
       "data" -> writes.writes( o)
     )
   }
-//  def pushStatusWrites[T:ClassTag]( o: T)(implicit writes: Writes[T]): JsValue = {
-//    Json.obj (
-//      "type" -> myClassOf[T],
-//      "data" -> writes.writes( o)
-//    )
-//  }
+
   def pushConnectionStatusWrites( connectionStatus: ConnectionStatus): JsValue = {
     Json.obj (
       "type" -> "ConnectionStatus",  // myClassOf[T] was ConnectionStatusVal, so we do this manually.
@@ -75,10 +70,13 @@ object JsonPushFormatters {
 
   lazy val endpointWithCommsNotificationPushWrites = new PushWrites( "endpoint", endpointWithCommsNotificationWrites)
 
-  lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
+  // Now using PointMeasurementValue and PointMeasurementValues
+  // lazy val measurementPushWrites = new PushWrites( "measurement", measurementWrites)
 
+  // Initial results of subscribeToMeasurementHistory
   lazy val pointWithMeasurementsPushWrites = new PushWrites( "pointWithMeasurements", pointWithMeasurementsWrites)
 
+  // Initial results of subscribeToMeasurementHistory when no history
   lazy val pointMeasurementPushWrites = new PushWrites( "measurements", pointMeasurementArrayWrapperWrites)
 
   lazy val pointMeasurementsPushWrites = new PushWrites( "measurements", pointMeasurementsWrites)

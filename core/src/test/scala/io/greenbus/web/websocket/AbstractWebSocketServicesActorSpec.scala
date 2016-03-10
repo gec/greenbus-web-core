@@ -1,6 +1,6 @@
 package io.greenbus.web.websocket
 
-import akka.actor.ActorRef
+import akka.actor.{Kill, ActorRef}
 import akka.testkit.{TestActorRef, TestProbe}
 import com.google.protobuf
 import com.google.protobuf.GeneratedMessage.{BuilderParent, FieldAccessorTable}
@@ -8,15 +8,17 @@ import com.google.protobuf.Message.Builder
 import io.greenbus.msg.{Subscription, Session}
 import io.greenbus.web.connection.{MeasurementServiceContext, ModelServiceContext, FrontEndServiceContext, EventServiceContext}
 import io.greenbus.web.websocket.AbstractWebSocketServicesActorSpec.SubscribeToSomething
-import io.greenbus.web.websocket.JsonPushFormatters.PushWrites
-import io.greenbus.web.websocket.WebSocketActor.AbstractSubscriptionMessage
+import io.greenbus.web.websocket.JsonPushFormatters.{PushWrites, pushWrites}
+import io.greenbus.web.websocket.WebSocketActor.AllSubscriptionsCancelledMessage
+
+//import io.greenbus.web.websocket.WebSocketActor.{AllSubscriptionsCancelledMessage, AbstractSubscriptionMessage}
 import org.specs2.mock.Mockito
 import org.specs2.time.NoTimeConversions
 import play.api.libs.json._
 import play.api.test.PlaySpecification
 
 object AbstractWebSocketServicesActorSpec {
-  import WebSocketActor._
+  import io.greenbus.web.websocket.WebSocketActor._
   import io.greenbus.web.util.EnumUtils
 
   trait MockGeneratedMessage extends com.google.protobuf.GeneratedMessage {
@@ -104,7 +106,13 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
 
     }
 
-    def testPendingSubscription( subscriptionId: String): Boolean = pendingSubscription( subscriptionId)
+    def testPendingSubscription( subscriptionId: String): Boolean = {
+      // Calling pendingSubscription will decrement the count. If pending, we need to re-add.
+      val test = pendingSubscription( subscriptionId)
+      if( test)
+        addPendingSubscription( subscriptionId)
+      test
+    }
 
 //    def flushSubscribeSuccess( subscriptionId: String,
 //                               subscription: Subscription[SomeNotification],
@@ -180,11 +188,14 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
       val underTest = TestActorRef( new WSServices( out.ref, session))
       val subscriptionMock = new SubscriptionMock[SomeNotification]
       val results = Seq(SomeResult(SHOULD_SUCCEED))
-      val resultsPush = someResultSeqPushWrites.writes( subscriptionId, results)
+      val exMessage = AllSubscriptionsCancelledMessage( "Subscription service for this client is restarting.", new Exception("FailOnPushWrites") )
+      val resultsPush = pushWrites( "", exMessage)
+      //val resultsPush = someResultSeqPushWrites.writes( subscriptionId, results)
       val notification = SomeNotification( SHOULD_SUCCEED)
       val notificationPush = someNotificationPushWrites.writes( subscriptionId, notification)
 
       underTest ! SubscribeToSomething( authToken, subscriptionId, SHOULD_SUCCEED)
+      underTest.underlyingActor.testPendingSubscription( subscriptionId) must beTrue
 
 //      val failSomeResultSeqWrites = new Writes[Seq[SomeResult]] {
 //        def writes( o: Seq[SomeResult]): JsValue = throw new Exception( "failed")
@@ -196,14 +207,37 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
       underTest ! success
       //intercept[Exception] { underTest.receive(success) }
 
-
-      out.expectMsg( resultsPush)
+      out.expectMsg(
+        Json.obj (
+          "subscriptionId" -> subscriptionId,
+          "type" -> "someResults",
+          "data" -> JsNull,
+          "error" -> s"Exception writing subscription results: java.lang.Exception: FailOnPushWrites"
+        )
+      )
       subscriptionMock.started must beTrue
       underTest.underlyingActor.testPendingSubscription( subscriptionId) must beFalse
 
       subscriptionMock.handler( notification)
       out.expectMsg( notificationPush)
     }
-  }
+
+    "send AllSubscriptionsCancelledMessage on preRestart()" in new AkkaTestkitSpecs2Support {
+      import io.greenbus.web.websocket.WebSocketActor._
+
+      val out = TestProbe()
+      val underTest = TestActorRef( new WSServices( out.ref, session))
+
+      val exMessage = AllSubscriptionsCancelledMessage( "Subscription service for this client is restarting", new Exception("Flint") )
+      val resultsPush = pushWrites( "", exMessage)
+
+      underTest ! Kill
+
+      out.expectNoMsg()
+      //out.expectMsg( resultsPush)
+    }
+
+
+  }  // end "AbstractWebSocketServicesActor" should
 
 }

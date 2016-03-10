@@ -287,6 +287,7 @@ object JsonFormatters {
 //  }
 
 
+  // Referenced via PointMeasurementValue
   implicit val measurementWrites = new Writes[Measurement] {
     def writes( o: Measurement): JsValue = {
       val measValue = o.getType match {
