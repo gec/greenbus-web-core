@@ -1,17 +1,14 @@
 package io.greenbus.web.websocket
 
-import akka.actor.{Kill, ActorRef}
+import akka.actor.ActorRef
 import akka.testkit.{TestActorRef, TestProbe}
 import com.google.protobuf
 import com.google.protobuf.GeneratedMessage.{BuilderParent, FieldAccessorTable}
 import com.google.protobuf.Message.Builder
 import io.greenbus.msg.{Subscription, Session}
-import io.greenbus.web.connection.{MeasurementServiceContext, ModelServiceContext, FrontEndServiceContext, EventServiceContext}
-import io.greenbus.web.websocket.AbstractWebSocketServicesActorSpec.SubscribeToSomething
 import io.greenbus.web.websocket.JsonPushFormatters.{PushWrites, pushWrites}
 import io.greenbus.web.websocket.WebSocketActor.AllSubscriptionsCancelledMessage
 
-//import io.greenbus.web.websocket.WebSocketActor.{AllSubscriptionsCancelledMessage, AbstractSubscriptionMessage}
 import org.specs2.mock.Mockito
 import org.specs2.time.NoTimeConversions
 import play.api.libs.json._
@@ -46,6 +43,7 @@ object AbstractWebSocketServicesActorSpec {
                                           result: Seq[SomeResult],
                                           pushResults: PushWrites[Seq[SomeResult]],
                                           pushMessage: PushWrites[SomeNotification])
+  case object ForceRestartMessage
 
 
 
@@ -61,7 +59,6 @@ object AbstractWebSocketServicesActorSpec {
   implicit val expectedTestResultFormat = EnumUtils.enumFormat(ExpectedTestResult)
   implicit val subscribeToSomethingFormat = formatWithName( Json.format[SubscribeToSomething])
   implicit val someResultFormat = Json.format[SomeResult]
-  //implicit val someResultFormat_FAILURE = new FailOnFormat[SomeResult]
   implicit val someNotificationFormat = Json.format[SomeNotification]
   implicit val someNotificationFormat_FAILURE = new FailOnFormat[SomeNotification]
 
@@ -69,9 +66,6 @@ object AbstractWebSocketServicesActorSpec {
   implicit val someResultSeqWrites = new Writes[Seq[SomeResult]] {
     def writes( o: Seq[SomeResult]): JsValue = { Json.toJson( o) }
   }
-//  implicit val someNotificationSeqWrites = new Writes[Seq[SomeNotification]] {
-//    def writes( o: Seq[SomeNotification]): JsValue = { Json.toJson( o) }
-//  }
 
   lazy val someResultSeqPushWrites = new PushWrites( "someResults", someResultSeqWrites)
   lazy val someNotificationPushWrites = new PushWrites( "someNotification", someNotificationFormat)
@@ -97,6 +91,7 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
                                         result: Seq[SomeResult],
                                         pushResults: PushWrites[Seq[SomeResult]],
                                         pushMessage: PushWrites[SomeNotification]) => subscribeSuccess( subscriptionId, subscription, result, pushResults, pushMessage)
+      case ForceRestartMessage => throw new IllegalStateException("Force-restart message")
 
       // case _ => The base class's receiver will handle the default case for unknown messages.
     }
@@ -114,14 +109,6 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
       test
     }
 
-//    def flushSubscribeSuccess( subscriptionId: String,
-//                               subscription: Subscription[SomeNotification],
-//                               result: Seq[SomeResult],
-//                               pushResults: PushWrites[Seq[SomeResult]],
-//                               pushMessage: PushWrites[SomeNotification]) = {
-//
-//      subscribeSuccess( subscriptionId, subscription, result, pushResults, pushMessage)
-//    }
   }
 
   class SubscriptionMock[M] extends Subscription[M] {
@@ -197,9 +184,6 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
       underTest ! SubscribeToSomething( authToken, subscriptionId, SHOULD_SUCCEED)
       underTest.underlyingActor.testPendingSubscription( subscriptionId) must beTrue
 
-//      val failSomeResultSeqWrites = new Writes[Seq[SomeResult]] {
-//        def writes( o: Seq[SomeResult]): JsValue = throw new Exception( "failed")
-//      }
       lazy val failSomeResultSeqPushWrites = new FailOnPushWrites( "someResults", someResultSeqWrites)
 
 
@@ -228,13 +212,15 @@ class AbstractWebSocketServicesActorSpec  extends PlaySpecification with NoTimeC
       val out = TestProbe()
       val underTest = TestActorRef( new WSServices( out.ref, session))
 
-      val exMessage = AllSubscriptionsCancelledMessage( "Subscription service for this client is restarting", new Exception("Flint") )
+      val exMessage = AllSubscriptionsCancelledMessage(
+        "Subscription service for this client is restarting (ForceRestartMessage).",
+        new IllegalStateException("Force-restart message")
+      )
       val resultsPush = pushWrites( "", exMessage)
 
-      underTest ! Kill
+      underTest ! ForceRestartMessage
 
-      out.expectNoMsg()
-      //out.expectMsg( resultsPush)
+      out.expectMsg( resultsPush)
     }
 
 
