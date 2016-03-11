@@ -175,6 +175,7 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
         out ! pushResults.writes( subscriptionId, result)
       } catch {
         case ex: Throwable =>
+          Logger.error( s"AbstractWebSocketServicesActor.subscribeSuccess pushResults: ${pushResults.messageType}", ex)
           out ! Json.obj (
             "subscriptionId" -> subscriptionId,
             "type" -> pushResults.messageType,
@@ -189,6 +190,7 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
             out ! pushMessage.writes( subscriptionId, m)
           } catch {
             case ex: Throwable =>
+              Logger.error( s"AbstractWebSocketServicesActor.subscribeSuccess notification: ${pushResults.messageType}", ex)
               out ! Json.obj (
                 "subscriptionId" -> subscriptionId,
                 "type" -> pushResults.messageType,
@@ -199,6 +201,7 @@ abstract class AbstractWebSocketServicesActor( out: ActorRef, initialSession: Se
         }
       } catch {
         case ex: Throwable =>
+          Logger.error( s"AbstractWebSocketServicesActor.subscribeSuccess subscription.start: ${pushResults.messageType}", ex)
           out ! Json.obj (
             "subscriptionId" -> subscriptionId,
             "type" -> pushResults.messageType,

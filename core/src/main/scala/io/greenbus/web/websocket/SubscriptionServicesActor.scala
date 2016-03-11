@@ -215,9 +215,42 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       registerSuccessfulSubscription( subscriptionId, subscription)
 
       // Push immediate subscription result.
-      out ! pushResults.writes( subscriptionId, result)
-      subscription.start { m =>
-        out ! pushMessage.writes( subscriptionId, m)
+      try {
+        out ! pushResults.writes( subscriptionId, result)
+      } catch {
+        case ex: Throwable =>
+          Logger.error( s"SubscriptionServicesActor.subscribeToEndpointsSuccess pushResults: ${pushResults.messageType}", ex)
+          out ! Json.obj (
+            "subscriptionId" -> subscriptionId,
+            "type" -> pushResults.messageType,
+            "data" -> JsNull,
+            "error" -> s"Exception writing subscription results: $ex"
+          )
+      }
+      try {
+        subscription.start { m =>
+          try {
+            out ! pushMessage.writes( subscriptionId, m)
+          } catch {
+            case ex: Throwable =>
+              Logger.error( s"SubscriptionServicesActor.subscribeToEndpointsSuccess notification: ${pushResults.messageType}", ex)
+              out ! Json.obj (
+                "subscriptionId" -> subscriptionId,
+                "type" -> pushResults.messageType,
+                "data" -> JsNull,
+                "error" -> s"Exception writing subscription notification: $ex"
+              )
+          }
+        }
+      } catch {
+        case ex: Throwable =>
+          Logger.error( s"SubscriptionServicesActor.subscribeToEndpointsSuccess subscription.start: ${pushResults.messageType}", ex)
+          out ! Json.obj (
+            "subscriptionId" -> subscriptionId,
+            "type" -> pushResults.messageType,
+            "data" -> JsNull,
+            "error" -> s"Exception starting subscription notifications: $ex"
+          )
       }
     }
   }
