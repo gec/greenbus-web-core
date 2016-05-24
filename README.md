@@ -1,23 +1,27 @@
-# Coral
+# greenbus-web-core
 
-A modular framework for building applications using Reef [Reef](https://github.com/gec/reef) (an open source smart grid platform).
+Core web services for building applications using GreenBus [Reef](https://github.com/gec/greenbus) (an open source smart grid platform).
+
+## Services
+* REST
+* WebSocket
 
 ##Technologies
 
 - Client -- HTML 5 [AngularJS](http://angularjs.org)
 - Server -- [Play](http://www.playframework.com) framework using [Scala](http://www.scala-lang.org)
 
-## Projects using Coral
+## Projects using green-bus-web-core
 
-- [ReefGUI](https://github.com/gec/reefgui) Administrative console for Reef
+- [greenbus-web-hmi](https://github.com/gec/greenbus-web-hmi) Microgrid controller for GreenBus
 
 ## Installing from Source
 
-1.  Install [Reef](https://github.com/gec/reef) or use an existing Reef server.
+1.  Install [GreenBus](https://github.com/gec/greenbus) or use an existing GreenBus server.
 1.  Install [Play Framework](http://www.playframework.com/download) 2.3.6
-1.  Clone the repository: `git clone https://github.com/gec/coral.git`
-1.  > cd coral
-1.  Edit `reef.cfg` so AMQP host and credentials refer to your Reef server (i.e. properties starting with `org.totalgrid.reef.amqp`).
+1.  Clone the repository: `git clone https://github.com/gec/greenbus-web-core.git`
+1.  > cd greenbus-web-core
+1.  Edit `greenbus.cfg` so AMQP host and credentials refer to your GreenBus server (i.e. properties starting with `org.greenbus.msg.amqp`).
 
 ### Running Sample Application
 
