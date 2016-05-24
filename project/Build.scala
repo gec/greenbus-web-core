@@ -3,7 +3,7 @@ import sbt.Keys._
 import play.twirl.sbt.Import.TwirlKeys
 import com.google.javascript.jscomp.{CompilerOptions, CompilationLevel}
 
-// See example at: https://github.com/t2v/play2-auth
+// See example Build.scala at: https://github.com/t2v/play2-auth
 //
 
 object ApplicationBuild extends Build {
@@ -11,10 +11,10 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "web-core"
-  val appVersion        = "3.0.0.M4-SNAPSHOT"
+  val appVersion        = "3.0.0"
   val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
-  val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-private-snapshot"
+  val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-snapshot"
 
   lazy val baseSettings = Seq(
     version            := appVersion,
@@ -43,7 +43,7 @@ object ApplicationBuild extends Build {
       Some("releases"  at artifactory + "totalgrid-release")
   }
   lazy val appPomExtra = {
-    <url>https://github.com/gec/coral.git</url>
+    <url>https://github.com/gec/greenbus-web-core.git</url>
       <licenses>
         <license>
           <name>Apache License, Version 2.0</name>
@@ -52,8 +52,8 @@ object ApplicationBuild extends Build {
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:gec/coral.git</url>
-        <connection>scm:git:git@github.com:gec/coral.git</connection>
+        <url>git@github.com:gec/greenbus-web-core.git</url>
+        <connection>scm:git:git@github.com:gec/greenbus-web-core.git</connection>
       </scm>
   }
 
