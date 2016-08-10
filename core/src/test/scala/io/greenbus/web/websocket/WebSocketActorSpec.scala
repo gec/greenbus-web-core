@@ -92,10 +92,10 @@ class WebSocketActorSpec extends PlaySpecification with NoTimeConversions with M
         underTest.underlyingActor.context.children.size must beEqualTo(2)
 
         val subscribeToMeasurements = SubscribeToMeasurements( "someAuthToken", subscriptionId, Seq("somePointId"))
-        val subscribeToProperties = SubscribeToProperties( "someAuthToken", subscriptionId, "someEntityId", None)
+        val subscribeToProperties = SubscribeToProperties( "someAuthToken", subscriptionId, Seq("someEntityId"), None)
 
         subscribeToMeasurementsFormat.writes( subscribeToMeasurements).toString must beEqualTo( """{"authToken":"someAuthToken","subscriptionId":"someSubscriptionId","pointIds":["somePointId"],"name":"SubscribeToMeasurements"}""")
-        subscribeToPropertiesFormat.writes( subscribeToProperties).toString must beEqualTo( """{"authToken":"someAuthToken","subscriptionId":"someSubscriptionId","entityId":"someEntityId","name":"SubscribeToProperties"}""")
+        subscribeToPropertiesFormat.writes( subscribeToProperties).toString must beEqualTo( """{"authToken":"someAuthToken","subscriptionId":"someSubscriptionId","entityIds":["someEntityId"],"name":"SubscribeToProperties"}""")
 
         underTest ! subscribeToMeasurementsFormat.writes( subscribeToMeasurements)
         underTest ! subscribeToPropertiesFormat.writes( subscribeToProperties)

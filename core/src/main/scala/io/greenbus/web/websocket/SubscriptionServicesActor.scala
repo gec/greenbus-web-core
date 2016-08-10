@@ -63,7 +63,7 @@ object SubscriptionServicesActor {
                                 ) extends AbstractSubscriptionMessage
   case class SubscribeToProperties( override val authToken: String,
                                     override val subscriptionId: String,
-                                    entityId: String,
+                                    entityIds: Seq[String],
                                     keys: Option[Seq[String]]
                                     ) extends AbstractSubscriptionMessage
 
@@ -262,16 +262,19 @@ class SubscriptionServicesActor( out: ActorRef, initialSession : Session) extend
       val service = modelService( subscribe.authToken)
       Logger.debug( "SubscriptionServicesActor.subscribeToProperties " + subscribe.subscriptionId)
 
-      val entityId = idToModelUUID(  subscribe.entityId)
+      val entityIds = idsToModelUUIDs(  subscribe.entityIds)
       val query = EntityKeyValueSubscriptionQuery.newBuilder()
 
       if( subscribe.keys.isDefined && ! subscribe.keys.get.isEmpty) {
         // Got keys. Get only those properties.
-        val entityKeyPairs = subscribe.keys.get.map( key => EntityKeyPair.newBuilder().setUuid( entityId).setKey( key).build())
+        val entityKeyPairs = for(
+          id <- entityIds;
+          key <- subscribe.keys.get
+        ) yield EntityKeyPair.newBuilder().setUuid( id).setKey( key).build()
         query.addAllKeyPairs( entityKeyPairs)
       } else {
         // No keys. Get all properties
-        query.addUuids( entityId)
+        query.addAllUuids( entityIds)
       }
 
       addPendingSubscription( subscribe.subscriptionId)
