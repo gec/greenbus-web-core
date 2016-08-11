@@ -69,11 +69,14 @@ trait WebSocketServices extends ConnectionManagerRef with ServiceAuthentication 
    * @return
    */
   def getWebSocket( authToken: String) = WebSocket.tryAcceptWithActor[JsValue, JsValue] { request =>
+    Logger.debug( "WebSocketServices.getWebSocket: begin")
     getService( authToken, ValidationTiming.PREVALIDATED).map {
       case Right( session) =>
+        Logger.debug( "WebSocketServices.getWebSocket: starting websocket...")
         // props() is a partial function. After this, someone applies (out: ActorRef)
         Right(WebSocketActor.props( connectionManager, session, webSocketServiceProviders))
       case Left( failure) =>
+        Logger.debug( "WebSocketServices.getWebSocket: invalid authentication. Wo  websocket started.")
         Left(Forbidden)
     }
   }

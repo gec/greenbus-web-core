@@ -69,10 +69,6 @@ object ConnectionManager {
   case class LoginRequest( userName: String, password: String)
   case class LogoutRequest( authToken: String)
 
-  case class WebSocketOpen( authToken: String, validationTiming: ValidationTiming)
-  case class WebSocketError( status: ConnectionStatus)
-  case class WebSocketChannels( iteratee: Iteratee[JsValue, Unit], enumerator: Enumerator[JsValue])
-
 
   /*
    * Implicit JSON writers.
@@ -111,18 +107,10 @@ import io.greenbus.web.connection.ConnectionManager._
 
 
 /**
- * Factory for creating actors that depend on the ConnectionManager (to manage the AMQP client connection).
- */
-trait WebSocketPushActorFactory {
-  import ConnectionStatus._
-  def makeChildActor( parentContext: ActorContext, actorName: String, clientStatus: ConnectionStatus, session: Session): WebSocketChannels
-}
-
-/**
  *
  * @author Flint O'Brien
  */
-class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory, childActorFactory: WebSocketPushActorFactory) extends Actor {
+class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory) extends Actor {
   import ConnectionManager._
   import io.greenbus.web.connection.ConnectionStatus._
   import ValidationTiming._
@@ -141,7 +129,6 @@ class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory, child
     case LoginRequest( userName, password) => login( userName, password)
     case LogoutRequest( authToken) => logout( authToken)
     case SessionRequest( authToken, validationTiming) => sessionRequest( authToken, validationTiming)
-    case WebSocketOpen( authToken, validationTiming) => webSocketOpen( authToken, validationTiming)
     case SubscribeToConnection( subscriber) => subscribeToConnection( subscriber)
     case UnsubscribeToConnection( subscriber) => unsubscribeToConnection( subscriber)
       
@@ -313,39 +300,6 @@ class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory, child
   }
 
 
-  /**
-   *
-   * Open a WebSocket and send the WebSocket channels to the sender.
-   *
-   * @param authToken The authToken to use when creating the Session
-   * @param validationTiming If PREVALIDATED, make an extra service call to prevalidate the authToken.
-   *
-   */
-  private def webSocketOpen( authToken: String, validationTiming: ValidationTiming): Unit = {
-    val timer = Timer.debug( "ConnectionManager.webSocketOpen validationTiming: " + validationTiming)
-
-    val future = sessionFromAuthToken( authToken, validationTiming, "webSocketOpen")
-    val theSender = sender
-
-    future onSuccess {
-      case Right( session) =>
-        theSender ! childActorFactory.makeChildActor( context, "WebSocketActor." + authToken, connectionStatus, session)
-        timer.end( s"webSocketOpen sender ! session: $authToken")
-      case Left( status) =>
-        timer.end( s"Left( status) status: $status")
-        theSender ! WebSocketError( status)
-    }
-
-    future onFailure {
-      case ex: AskTimeoutException =>
-        Logger.error( "ConnectionManager.sessionRequest " + ex)
-        theSender ! ServiceClientFailure( REQUEST_TIMEOUT)
-      case ex: AnyRef =>
-        Logger.error( "ConnectionManager.sessionRequest Unknown " + ex)
-        theSender ! ServiceClientFailure( SERVICE_FAILURE)
-    }
-
-  }
 
   private def subscribeToConnection( subscriber: ActorRef): Unit = {
     subscriber ! Connection( connectionStatus, cachedSession)

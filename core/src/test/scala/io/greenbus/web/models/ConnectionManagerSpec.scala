@@ -5,7 +5,7 @@ import org.specs2.mutable._
 import org.specs2.mock._
 import akka.actor.{Actor, Props, ActorSystem}
 import io.greenbus.web.auth.ValidationTiming
-import io.greenbus.web.connection.{ConnectionStatus, WebSocketPushActorFactory, ConnectionManager}
+import io.greenbus.web.connection.{ConnectionStatus, ConnectionManager}
 import scala.concurrent.duration._
 import akka.testkit.{TestProbe, ImplicitSender, TestKit, TestActorRef}
 
@@ -39,7 +39,6 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
 
   val TIMEOUT = FiniteDuration(1000, MILLISECONDS)
   val NO_TIME_AT_ALL = FiniteDuration(50, MILLISECONDS) // Must finish way before TIMEOUT
-  val childActorFactory = mock[WebSocketPushActorFactory]
   val session1 = mock[Session]
   val session2 = mock[Session]
   session1.spawn returns session2
@@ -88,7 +87,7 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
         val serviceConnection = serviceConnectionMock
         serviceConnection.login( anyString, anyString) returns Future.successful( session)
         val serviceFactory = serviceFactoryMock( serviceConnection)
-        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory))
 
         rcm ! ConnectionManager.LoginRequest( "validUser", "validPassword")
         expectMsg( authToken)
@@ -98,7 +97,7 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
     "reply to SessionRequest with a new session" in new AkkaTestkitSpecs2Support {
       within(TIMEOUT) {
         val serviceFactory = serviceFactoryMock( serviceConnectionMock)
-        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory))
         rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsgType[Session] must be( session2)
       }
@@ -110,7 +109,7 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
 
         val serviceFactory = serviceFactoryMock( serviceConnectionMock)
         serviceFactory.amqpSettingsLoad( any[String]) throws new LoadingException( "No such file or directory")
-        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory))
         rcm ! ConnectionManager.SessionRequest( "someAuthToken", PROVISIONAL)
         expectMsg( new ConnectionManager.ServiceClientFailure( ConnectionStatus.CONFIGURATION_FILE_FAILURE))
       }
@@ -124,7 +123,7 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
 
         val serviceFactory = serviceFactoryMock( serviceConnection)
         val subscriber = TestProbe()
-        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory))
 
         rcm ! ConnectionManager.SubscribeToConnection( subscriber.ref)
         subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
@@ -150,7 +149,7 @@ class ConnectionManagerSpec extends PlaySpecification with NoTimeConversions wit
 
         val serviceFactory = serviceFactoryMock( serviceConnection)
         val subscriber = TestProbe()
-        val rcm = TestActorRef(new ConnectionManager( serviceFactory, childActorFactory))
+        val rcm = TestActorRef(new ConnectionManager( serviceFactory))
         rcm ! ConnectionManager.SubscribeToConnection( subscriber.ref)
         subscriber.expectMsg( ConnectionManager.Connection( ConnectionStatus.AMQP_UP, Some(session1)))
 

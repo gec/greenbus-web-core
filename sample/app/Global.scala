@@ -19,7 +19,7 @@
 // No package. Just the root context. It's what play wants.
 
 import io.greenbus.msg.Session
-import io.greenbus.web.connection.{ClientServiceFactoryDefault, ConnectionStatus, WebSocketPushActorFactory, ConnectionManager}
+import io.greenbus.web.connection.{ClientServiceFactoryDefault, ConnectionStatus, ConnectionManager}
 import io.greenbus.web.config.dal.InitialDB
 import play.api._
 import controllers.Application
@@ -31,20 +31,6 @@ import play.api.Play.current
 import akka.actor.{Props, ActorContext}
 
 
-object ClientPushActorFactory extends WebSocketPushActorFactory{
-  import ConnectionStatus._
-  import ConnectionManager._
-  import io.greenbus.web.websocket._
-
-  def makeChildActor( parentContext: ActorContext, actorName: String, connectionStatus: ConnectionStatus, session: Session): WebSocketChannels = {
-    // Create a pushChannel that the new actor will use for push
-    val (enumerator, pushChannel) = Concurrent.broadcast[JsValue]
-    val actorRef = parentContext.actorOf( Props( new WebSocketPushActor( connectionStatus, session, pushChannel, ClientServiceFactoryDefault)) /*, name = actorName*/) // Getting two with the same name
-    val iteratee = WebSocketConsumerImpl.getConsumer( actorRef)
-    WebSocketChannels( iteratee, enumerator)
-  }
-}
-
 /**
  *
  * @author Flint O'Brien
@@ -52,7 +38,7 @@ object ClientPushActorFactory extends WebSocketPushActorFactory{
 object Global extends GlobalSettings {
   import ConnectionManager.DefaultConnectionManagerServicesFactory
 
-  lazy val serviceConnectionManager = Akka.system.actorOf(Props( new ConnectionManager( DefaultConnectionManagerServicesFactory, ClientPushActorFactory)), "serviceConnectionManager")
+  lazy val serviceConnectionManager = Akka.system.actorOf(Props( new ConnectionManager( DefaultConnectionManagerServicesFactory)), "serviceConnectionManager")
 
   override def onStart(app: Application) {
     super.onStart(app)

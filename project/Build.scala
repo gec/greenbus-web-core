@@ -11,7 +11,7 @@ object ApplicationBuild extends Build {
   import PlayKeys._
 
   val appName           = "web-core"
-  val appVersion        = "3.0.0"
+  val appVersion        = "3.0.1-SNAPSHOT"
   val playVersion       = "2.3.6"
   val totalGridRelease  = "https://repo.totalgrid.org/artifactory/totalgrid-release"
   val totalGridSnapshot = "https://repo.totalgrid.org/artifactory/totalgrid-snapshot"
