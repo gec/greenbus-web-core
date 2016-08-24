@@ -50,6 +50,7 @@ import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.language.implicitConversions
 import play.api.db.slick._
 
 
@@ -59,11 +60,13 @@ object RestServices {
 
   case class EquipmentWithPointEntities( equipment: Entity, pointEntities: List[Entity])
 
+  implicit def stringToModelUuid( uuid: String): Model.ModelUUID = ModelUUID.newBuilder().setValue( uuid).build()
 }
 
 trait RestServices extends ServiceAuthentication {
   self: Controller =>
   import io.greenbus.web.models.JsonFormatters._
+  import RestServices._
 
   /**
    * Implementors must provide a factory for client services.
@@ -407,10 +410,11 @@ trait RestServices extends ServiceAuthentication {
     }
   }
 
-  def queryPointsByTypeForEquipments( modelService: ModelService, equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int) = {
+  def queryPointsByTypeForEquipments( modelService: ModelService, equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String], ascending: Boolean) = {
     Logger.debug( s"queryPointsByTypeForEquipments begin pointTypes: $pointTypes")
 
     val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
+    startAfterId.foreach(pagingParams.setLastUuid(_))
     val query = EntityRelationshipFlatQuery.newBuilder()
       .addAllStartUuids(equipmentModelUUIDs)
       .setRelationship("owns")
@@ -444,13 +448,18 @@ trait RestServices extends ServiceAuthentication {
    * @param modelService getting entities by type
    * @param pointTypes List of point types (i.e. entity types)
    * @param limit Limit number of results
+   * @param startAfterId Start the next page after this UUID
+   * @param ascending True: sort in ascending order (also used for paging forward vs backward)
    * @return
    */
-  def getPointsByType( modelService: ModelService, pointTypes: List[String], limit: Int) = {
+  def getPointsByType( modelService: ModelService, pointTypes: List[String], limit: Int, startAfterId: Option[String], ascending: Boolean) = {
 
+    val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
+    startAfterId.foreach(pagingParams.setLastUuid(_))
+    // TODO: implement ascending when available in greenbus API
 
     val query = ModelRequests.EntityQuery.newBuilder()
-      .setPagingParams( EntityPagingParams.newBuilder().setPageSize( limit))
+      .setPagingParams( pagingParams)
     if( pointTypes.isEmpty) {
       val pointType = EntityTypeParams.newBuilder().addIncludeTypes( "Point")
       query.setTypeParams( pointType)
@@ -516,9 +525,11 @@ trait RestServices extends ServiceAuthentication {
    * @param pointTypes Optional list of types (i.e. entity types)
    * @param depth If equipment IDs are specified, return points according to descendant depth.
    * @param limit Limit the number of results.
+   * @param startAfterId Start the next page after this UUID
+   * @param ascending sort in ascending order
    * @return
    */
-  def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
+  def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String], ascending: Boolean) = ServiceClientActionAsync { (request, session) =>
     Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
 
     def makeEquipmentIdPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
@@ -552,19 +563,19 @@ trait RestServices extends ServiceAuthentication {
       else if( ! pnames.isEmpty)
         getPointsByNames( pnames, modelService)
       else
-        getPointsByType( modelService, pointTypes, limit)
+        getPointsByType( modelService, pointTypes, limit, startAfterId, ascending)
 
     } else {
 
-      val t1 = new Timer( "getPointsByTypeForEquipmentsQuery |||||||||||||||||||||||||")
+      val t1 = new Timer( "getPointsByTypeForEquipmentsQuery |||||||||||||||||||||||||", Timer.DEBUG)
       val equipmentModelUUIDs = equipmentIds.map( ModelUUID.newBuilder().setValue( _).build())
-      queryPointsByTypeForEquipments( modelService, equipmentModelUUIDs, pointTypes, depth, limit).flatMap { pointsAsEntities =>
+      queryPointsByTypeForEquipments( modelService, equipmentModelUUIDs, pointTypes, depth, limit, startAfterId, ascending).flatMap { pointsAsEntities =>
 
         if( pointsAsEntities.isEmpty) {
           t1.end( "return early because there are no points under this list of equipment")
           Future.successful( Ok(JSON_EMPTY_OBJECT)) // No points for this list of equipment.
         } else {
-          t1.delta( "got pointsAsEntities")
+          t1.delta( s"got pointsAsEntities. result count: ${pointsAsEntities.length} ")
 //          val pointTypesSet = pointTypes.toSet
 //          val pointsAsEntitiesWithCorrectType = pointsAsEntities.filter( p => p.getTypesList.exists( pointTypesSet.contains))
 
@@ -579,7 +590,7 @@ trait RestServices extends ServiceAuthentication {
 
           //TODO: Currently re-getting entities as Point. Need new API from GreenBus to directly get points under equipment.
           queryPointsByIds( pointIds, modelService).flatMap { points =>
-            t1.delta( "got getPointsByIds")
+            t1.delta( s"got getPointsByIds, result count: ${points.length} ")
 
             // Return a map of equipment IDs to points array.
             if( equipmentIds.length <= 1) {
