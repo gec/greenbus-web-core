@@ -333,13 +333,15 @@ class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory) exten
     }
     timer.delta( "AMQP Settings loaded. Getting AMQP connection...")
 
+    var newConnection: ServiceConnection = null
     try {
-      val newConnection = serviceFactory.serviceConnect(settings, QpidBroker, 30000)  // 30 second timeout
+      newConnection = serviceFactory.serviceConnect(settings, QpidBroker, 30000)  // 30 second timeout
       timer.delta( "Got service connection. Getting session...")
 
       newConnection.addConnectionListener { expected =>
         // expected is true if we called connection.disconnect
         Logger.info( "initializeConnectionToAmqp: Connection to AMQP is down")
+        newConnection.disconnect  // just in case!
         self ! ConnectionDown( expected)
       }
 
@@ -364,6 +366,8 @@ class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory) exten
           causeCount += 1
           cause = cause.getCause
         }
+        if(newConnection != null)
+          newConnection.disconnect
         connectionStatus = AMQP_DOWN
         connection = None
         cachedSession = None
@@ -372,6 +376,8 @@ class ConnectionManager( serviceFactory: ConnectionManagerServicesFactory) exten
 
       case ex: Throwable => {
         Logger.error( "Error connecting to AMQP or GreenBus. Exception: " + ex)
+        if(newConnection != null)
+          newConnection.disconnect
         connectionStatus = AMQP_DOWN
         connection = None
         cachedSession = None
