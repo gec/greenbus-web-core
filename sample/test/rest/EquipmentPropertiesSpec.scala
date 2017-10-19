@@ -4,13 +4,13 @@ import java.io.File
 
 import controllers.Application
 import io.greenbus.web.connection.ClientServiceFactory
-import io.greenbus.web.mocks.{ModelServiceMock, EventServiceMock}
-import io.greenbus.web.reefpolyfill.FrontEndService
+import io.greenbus.web.mocks.{EventServiceMock, ModelServiceMock}
+import io.greenbus.web.reefpolyfill.{FrontEndService, PointServicePF}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import io.greenbus.msg.Session
 import io.greenbus.client.service._
-import io.greenbus.client.service.proto.Model.{StoredValue, EntityKeyValue, ModelUUID}
+import io.greenbus.client.service.proto.Model.{EntityKeyValue, ModelUUID, StoredValue}
 import io.greenbus.client.service.proto.ModelRequests.EntityKeyPair
 import play.api.libs.json._
 import play.api.mvc.Cookie
@@ -54,6 +54,7 @@ class EquipmentPropertiesSpec extends Specification with Mockito {
     override def modelService(session: Session): ModelService = mockModelService
     override def frontEndService(session: Session): FrontEndService = throw new NotImplementedException
     override def processingService(session: Session): ProcessingService = throw new NotImplementedException
+    override def pointService(session: Session): PointServicePF = throw new NotImplementedException
   }
 
   def routeGet( path: String) = {

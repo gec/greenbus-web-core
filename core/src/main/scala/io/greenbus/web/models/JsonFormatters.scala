@@ -19,7 +19,7 @@
 package io.greenbus.web.models
 
 import com.fasterxml.jackson.core.JsonParseException
-import io.greenbus.client.service.proto.Commands.{CommandResult, CommandLock}
+import io.greenbus.client.service.proto.Commands.{CommandLock, CommandResult}
 import io.greenbus.client.service.proto.Model._
 import io.greenbus.web.connection.ConnectionStatus
 import io.greenbus.client.service.proto.Processing.MeasOverride
@@ -27,12 +27,15 @@ import play.api.Logger
 import play.api.libs.json._
 import play.api.libs.json.Writes._
 import play.api.libs.functional.syntax._
+
 import scala.collection.JavaConversions._
 import io.greenbus.client.service.proto.Events.{Alarm, AlarmNotification, Event, EventNotification}
 import io.greenbus.client.service.proto.Measurements._
-import io.greenbus.client.service.proto.Auth.{EntitySelector, Permission, PermissionSet, Agent}
+import io.greenbus.client.service.proto.Auth.{Agent, EntitySelector, Permission, PermissionSet}
 import io.greenbus.client.service.proto.FrontEnd._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF._
+import io.greenbus.web.reefpolyfill.PointServicePF
+import io.greenbus.web.reefpolyfill.PointServicePF.PointWithMeta
 
 /**
  *
@@ -460,6 +463,31 @@ object JsonFormatters {
       )
   }
 
+  implicit val pointWithMetaWrites = new Writes[PointWithMeta] {
+    def writes( o: PointWithMeta): JsValue =
+      if( o.integerLabelsBlob.isDefined)
+        Json.obj(
+          "name" -> o.name,
+          "id" -> o.id.getValue,
+          // TODO: Change client to pointCategory
+          "pointType" -> o.pointType.toString, // ANALOG, COUNTER, STATUS
+          "types" -> o.types,
+          "unit" -> o.unit,
+          "endpoint" -> o.endpointId.getValue, // TODO: get EndpointName
+          PointServicePF.IntegerLabelsKey -> renderKeyValueByteArray( PointServicePF.IntegerLabelsKey, o.integerLabelsBlob.get)
+        )
+      else
+        Json.obj(
+          "name" -> o.name,
+          "id" -> o.id.getValue,
+          // TODO: Change client to pointCategory
+          "pointType" -> o.pointType.toString, // ANALOG, COUNTER, STATUS
+          "types" -> o.types,
+          "unit" -> o.unit,
+          "endpoint" -> o.endpointId.getValue // TODO: get EndpointName
+        )
+  }
+
   implicit val equipmentWithPointsWrites = new Writes[EquipmentWithPoints] {
     def writes( o: EquipmentWithPoints): JsValue = {
       Json.obj(
@@ -525,7 +553,7 @@ object JsonFormatters {
 
   def renderKeyValueByteArray( key: String, value: Array[Byte]): JsValue = {
     // TODO: Need mime types instead of switching on names.
-    return if( key == "schematic") {
+    if( key == "schematic") {
       val stringValue = new String( value, "UTF-8")
       JsString( stringValue)
     } else {

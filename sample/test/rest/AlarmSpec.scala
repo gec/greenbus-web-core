@@ -4,13 +4,13 @@ import java.io.File
 
 import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.mocks.EventServiceMock
-import io.greenbus.web.reefpolyfill.FrontEndService
+import io.greenbus.web.reefpolyfill.{FrontEndService, PointServicePF}
 import org.specs2.mock.Mockito
 import org.specs2.mutable.Specification
 import io.greenbus.msg.Session
 import io.greenbus.client.service._
 import play.api.mvc.Cookie
-import play.api.test.{FakeRequest, FakeApplication}
+import play.api.test.{FakeApplication, FakeRequest}
 import play.api.test.Helpers._
 import play.api.libs.json._
 import controllers.Application
@@ -37,6 +37,7 @@ class AlarmSpec extends Specification with Mockito {
     override def modelService(session: Session): ModelService = throw new NotImplementedException
     override def frontEndService(session: Session): FrontEndService = throw new NotImplementedException
     override def processingService(session: Session): ProcessingService = throw new NotImplementedException
+    override def pointService(session: Session): PointServicePF = throw new NotImplementedException
   }
 
   def routePost( path: String, json: String) = {

@@ -16,7 +16,7 @@ import scala.language.implicitConversions
 
 object PointServicePF {
 
-  val IntegerLabelKey = "integerLabels"
+  val IntegerLabelsKey = "integerLabels"
 
   case class PointWithMeta(id: ModelUUID,
                            name: String,
@@ -24,14 +24,14 @@ object PointServicePF {
                            types: Seq[String],
                            unit: String,
                            endpointId: ModelUUID,
-                           integerLabelBlob: Option[Array[Byte]])
+                           integerLabelsBlob: Option[Array[Byte]])
 
   case class EquipmentWithPoints(id: ModelUUID,
                                  name: String,
                                  types: Seq[String],
                                  points: Seq[PointWithMeta])
 
-  def makePointWithMeta(point: Point, integerLabelBlob: Option[Array[Byte]]): PointWithMeta = {
+  def pointWithMetaFromPointAndMeta(point: Point, integerLabelBlob: Option[Array[Byte]]): PointWithMeta = {
     PointWithMeta( point.getUuid,
       point.getName,
       point.getPointCategory,
@@ -41,7 +41,7 @@ object PointServicePF {
       integerLabelBlob)
   }
 
-  def makePointsWithoutMeta(points: Seq[Point]): Seq[PointWithMeta] = points.map(makePointWithMeta(_,None))
+  def pointsWithoutMetaFromPoints(points: Seq[Point]): Seq[PointWithMeta] = points.map(pointWithMetaFromPointAndMeta(_,None))
 
   implicit def stringToModelUuid( uuid: String): Model.ModelUUID = ModelUUID.newBuilder().setValue( uuid).build()
 }
@@ -60,28 +60,28 @@ trait PointServicePF {
 class PointService(protected val modelService: service.ModelService) extends PointServicePF {
   import PointServicePF._
 
-  def pointMetasFromPoints(points: Seq[Point]): Future[Seq[PointWithMeta]] = {
-    val keyPairsRequest = points.map(p => EntityKeyPair.newBuilder.setUuid(p.getUuid).setKey(IntegerLabelKey).build)
+  def queryPointWithMetasFromPoints(points: Seq[Point]): Future[Seq[PointWithMeta]] = {
+    val keyPairsRequest = points.map(p => EntityKeyPair.newBuilder.setUuid(p.getUuid).setKey(IntegerLabelsKey).build)
     modelService.getEntityKeyValues(keyPairsRequest).map { keyValues =>
       val pointIdIntegerLabelBlobMap = keyValues.foldLeft( Map[String, Array[Byte]]()) { (map, keyValue) => map + (keyValue.getUuid.getValue -> keyValue.getValue.getByteArrayValue.toByteArray) }
       points.map { point =>
-        makePointWithMeta(point, pointIdIntegerLabelBlobMap.get(point.getUuid.getValue))
+        pointWithMetaFromPointAndMeta(point, pointIdIntegerLabelBlobMap.get(point.getUuid.getValue))
       }
     }
   }
 
   def getPoints(request: ModelRequests.EntityKeySet, includeMeta: Boolean = true): Future[Seq[PointWithMeta]] = {
     if( includeMeta)
-      modelService.getPoints(request).flatMap(pointMetasFromPoints)
+      modelService.getPoints(request).flatMap(queryPointWithMetasFromPoints)
     else
-      modelService.getPoints(request).map( makePointsWithoutMeta)
+      modelService.getPoints(request).map( pointsWithoutMetaFromPoints)
   }
 
   def pointQuery(request: ModelRequests.PointQuery, includeMeta: Boolean = true): Future[Seq[PointWithMeta]] = {
     if (includeMeta)
-      modelService.pointQuery(request).flatMap(pointMetasFromPoints)
+      modelService.pointQuery(request).flatMap(queryPointWithMetasFromPoints)
     else
-      modelService.pointQuery(request).map(makePointsWithoutMeta)
+      modelService.pointQuery(request).map(pointsWithoutMetaFromPoints)
   }
 
   def getPointsByType(pointTypes: List[String], limit: Int, startAfterId: Option[String]): Future[Seq[PointWithMeta]] = {
