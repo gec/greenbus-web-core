@@ -3,7 +3,7 @@ package io.greenbus.web.connection
 import io.greenbus.msg.Session
 import io.greenbus.client.service
 import io.greenbus.client.service._
-import io.greenbus.web.reefpolyfill.FrontEndService
+import io.greenbus.web.reefpolyfill.{FrontEndService, PointService, PointServicePF}
 
 /**
  *
@@ -17,6 +17,7 @@ trait ClientServiceFactory {
   def loginService( session: Session): LoginService
   def measurementService( session: Session): MeasurementService
   def processingService( session: Session): ProcessingService
+  def pointService( session: Session): PointServicePF
 }
 
 trait ClientServiceFactoryImpl extends ClientServiceFactory {
@@ -28,6 +29,7 @@ trait ClientServiceFactoryImpl extends ClientServiceFactory {
   def frontEndService( session: Session): FrontEndService =
     new FrontEndService( service.FrontEndService.client( session), modelService( session))
   def processingService( session: Session): ProcessingService = ProcessingService.client( session)
+  def pointService( session: Session): PointServicePF = new PointService( modelService( session))
 }
 
 object ClientServiceFactoryDefault extends ClientServiceFactoryImpl

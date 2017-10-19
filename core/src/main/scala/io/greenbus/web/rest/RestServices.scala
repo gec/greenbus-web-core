@@ -26,20 +26,22 @@ import io.greenbus.web.config.dal.NavigationUrls
 import org.h2.jdbc.JdbcSQLException
 import io.greenbus.client.exception.{BadRequestException, ForbiddenException, LockedException}
 import io.greenbus.client.service.proto.Commands.{CommandLock, CommandRequest}
-import io.greenbus.client.service.proto.Measurements.{PointMeasurementValue, MeasurementNotification, Measurement}
+import io.greenbus.client.service.proto.Measurements.{Measurement, MeasurementNotification, PointMeasurementValue}
 import io.greenbus.client.service.proto.ModelRequests._
-import io.greenbus.client.service.proto.EventRequests.{EventQueryParams, AlarmStateUpdate, AlarmQuery, EventQuery}
+import io.greenbus.client.service.proto.EventRequests.{AlarmQuery, AlarmStateUpdate, EventQuery, EventQueryParams}
 import io.greenbus.client.service.proto.Events.Alarm
 import io.greenbus.client.service.proto.Model.Point
 import io.greenbus.client.service.proto.Model.{Entity, EntityEdge, ModelID, ModelUUID}
 import io.greenbus.client.service.proto.Processing.MeasOverride
 import io.greenbus.client.service.proto._
-import io.greenbus.client.service.{ModelService, EventService, MeasurementService}
+import io.greenbus.client.service.{EventService, MeasurementService, ModelService}
 import io.greenbus.web.auth.ServiceAuthentication
 import io.greenbus.web.connection.ClientServiceFactory
 import io.greenbus.web.models.ControlMessages.CommandExecuteRequest
 import io.greenbus.web.models.ExceptionMessages.ExceptionMessage
 import io.greenbus.web.models.EntityWithChildren
+import io.greenbus.web.reefpolyfill.PointServicePF
+import io.greenbus.web.reefpolyfill.PointServicePF.PointWithMeta
 import io.greenbus.web.util.Timer
 import play.api.Logger
 import play.api.libs.json._
@@ -430,6 +432,7 @@ trait RestServices extends ServiceAuthentication {
     Logger.debug( s"queryPointsByTypeForEquipments modelService.relationshipFlatQuery: ${builtQuery}")
     modelService.relationshipFlatQuery( query.build)
   }
+
   def queryEdgesForParentsAndChildren( service: ModelService, parentModelUUIDs: Seq[ModelUUID], childModelUUIDs: Seq[ModelUUID], depth: Int, limit: Int) = {
     val query = EntityEdgeQuery.newBuilder()
       .addAllParentUuids( parentModelUUIDs)
@@ -442,74 +445,35 @@ trait RestServices extends ServiceAuthentication {
 
   }
 
-  /**
-   * Return a list of points optionally filtered by point types (i.e. entity types).
-   *
-   * @param modelService getting entities by type
-   * @param pointTypes List of point types (i.e. entity types)
-   * @param limit Limit number of results
-   * @param startAfterId Start the next page after this UUID
-   * @param ascending True: sort in ascending order (also used for paging forward vs backward)
-   * @return
-   */
-  def getPointsByType( modelService: ModelService, pointTypes: List[String], limit: Int, startAfterId: Option[String], ascending: Boolean) = {
-
-    val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
-    startAfterId.foreach(pagingParams.setLastUuid(_))
-    // TODO: implement ascending when available in greenbus API
-
-    val query = ModelRequests.EntityQuery.newBuilder()
-      .setPagingParams( pagingParams)
-    if( pointTypes.isEmpty) {
-      val pointType = EntityTypeParams.newBuilder().addIncludeTypes( "Point")
-      query.setTypeParams( pointType)
-    }
-    else {
-      val orPointTypes_AND_Point = EntityTypeParams.newBuilder()
-        .addAllIncludeTypes( pointTypes) // OR
-        .addMatchTypes("Point")  // AND
-      query.setTypeParams( orPointTypes_AND_Point)
-    }
-
-    modelService.entityQuery( query.build).flatMap {
-      case Seq() => Future.successful( Ok( JSON_EMPTY_ARRAY ))
-      case pointEnts =>
-        val modelUuids = pointEnts.map(_.getUuid)
-        val keys = EntityKeySet.newBuilder().addAllUuids( modelUuids).build()
-
-        modelService.getPoints( keys).map{ result => Ok( Json.toJson( result)) }
-    }
-  }
-
-  def queryPointsByIds( pointIds: Seq[ModelUUID], modelService: ModelService) = {
+  def queryPointsByIds(pointIds: Seq[ModelUUID], pointService: PointServicePF) = {
       val keys = EntityKeySet.newBuilder().addAllUuids(pointIds).build()
-      modelService.getPoints( keys)
+      pointService.getPoints( keys)
   }
 
-  def queryPointsByNames( pnames: Seq[String], modelService: ModelService) = {
+  def queryPointsByNames(pnames: Seq[String], pointService: PointServicePF) = {
       val keys = EntityKeySet.newBuilder().addAllNames(pnames).build()
-      modelService.getPoints( keys)
+      pointService.getPoints( keys)
   }
 
   def getPoint( modelId: String, pointId: String) = ServiceClientActionAsync { (request, session) =>
-    val service = serviceFactory.modelService( session)
+    val service = serviceFactory.pointService( session)
     val modelId = ModelUUID.newBuilder().setValue( pointId).build()
     queryPointsByIds( Seq(modelId), service).map{
       case Seq() => Ok( JSON_EMPTY_OBJECT) // TODO: error message?  The client just expects a point object
-      case points => Ok( Json.toJson( points(0)))
+      case points => Ok( Json.toJson( points.head))
     }
   }
 
-  def getPointsByIds( pids: Seq[String], modelService: ModelService) = {
+  def getPointsByIds(pids: Seq[String], pointService: PointServicePF) = {
     val modelIds = pids.map( ModelUUID.newBuilder().setValue( _).build())
-    queryPointsByIds( modelIds, modelService).map{
+    queryPointsByIds( modelIds, pointService).map{
       case Seq() => Ok( JSON_EMPTY_ARRAY)
       case points => Ok( Json.toJson( points))
     }
   }
 
-  def getPointsByNames( pnames: Seq[String], modelService: ModelService) = {
-    queryPointsByNames( pnames, modelService).map{
+  def getPointsByNames(pnames: Seq[String], pointService: PointServicePF) = {
+    queryPointsByNames( pnames, pointService).map{
       case Seq() => Ok( JSON_EMPTY_ARRAY)
       case points => Ok( Json.toJson( points))
     }
@@ -530,84 +494,24 @@ trait RestServices extends ServiceAuthentication {
    * @return
    */
   def getPoints( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String], ascending: Boolean) = ServiceClientActionAsync { (request, session) =>
-    Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
+    Logger.debug( s"getPoints begin pointTypes: " + pointTypes)
 
-    def makeEquipmentIdPointsMap( edges: Seq[EntityEdge], points: Seq[Point]) = {
-
-      val pointIdPointMap = points.foldLeft( Map[String, Point]()) { (map, point) => map + (point.getUuid.getValue -> point) }
-
-      edges.foldLeft(Map[String, List[Point]]()) { (map, edge) =>
-        val parentId = edge.getParent.getValue
-        val childId = edge.getChild.getValue
-
-        pointIdPointMap.get( childId) match {
-          case Some( point) =>
-            map.get(parentId) match {
-              case Some( childList) => map + (parentId -> (point :: childList) )
-              case None => map + (parentId -> List[Point](point))
-            }
-          case None =>
-            Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
-            map
-        }
-      }
-
-    }
 
     val modelService = serviceFactory.modelService( session)
+    val pointService = serviceFactory.pointService( session)
 
     if( equipmentIds.isEmpty) {
       // Return a list of points
       if( ! pids.isEmpty)
-        getPointsByIds( pids, modelService)
+        getPointsByIds( pids, pointService)
       else if( ! pnames.isEmpty)
-        getPointsByNames( pnames, modelService)
+        getPointsByNames( pnames, pointService)
       else
-        getPointsByType( modelService, pointTypes, limit, startAfterId, ascending)
+        pointService.getPointsByType( pointTypes, limit, startAfterId).map( result => Ok( Json.toJson(result)))
 
     } else {
-
-      val t1 = new Timer( "getPointsByTypeForEquipmentsQuery |||||||||||||||||||||||||", Timer.DEBUG)
       val equipmentModelUUIDs = equipmentIds.map( ModelUUID.newBuilder().setValue( _).build())
-      queryPointsByTypeForEquipments( modelService, equipmentModelUUIDs, pointTypes, depth, limit, startAfterId, ascending).flatMap { pointsAsEntities =>
-
-        if( pointsAsEntities.isEmpty) {
-          t1.end( "return early because there are no points under this list of equipment")
-          Future.successful( Ok(JSON_EMPTY_OBJECT)) // No points for this list of equipment.
-        } else {
-          t1.delta( s"got pointsAsEntities. result count: ${pointsAsEntities.length} ")
-//          val pointTypesSet = pointTypes.toSet
-//          val pointsAsEntitiesWithCorrectType = pointsAsEntities.filter( p => p.getTypesList.exists( pointTypesSet.contains))
-
-          val pointIds = pointTypes.isEmpty match {
-            case true =>
-              pointsAsEntities.map( _.getUuid)
-            case false =>
-              val pointTypesSet = pointTypes.toSet
-              val pointsAsEntitiesWithCorrectType = pointsAsEntities.filter( _.getTypesList.exists( pointTypesSet.contains))
-              pointsAsEntitiesWithCorrectType.map( _.getUuid)
-          }
-
-          //TODO: Currently re-getting entities as Point. Need new API from GreenBus to directly get points under equipment.
-          queryPointsByIds( pointIds, modelService).flatMap { points =>
-            t1.delta( s"got getPointsByIds, result count: ${points.length} ")
-
-            // Return a map of equipment IDs to points array.
-            if( equipmentIds.length <= 1) {
-              val equipmentIdToPointsMap = Map( equipmentIds(0) -> points)
-              t1.end( "return early because it's just on equipment")
-              Future.successful( Ok( Json.toJson(equipmentIdToPointsMap)))
-            } else {
-              queryEdgesForParentsAndChildren( modelService, equipmentModelUUIDs, pointIds, depth, limit).map { edges =>
-                t1.end( "got getEdgesForParentsAndChildrenQuery")
-                val equipmentIdToPointsMap = makeEquipmentIdPointsMap( edges, points)
-                Ok( Json.toJson(equipmentIdToPointsMap))
-              }
-            }
-          }
-        }
-
-      }
+      pointService.getPointsByEquipmentIds(equipmentModelUUIDs, pointTypes, depth, limit, startAfterId).map( result => Ok(Json.toJson(result)))
     }
   }
 
@@ -661,7 +565,7 @@ trait RestServices extends ServiceAuthentication {
    * @return
    */
   def getMeasurements( modelId: String, pids: List[String], pnames: List[String], equipmentIds: List[String], pointTypes: List[String], depth: Int, limit: Int) = ServiceClientActionAsync { (request, session) =>
-    Logger.debug( s"getPointsByTypeForEquipments begin pointTypes: " + pointTypes)
+    Logger.debug( s"getMeasurements begin pointTypes: " + pointTypes)
 
     val modelService = serviceFactory.modelService( session)
     val measurementService = serviceFactory.measurementService( session)
