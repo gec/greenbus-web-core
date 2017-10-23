@@ -465,7 +465,7 @@ object JsonFormatters {
 
   implicit val pointWithMetaWrites = new Writes[PointWithMeta] {
     def writes( o: PointWithMeta): JsValue =
-      if( o.integerLabelsBlob.isDefined)
+      if( o.metadataBlob.isDefined)
         Json.obj(
           "name" -> o.name,
           "id" -> o.id.getValue,
@@ -474,7 +474,7 @@ object JsonFormatters {
           "types" -> o.types,
           "unit" -> o.unit,
           "endpoint" -> o.endpointId.getValue, // TODO: get EndpointName
-          PointServicePF.IntegerLabelsKey -> renderKeyValueByteArray( PointServicePF.IntegerLabelsKey, o.integerLabelsBlob.get)
+          PointServicePF.MetadataKey -> renderKeyValueByteArray( PointServicePF.MetadataKey, o.metadataBlob.get)
         )
       else
         Json.obj(

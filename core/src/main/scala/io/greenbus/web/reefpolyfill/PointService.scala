@@ -16,7 +16,7 @@ import scala.language.implicitConversions
 
 object PointServicePF {
 
-  val IntegerLabelsKey = "integerLabels"
+  val MetadataKey = "metadata"
 
   case class PointWithMeta(id: ModelUUID,
                            name: String,
@@ -24,7 +24,7 @@ object PointServicePF {
                            types: Seq[String],
                            unit: String,
                            endpointId: ModelUUID,
-                           integerLabelsBlob: Option[Array[Byte]])
+                           metadataBlob: Option[Array[Byte]])
 
   case class EquipmentWithPoints(id: ModelUUID,
                                  name: String,
@@ -61,7 +61,7 @@ class PointService(protected val modelService: service.ModelService) extends Poi
   import PointServicePF._
 
   def queryPointWithMetasFromPoints(points: Seq[Point]): Future[Seq[PointWithMeta]] = {
-    val keyPairsRequest = points.map(p => EntityKeyPair.newBuilder.setUuid(p.getUuid).setKey(IntegerLabelsKey).build)
+    val keyPairsRequest = points.map(p => EntityKeyPair.newBuilder.setUuid(p.getUuid).setKey(MetadataKey).build)
     modelService.getEntityKeyValues(keyPairsRequest).map { keyValues =>
       val pointIdIntegerLabelBlobMap = keyValues.foldLeft( Map[String, Array[Byte]]()) { (map, keyValue) => map + (keyValue.getUuid.getValue -> keyValue.getValue.getByteArrayValue.toByteArray) }
       points.map { point =>
