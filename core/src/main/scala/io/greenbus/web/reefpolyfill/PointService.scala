@@ -26,6 +26,14 @@ object PointServicePF {
                            endpointId: ModelUUID,
                            metadataBlob: Option[Array[Byte]])
 
+  case class CommandWithMeta(id: ModelUUID,
+                             name: String,
+                             displayName: String,
+                             commandType: Model.CommandCategory,
+                             types: Seq[String],
+                             endpointId: ModelUUID,
+                             metadataBlob: Option[Array[Byte]])
+
   case class EquipmentWithPoints(id: ModelUUID,
                                  name: String,
                                  types: Seq[String],
@@ -40,8 +48,18 @@ object PointServicePF {
       point.getEndpointUuid,
       integerLabelBlob)
   }
-
   def pointsWithoutMetaFromPoints(points: Seq[Point]): Seq[PointWithMeta] = points.map(pointWithMetaFromPointAndMeta(_,None))
+
+  def commandWithMetaFromCommandAndMeta(command: Model.Command, integerLabelBlob: Option[Array[Byte]]): CommandWithMeta = {
+    CommandWithMeta( command.getUuid,
+      command.getName,
+      command.getDisplayName,
+      command.getCommandCategory,
+      command.getTypesList.toList,
+      command.getEndpointUuid,
+      integerLabelBlob)
+  }
+  def commandsWithoutMetaFromCommands(commands: Seq[Model.Command]): Seq[CommandWithMeta] = commands.map(commandWithMetaFromCommandAndMeta(_,None))
 
   implicit def stringToModelUuid( uuid: String): Model.ModelUUID = ModelUUID.newBuilder().setValue( uuid).build()
 }
@@ -52,8 +70,9 @@ trait PointServicePF {
 
   def getPoints(request: ModelRequests.EntityKeySet, includeMeta: Boolean = true): Future[Seq[PointWithMeta]]
   def pointQuery(request: ModelRequests.PointQuery, includeMeta: Boolean = true): Future[Seq[PointWithMeta]]
-  def getPointsByType(pointTypes: List[String], limit: Int, startAfterId: Option[String]): Future[Seq[PointWithMeta]]
-  def getPointsByEquipmentIds( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String]): Future[Map[String,Seq[PointWithMeta]]]
+  def getPointsByType(pointTypes: Seq[String], limit: Int, startAfterId: Option[String]): Future[Seq[PointWithMeta]]
+  def getPointsByEquipmentIds( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: Seq[String], depth: Int, limit: Int, startAfterId: Option[String]): Future[Map[String,Seq[PointWithMeta]]]
+  def getCommandsForPoints(pointIds: Seq[String], includeMeta: Boolean = true): Future[Map[String,Seq[CommandWithMeta]]]
 }
 
 
@@ -66,6 +85,16 @@ class PointService(protected val modelService: service.ModelService) extends Poi
       val pointIdIntegerLabelBlobMap = keyValues.foldLeft( Map[String, Array[Byte]]()) { (map, keyValue) => map + (keyValue.getUuid.getValue -> keyValue.getValue.getByteArrayValue.toByteArray) }
       points.map { point =>
         pointWithMetaFromPointAndMeta(point, pointIdIntegerLabelBlobMap.get(point.getUuid.getValue))
+      }
+    }
+  }
+
+  def queryCommandsWithMetasFromCommands(commands: Seq[Model.Command]): Future[Seq[CommandWithMeta]] = {
+    val keyPairsRequest = commands.map(p => EntityKeyPair.newBuilder.setUuid(p.getUuid).setKey(MetadataKey).build)
+    modelService.getEntityKeyValues(keyPairsRequest).map { keyValues =>
+      val commandIdIntegerLabelBlobMap = keyValues.foldLeft( Map[String, Array[Byte]]()) { (map, keyValue) => map + (keyValue.getUuid.getValue -> keyValue.getValue.getByteArrayValue.toByteArray) }
+      commands.map { command =>
+        commandWithMetaFromCommandAndMeta(command, commandIdIntegerLabelBlobMap.get(command.getUuid.getValue))
       }
     }
   }
@@ -84,7 +113,7 @@ class PointService(protected val modelService: service.ModelService) extends Poi
       modelService.pointQuery(request).map(pointsWithoutMetaFromPoints)
   }
 
-  def getPointsByType(pointTypes: List[String], limit: Int, startAfterId: Option[String]): Future[Seq[PointWithMeta]] = {
+  def getPointsByType(pointTypes: Seq[String], limit: Int, startAfterId: Option[String]): Future[Seq[PointWithMeta]] = {
     val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
     startAfterId.foreach(pagingParams.setLastUuid(_))
 
@@ -110,7 +139,7 @@ class PointService(protected val modelService: service.ModelService) extends Poi
   }
 
 
-  def getPointsByEquipmentIds( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String]): Future[Map[String,Seq[PointWithMeta]]] = {
+  def getPointsByEquipmentIds( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: Seq[String], depth: Int, limit: Int, startAfterId: Option[String]): Future[Map[String,Seq[PointWithMeta]]] = {
     queryPointsByTypeForEquipments( equipmentModelUUIDs, pointTypes, depth, limit, startAfterId).flatMap { pointsAsEntities =>
 
       if( pointsAsEntities.isEmpty) {
@@ -156,15 +185,15 @@ class PointService(protected val modelService: service.ModelService) extends Poi
 
     val pointIdPointMap = points.foldLeft( Map[String, PointWithMeta]()) { (map, point) => map + (point.id.getValue -> point) }
 
-    edges.foldLeft(Map[String, List[PointWithMeta]]()) { (map, edge) =>
+    edges.foldLeft(Map[String, Seq[PointWithMeta]]()) { (map, edge) =>
       val parentId = edge.getParent.getValue
       val childId = edge.getChild.getValue
 
       pointIdPointMap.get( childId) match {
         case Some( point) =>
           map.get(parentId) match {
-            case Some( childList) => map + (parentId -> (point :: childList) )
-            case None => map + (parentId -> List[PointWithMeta](point))
+            case Some( childList) => map + (parentId -> (point +: childList) )
+            case None => map + (parentId -> Seq[PointWithMeta](point))
           }
         case None =>
           Logger.error( s"makeEquipmentPointMap Internal error edge.getChild=${edge.getChild.getValue} does not exist in pointIdPointMap.")
@@ -174,7 +203,7 @@ class PointService(protected val modelService: service.ModelService) extends Poi
 
   }
 
-  private def queryPointsByTypeForEquipments( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: List[String], depth: Int, limit: Int, startAfterId: Option[String]) = {
+  private def queryPointsByTypeForEquipments( equipmentModelUUIDs: Seq[ModelUUID], pointTypes: Seq[String], depth: Int, limit: Int, startAfterId: Option[String]) = {
     Logger.debug( s"queryPointsByTypeForEquipments begin pointTypes: $pointTypes")
 
     val pagingParams = EntityPagingParams.newBuilder().setPageSize( limit)
@@ -207,4 +236,60 @@ class PointService(protected val modelService: service.ModelService) extends Poi
 
   }
 
+  def getCommands(request: ModelRequests.EntityKeySet, includeMeta: Boolean = true): Future[Seq[CommandWithMeta]] = {
+    if( includeMeta)
+      modelService.getCommands(request).flatMap(queryCommandsWithMetasFromCommands)
+    else
+      modelService.getCommands(request).map( commandsWithoutMetaFromCommands)
+  }
+
+  def commandQuery(request: ModelRequests.CommandQuery, includeMeta: Boolean = true): Future[Seq[CommandWithMeta]] = {
+    if (includeMeta)
+      modelService.commandQuery(request).flatMap(queryCommandsWithMetasFromCommands)
+    else
+      modelService.commandQuery(request).map(commandsWithoutMetaFromCommands)
+  }
+
+  def getCommandsForPoints(pointIds: Seq[String], includeMeta: Boolean = true): Future[Map[String,Seq[CommandWithMeta]]] = {
+    val query = EntityEdgeQuery.newBuilder()
+    val modelPointIds = pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
+    query.addAllParentUuids( modelPointIds)
+    query
+      .addRelationships( "feedback")
+      .setDepthLimit( 1)  // just the immediate edge.
+      .setPageSize( Int.MaxValue)
+
+    modelService.edgeQuery( query.build).flatMap { edges =>
+
+      if( edges.isEmpty) {
+        Future.successful( Map.empty[String,Seq[CommandWithMeta]]) // No commands
+      } else {
+        val pointIdToCommandIdMap = entityEdgesToParentChildrenMap( edges).filter( m => m._2.length > 0)
+        val commandIds = edges.map( _.getChild)
+        val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
+
+        getCommands( keySet) map {  commands =>
+          val commandIdCommandMap = commands.foldLeft( Map[ModelUUID, CommandWithMeta]()) { (map, c) => map + (c.id -> c) }
+          val pointIdCommandMap = pointIdToCommandIdMap.map{ case ( pointId, commandIds) =>
+            val cs = commandIds.flatMap( commandIdCommandMap.get)
+            (pointId.getValue -> cs.toSeq)
+          }
+          pointIdCommandMap
+        }
+      }
+
+    }
+
+  }
+
+  def entityEdgesToParentChildrenMap( edges: Seq[EntityEdge]): Map[ModelUUID,List[ModelUUID]] = {
+    edges.foldLeft( Map[ModelUUID,List[ModelUUID]]()) { (map, edge) =>
+      val pointId = edge.getParent
+      val commandId = edge.getChild
+      map.get( pointId) match {
+        case Some( commands) => map + (pointId -> (commandId :: commands))
+        case None => map + ( pointId -> List(commandId))
+      }
+    }
+  }
 }

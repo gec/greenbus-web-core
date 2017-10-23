@@ -588,52 +588,11 @@ trait RestServices extends ServiceAuthentication {
 
 
     request.body.asJson.map { json =>
-      json.validate[Seq[String]].map{
-        case pointIds =>
-
-
-          val query = EntityEdgeQuery.newBuilder()
-          val modelPointIds = pointIds.map( id => ModelUUID.newBuilder().setValue( id).build())
-          query.addAllParentUuids( modelPointIds)
-          query
-            .addRelationships( "feedback")
-            .setDepthLimit( 1)  // just the immediate edge.
-            .setPageSize( Int.MaxValue)
-
-          val modelService = serviceFactory.modelService( session)
-          modelService.edgeQuery( query.build).flatMap { edges =>
-
-            if( edges.isEmpty) {
-              Future.successful( Ok(JSON_EMPTY_OBJECT)) // No commands
-            } else {
-              val pointIdToCommandIdMap = entityEdgesToParentChildrenMap( edges).filter( m => m._2.length > 0)
-              val commandIds = edges.map( _.getChild)
-              val keySet = EntityKeySet.newBuilder().addAllUuids( commandIds).build()
-
-              modelService.getCommands( keySet) map {  commands =>
-                val commandIdCommandMap = commands.foldLeft( Map[ModelUUID, Model.Command]()) { (map, c) => map + (c.getUuid -> c) }
-                //        val commandIdCommandMap = commands.map{ c => (c.getUuid -> c) }.toMap
-
-
-                val pointIdCommandMap = pointIdToCommandIdMap.map{ case ( pointId, commandIds) =>
-
-                  val cs = commandIds.flatMap( commandIdCommandMap.get)
-  //                val cs = for( commandId <- commandIds;
-  //                              command <- commandIdCommandMap.get( commandId)
-  //                ) yield command
-
-                  (pointId.getValue -> cs)
-                }
-                Ok( Json.toJson( pointIdCommandMap))
-              }
-            }
-
-
-          }
-
-
-
-
+      json.validate[Seq[String]].map{ case pointIds =>
+        val pointService = serviceFactory.pointService( session)
+        pointService.getCommandsForPoints(pointIds).map { pointIdCommandMap =>
+          Ok( Json.toJson( pointIdCommandMap))
+        }
       }.recoverTotal{
         e => Future.successful( BadRequest("Detected error:"+ JsError.toFlatJson(e)))
       }

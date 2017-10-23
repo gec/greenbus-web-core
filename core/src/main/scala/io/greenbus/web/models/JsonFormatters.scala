@@ -35,7 +35,7 @@ import io.greenbus.client.service.proto.Auth.{Agent, EntitySelector, Permission,
 import io.greenbus.client.service.proto.FrontEnd._
 import io.greenbus.web.reefpolyfill.FrontEndServicePF._
 import io.greenbus.web.reefpolyfill.PointServicePF
-import io.greenbus.web.reefpolyfill.PointServicePF.PointWithMeta
+import io.greenbus.web.reefpolyfill.PointServicePF.{CommandWithMeta, PointWithMeta}
 
 /**
  *
@@ -198,6 +198,29 @@ object JsonFormatters {
         "displayName" -> o.getDisplayName,
         "endpoint" -> o.getEndpointUuid.getValue // TODO: get EndpointName
       )
+  }
+
+  implicit val commandWithMetaWrites = new Writes[CommandWithMeta] {
+    def writes( o: CommandWithMeta): JsValue =
+      if( o.metadataBlob.isDefined)
+        Json.obj(
+          "id" -> o.id.getValue,
+          "name" -> o.name,
+          "displayName" -> o.displayName,
+          "commandType" -> o.commandType.name,
+          "types" -> o.types,
+          "endpoint" -> o.endpointId.getValue, // TODO: get EndpointName
+          PointServicePF.MetadataKey -> renderKeyValueByteArray( PointServicePF.MetadataKey, o.metadataBlob.get)
+        )
+      else
+        Json.obj(
+          "id" -> o.id.getValue,
+          "name" -> o.name,
+          "displayName" -> o.displayName,
+          "commandType" -> o.commandType.name,
+          "types" -> o.types,
+          "endpoint" -> o.endpointId.getValue // TODO: get EndpointName
+        )
   }
 
   implicit val commandLockWrites = new Writes[CommandLock] {
