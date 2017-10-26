@@ -38,5 +38,5 @@ Point your web browser at `http://localhost:9000`
 
 ## License
 
-[Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+This software is under the [Apache 2.0 License](http://www.apache.org/licenses/LICENSE-2.0.html).
 
